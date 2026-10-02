@@ -252,51 +252,51 @@ VALUES
 
 
 -- Grupo 2
--- Prompt simples A -> Prompt estruturado B -> Manual C
+-- Prompt estruturado B -> Manual C -> Prompt simples A
 
 INSERT INTO group_tasks (group_id, use_case_id, mode, task_order)
 VALUES
 (
     (SELECT id FROM experiment_groups WHERE name = 'Grupo 2'),
-    (SELECT id FROM use_cases WHERE code = 'A'),
-    'SIMPLE_PROMPT',
-    1
-),
-(
-    (SELECT id FROM experiment_groups WHERE name = 'Grupo 2'),
     (SELECT id FROM use_cases WHERE code = 'B'),
     'STRUCTURED_PROMPT',
-    2
+    1
 ),
 (
     (SELECT id FROM experiment_groups WHERE name = 'Grupo 2'),
     (SELECT id FROM use_cases WHERE code = 'C'),
     'MANUAL',
+    2
+),
+(
+    (SELECT id FROM experiment_groups WHERE name = 'Grupo 2'),
+    (SELECT id FROM use_cases WHERE code = 'A'),
+    'SIMPLE_PROMPT',
     3
 );
 
 
 -- Grupo 3
--- Prompt estruturado A -> Manual B -> Prompt simples C
+-- Prompt simples C -> Prompt estruturado A -> Manual B
 
 INSERT INTO group_tasks (group_id, use_case_id, mode, task_order)
 VALUES
 (
     (SELECT id FROM experiment_groups WHERE name = 'Grupo 3'),
+    (SELECT id FROM use_cases WHERE code = 'C'),
+    'SIMPLE_PROMPT',
+    1
+),
+(
+    (SELECT id FROM experiment_groups WHERE name = 'Grupo 3'),
     (SELECT id FROM use_cases WHERE code = 'A'),
     'STRUCTURED_PROMPT',
-    1
+    2
 ),
 (
     (SELECT id FROM experiment_groups WHERE name = 'Grupo 3'),
     (SELECT id FROM use_cases WHERE code = 'B'),
     'MANUAL',
-    2
-),
-(
-    (SELECT id FROM experiment_groups WHERE name = 'Grupo 3'),
-    (SELECT id FROM use_cases WHERE code = 'C'),
-    'SIMPLE_PROMPT',
     3
 );
 
