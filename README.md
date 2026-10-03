@@ -64,9 +64,19 @@ Cada participante e associado a um grupo experimental. Ao iniciar o experimento,
 
 A proxima atividade so fica disponivel apos a conclusao da atividade anterior.
 
+No modo manual, o participante cria os casos de teste diretamente. No modo de
+prompt simples, o participante escreve uma instrucao livre e a aplicacao
+adiciona automaticamente o caso de uso. No modo de prompt estruturado, o
+participante preenche um formulario e a aplicacao monta o prompt final a partir
+do template ativo.
+
+Nos dois modos com IA, o participante visualiza o prompt final antes do envio,
+pode voltar para editar sua entrada e confirma uma unica chamada ao Gemini. Apos
+o envio, nao ha regeneracao nem edicao da resposta.
+
 ## Area administrativa
 
-A area administrativa fica em `/admin` e permite acompanhar progresso, consultar atividades e exportar dados em JSON/CSV.
+A area administrativa fica em `/admin` e permite acompanhar progresso, consultar atividades, visualizar rastreabilidade dos prompts e exportar dados em JSON/CSV/Excel.
 
 Atencao: `/admin` ainda nao possui autenticacao. Use somente em ambiente controlado.
 

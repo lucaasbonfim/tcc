@@ -38,17 +38,27 @@ Execute este roteiro depois de configurar o banco, backend e frontend.
 
 1. Abra uma atividade do modo `SIMPLE_PROMPT`.
 2. Clique em `Iniciar atividade`.
-3. Clique em `Gerar casos de teste`.
-4. Confirme que a resposta da IA aparece na tela.
-5. Finalize a atividade.
+3. Escreva uma instrucao livre no campo `Sua instrucao`.
+4. Clique em `Visualizar prompt`.
+5. Confirme que o prompt final aparece em modo somente leitura.
+6. Clique em `Voltar e editar` e confirme que o texto preenchido permanece.
+7. Clique novamente em `Visualizar prompt`.
+8. Clique em `Enviar para IA`.
+9. Confirme que a resposta da IA aparece na tela.
+10. Finalize a atividade.
 
 ## 5. Atividade com prompt estruturado
 
 1. Abra uma atividade do modo `STRUCTURED_PROMPT`.
 2. Clique em `Iniciar atividade`.
-3. Clique em `Gerar casos de teste`.
-4. Confirme que a resposta da IA aparece na tela.
-5. Finalize a atividade.
+3. Preencha objetivo, aspectos, cenarios e formato esperado.
+4. Clique em `Visualizar prompt`.
+5. Confirme que o prompt final aparece em modo somente leitura.
+6. Clique em `Voltar e editar` e confirme que os campos permanecem preenchidos.
+7. Clique novamente em `Visualizar prompt`.
+8. Clique em `Enviar para IA`.
+9. Confirme que a resposta da IA aparece na tela.
+10. Finalize a atividade.
 
 ## 6. Area administrativa
 
@@ -58,8 +68,9 @@ Execute este roteiro depois de configurar o banco, backend e frontend.
 4. Confirme que o participante usado no teste aparece.
 5. Abra os detalhes do participante.
 6. Confirme que as atividades exibem status, inicio, fim e duracao.
-7. Abra `Atividades`.
-8. Teste os filtros por modo e status.
+7. Nos detalhes de atividade com IA, confirme que aparecem entrada do participante, prompt final e resposta da IA.
+8. Abra `Atividades`.
+9. Teste os filtros por modo e status.
 
 ## 7. Exportacoes
 
@@ -67,7 +78,9 @@ Execute este roteiro depois de configurar o banco, backend e frontend.
 2. Confirme que o arquivo foi baixado.
 3. Clique em `Exportar CSV`.
 4. Confirme que o arquivo foi baixado.
-5. Verifique se os arquivos contem participante, grupo, atividade, caso de uso, tempos e dados da IA quando aplicavel.
+5. Clique em `Exportar Excel`.
+6. Confirme que o arquivo foi baixado com cabecalhos formatados.
+7. Verifique se os arquivos contem participante, grupo, atividade, caso de uso, tempos, entrada do participante, prompt final e dados da IA quando aplicavel.
 
 ## Resultado esperado
 
@@ -75,4 +88,4 @@ Execute este roteiro depois de configurar o banco, backend e frontend.
 - Frontend do participante completa o fluxo.
 - Modos `MANUAL`, `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` permanecem separados.
 - Tempos de inicio, fim, duracao e resposta da IA sao registrados.
-- Admin carrega dados e exporta JSON/CSV.
+- Admin carrega dados e exporta JSON/CSV/Excel.

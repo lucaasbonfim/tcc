@@ -15,7 +15,8 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Rota `GET /api/health` respondendo `{ "status": "ok" }`.
 - [ ] Casos de uso A, B e C cadastrados.
 - [ ] Grupos 1, 2 e 3 cadastrados.
-- [ ] Prompts `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` cadastrados.
+- [ ] Templates `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` versao `2.0` cadastrados.
+- [ ] Colunas `participant_input` e `final_prompt` existentes em `ai_runs`.
 - [ ] Responsavel ciente de que `/admin` nao possui autenticacao.
 
 ## Durante a coleta
@@ -26,15 +27,17 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Atividades inicializadas somente apos perfil preenchido.
 - [ ] Participante executou as atividades na ordem exibida.
 - [ ] Atividade manual concluida com pelo menos um caso de teste.
-- [ ] Atividade com prompt simples gerou resposta da IA antes da conclusao.
-- [ ] Atividade com prompt estruturado gerou resposta da IA antes da conclusao.
+- [ ] Atividade com prompt simples permitiu instrucao livre, preview e envio unico.
+- [ ] Atividade com prompt estruturado permitiu formulario, preview e envio unico.
+- [ ] Apos envio para IA, nenhuma atividade permitiu regeneracao.
 - [ ] Administrador acompanhou progresso em `/admin`.
 
 ## Depois da coleta
 
 - [ ] Todos os participantes esperados aparecem em `/admin/participants`.
 - [ ] Atividades concluidas aparecem com inicio, fim e duracao.
-- [ ] Execucoes de IA aparecem com modelo, versao do prompt e tempo de resposta.
+- [ ] Execucoes de IA aparecem com modelo, versao do template, entrada do participante, prompt final e tempo de resposta.
 - [ ] Exportacao JSON realizada.
 - [ ] Exportacao CSV realizada.
+- [ ] Exportacao Excel realizada.
 - [ ] Arquivos exportados armazenados em local seguro para analise.

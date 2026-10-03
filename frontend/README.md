@@ -49,8 +49,11 @@ npm run build
 - Consentimento e questionario de perfil.
 - Execucao das tres atividades do experimento na ordem configurada pelo grupo.
 - Atividade manual com cadastro, edicao e exclusao de casos de teste.
-- Atividades com IA para prompt simples e prompt estruturado.
-- Area administrativa em `/admin` com visao geral, participantes, atividades e exportacoes JSON/CSV.
+- Atividade com prompt simples em que o participante escreve uma instrucao livre.
+- Atividade com prompt estruturado em que o participante preenche um formulario.
+- Pre-visualizacao do prompt final antes do envio para IA.
+- Confirmacao de envio unico para Gemini, sem regeneracao.
+- Area administrativa em `/admin` com visao geral, participantes, atividades, rastreabilidade dos prompts e exportacoes JSON/CSV/Excel.
 
 ## Atencao
 
