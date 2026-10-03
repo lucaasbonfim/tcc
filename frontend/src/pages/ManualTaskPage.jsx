@@ -339,6 +339,12 @@ function ManualTaskPage() {
                   Os casos de teste desta atividade nao podem mais ser
                   alterados.
                 </p>
+                <Button
+                  className="mt-5"
+                  onClick={() => navigate("/experiment")}
+                >
+                  Continuar
+                </Button>
               </Card>
             ) : null}
           </>
