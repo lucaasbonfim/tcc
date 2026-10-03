@@ -1,30 +1,47 @@
 # Backend
 
-Base inicial da API do TCC sobre geração de casos de teste com IA generativa.
+API do projeto de TCC sobre geracao de casos de teste com IA generativa.
 
 ## Tecnologias
 
-- Node.js com ES Modules
+- Node.js
 - Express
 - PostgreSQL com `pg`
 - dotenv
 - CORS
+- Gemini API via `@google/genai`
 
-## Instalação
+## Instalacao
 
 ```bash
 npm install
 ```
 
-## Configuração
+## Configuracao
 
-Crie o arquivo `.env` a partir do `.env.example` e ajuste as credenciais do PostgreSQL:
+Crie o arquivo `.env` a partir do exemplo:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-O banco e as tabelas devem estar criados conforme o script `../database/001_schema.sql`.
+Variaveis esperadas:
+
+```env
+PORT=3000
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=tcc_test_generation
+DB_USER=postgres
+DB_PASSWORD=
+DB_SSL=false
+GEMINI_API_KEY=
+GEMINI_MODEL=
+```
+
+Use `DB_SSL=true` para bancos PostgreSQL remotos que exigem SSL. Quando `DB_SSL` nao for informado, o backend desativa SSL para `localhost`/`127.0.0.1` e ativa SSL para outros hosts.
+
+Antes de iniciar, execute os scripts SQL da pasta `../database` no PostgreSQL, na ordem numerica.
 
 ## Desenvolvimento
 
@@ -32,4 +49,22 @@ O banco e as tabelas devem estar criados conforme o script `../database/001_sche
 npm run dev
 ```
 
-A API será disponibilizada em `http://localhost:3000/api`.
+## Producao local
+
+```bash
+npm start
+```
+
+A API fica disponivel em `http://localhost:3000/api`.
+
+## Rotas principais
+
+- `GET /api/health`
+- `GET /api/use-cases`
+- `POST /api/participants`
+- `GET /api/participants/:id/experiment-tasks/next`
+- `PATCH /api/experiment-tasks/:id/start`
+- `POST /api/experiment-tasks/:id/generate`
+- `PATCH /api/experiment-tasks/:id/complete`
+- `GET /api/admin/export/json`
+- `GET /api/admin/export/csv`
