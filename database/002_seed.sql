@@ -248,7 +248,8 @@ VALUES
     (SELECT id FROM use_cases WHERE code = 'C'),
     'STRUCTURED_PROMPT',
     3
-);
+)
+ON CONFLICT (group_id, task_order) DO NOTHING;
 
 
 -- Grupo 2
@@ -273,7 +274,8 @@ VALUES
     (SELECT id FROM use_cases WHERE code = 'A'),
     'SIMPLE_PROMPT',
     3
-);
+)
+ON CONFLICT (group_id, task_order) DO NOTHING;
 
 
 -- Grupo 3
@@ -298,7 +300,8 @@ VALUES
     (SELECT id FROM use_cases WHERE code = 'B'),
     'MANUAL',
     3
-);
+)
+ON CONFLICT (group_id, task_order) DO NOTHING;
 
 
 COMMIT;
