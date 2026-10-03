@@ -8,6 +8,7 @@ import UseCaseView from "../components/UseCaseView";
 import {
   generateExperimentTask,
   getExperimentTask,
+  getExperimentTaskAiRun,
   startExperimentTask,
 } from "../services/experimentTask.service";
 
@@ -36,9 +37,23 @@ function AITaskPage({ initialTask = null }) {
         setError("");
 
         const taskData = initialTask || (await getExperimentTask(taskId));
+        let currentAiResponse = "";
+
+        if (taskData.status === "IN_PROGRESS") {
+          try {
+            const aiRun = await getExperimentTaskAiRun(taskData.id);
+
+            currentAiResponse = aiRun.raw_response;
+          } catch (error) {
+            if (error.status !== 404) {
+              throw error;
+            }
+          }
+        }
 
         if (isMounted) {
           setTask(taskData);
+          setAiResponse(currentAiResponse);
         }
       } catch (error) {
         if (isMounted) {
