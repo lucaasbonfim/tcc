@@ -166,3 +166,47 @@ export async function findParticipantExperimentTasks(participantId) {
     },
   }));
 }
+
+export async function findExperimentTaskById(id) {
+  const query = `
+    SELECT
+      experiment_tasks.id,
+      experiment_tasks.participant_id,
+      experiment_tasks.task_order,
+      experiment_tasks.mode,
+      experiment_tasks.status,
+      experiment_tasks.started_at,
+      experiment_tasks.finished_at,
+      use_cases.id AS use_case_id,
+      use_cases.code AS use_case_code,
+      use_cases.title AS use_case_title,
+      use_cases.content AS use_case_content
+    FROM experiment_tasks
+    INNER JOIN use_cases
+      ON use_cases.id = experiment_tasks.use_case_id
+    WHERE experiment_tasks.id = $1
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+  const task = rows[0];
+
+  if (!task) {
+    return null;
+  }
+
+  return {
+    id: task.id,
+    participant_id: task.participant_id,
+    task_order: task.task_order,
+    mode: task.mode,
+    status: task.status,
+    started_at: task.started_at,
+    finished_at: task.finished_at,
+    use_case: {
+      id: task.use_case_id,
+      code: task.use_case_code,
+      title: task.use_case_title,
+      content: task.use_case_content,
+    },
+  };
+}

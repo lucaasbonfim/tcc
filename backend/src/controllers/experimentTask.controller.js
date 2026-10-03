@@ -1,5 +1,6 @@
 import { findParticipantById } from "../services/participant.service.js";
 import {
+  findExperimentTaskById,
   findParticipantExperimentTasks,
   initializeParticipantExperimentTasks,
 } from "../services/experimentTask.service.js";
@@ -15,6 +16,22 @@ export async function initializeParticipantExperimentTasksController(
     );
 
     return response.status(201).json({ data: tasks });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getExperimentTaskById(request, response, next) {
+  try {
+    const task = await findExperimentTaskById(request.params.id);
+
+    if (!task) {
+      return response.status(404).json({
+        error: "Atividade experimental não encontrada.",
+      });
+    }
+
+    return response.status(200).json({ data: task });
   } catch (error) {
     return next(error);
   }
