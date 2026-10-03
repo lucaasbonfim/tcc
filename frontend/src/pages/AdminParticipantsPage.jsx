@@ -90,7 +90,78 @@ function AdminParticipantsPage() {
       {participants.length === 0 ? (
         <p className="mt-6 text-slate-600">Nenhum participante encontrado.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto">
+        <>
+          <div className="mt-6 grid gap-4 md:hidden">
+            {participants.map((participant) => (
+              <article
+                className="rounded-lg border border-slate-200 p-4"
+                key={participant.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">
+                      Codigo
+                    </p>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      {participant.code}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {participant.group.name}
+                    </p>
+                  </div>
+                  <Button
+                    className="py-2"
+                    onClick={() =>
+                      navigate(`/admin/participants/${participant.id}`)
+                    }
+                    variant="secondary"
+                  >
+                    Ver
+                  </Button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-500">
+                      Consentimento
+                    </p>
+                    <p className="mt-1 text-slate-900">
+                      {formatBoolean(participant.consent_confirmed)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-500">Perfil</p>
+                    <p className="mt-1 text-slate-900">
+                      {formatBoolean(
+                        participant.profile_completed,
+                        "Preenchido",
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-500">Pendentes</p>
+                    <p className="mt-1 text-slate-900">
+                      {participant.tasks.pending}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-500">Em andamento</p>
+                    <p className="mt-1 text-slate-900">
+                      {participant.tasks.in_progress}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-500">Concluidas</p>
+                    <p className="mt-1 text-slate-900">
+                      {participant.tasks.completed}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 hidden overflow-x-auto md:block">
           <table className="min-w-[920px] w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
@@ -140,7 +211,8 @@ function AdminParticipantsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </Card>
   );
