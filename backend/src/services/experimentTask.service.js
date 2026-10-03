@@ -374,10 +374,12 @@ export async function completeManualExperimentTaskById(id) {
     }
 
     if (task.mode !== "MANUAL") {
-      throw createServiceError(
-        400,
-        "A finalização manual está disponível somente para atividades MANUAL.",
-      );
+      if (task.mode !== "SIMPLE_PROMPT") {
+        throw createServiceError(
+          400,
+          "A finalização deste modo ainda não foi implementada.",
+        );
+      }
     }
 
     if (task.status === "PENDING") {
@@ -388,20 +390,40 @@ export async function completeManualExperimentTaskById(id) {
       throw createServiceError(409, "A atividade já foi concluída.");
     }
 
-    const testCasesCountResult = await client.query(
-      `
-        SELECT COUNT(*)::int AS total
-        FROM test_cases
-        WHERE experiment_task_id = $1
-      `,
-      [id],
-    );
-
-    if (testCasesCountResult.rows[0].total === 0) {
-      throw createServiceError(
-        409,
-        "A atividade precisa possuir pelo menos um caso de teste.",
+    if (task.mode === "MANUAL") {
+      const testCasesCountResult = await client.query(
+        `
+          SELECT COUNT(*)::int AS total
+          FROM test_cases
+          WHERE experiment_task_id = $1
+        `,
+        [id],
       );
+
+      if (testCasesCountResult.rows[0].total === 0) {
+        throw createServiceError(
+          409,
+          "A atividade precisa possuir pelo menos um caso de teste.",
+        );
+      }
+    }
+
+    if (task.mode === "SIMPLE_PROMPT") {
+      const aiRunResult = await client.query(
+        `
+          SELECT id
+          FROM ai_runs
+          WHERE experiment_task_id = $1
+        `,
+        [id],
+      );
+
+      if (!aiRunResult.rows[0]) {
+        throw createServiceError(
+          409,
+          "A atividade precisa possuir uma execução da IA.",
+        );
+      }
     }
 
     const completedTaskResult = await client.query(
