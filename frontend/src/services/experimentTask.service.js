@@ -23,3 +23,15 @@ export async function getExperimentTaskResult(id) {
 
   return response.data.data;
 }
+
+export async function generateExperimentTask(id) {
+  const response = await api.post(`/experiment-tasks/${id}/generate`);
+
+  return response.data.data;
+}
+
+export async function getExperimentTaskAiRun(id) {
+  const response = await api.get(`/experiment-tasks/${id}/ai-run`);
+
+  return response.data.data;
+}
