@@ -34,7 +34,6 @@ function ExperimentPage() {
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [nextTask, setNextTask] = useState(null);
   const [isExperimentCompleted, setIsExperimentCompleted] = useState(false);
 
   const completedTasks = useMemo(
@@ -109,7 +108,6 @@ function ExperimentPage() {
 
       const updatedTasks = await getParticipantTasks(participant.id);
       setTasks(updatedTasks);
-      setNextTask(null);
       setIsExperimentCompleted(false);
     } catch (error) {
       setError(
@@ -125,7 +123,6 @@ function ExperimentPage() {
     try {
       setIsLoadingNextTask(true);
       setError("");
-      setNextTask(null);
       setIsExperimentCompleted(false);
 
       const result = await getNextParticipantTask(participant.id);
@@ -135,12 +132,7 @@ function ExperimentPage() {
         return;
       }
 
-      if (result.data.mode === "MANUAL") {
-        navigate(`/experiment/task/${result.data.id}`);
-        return;
-      }
-
-      setNextTask(result.data);
+      navigate(`/experiment/task/${result.data.id}`);
     } catch (error) {
       setError(
         error.message || "Nao foi possivel consultar a proxima atividade.",
@@ -263,32 +255,6 @@ function ExperimentPage() {
               </Card>
             ) : null}
 
-            {nextTask ? (
-              <Card className="border-teal-200">
-                <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
-                  Proxima atividade
-                </p>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Modo</p>
-                    <p className="mt-1 text-lg font-semibold">
-                      {MODE_LABELS[nextTask.mode] || nextTask.mode}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Caso de uso
-                    </p>
-                    <p className="mt-1 text-lg font-semibold">
-                      {nextTask.use_case.title}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-                  A interface deste modo ainda nao foi implementada.
-                </p>
-              </Card>
-            ) : null}
           </>
         ) : null}
       </div>
