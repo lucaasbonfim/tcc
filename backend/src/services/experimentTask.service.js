@@ -488,7 +488,9 @@ export async function findManualExperimentTaskResultById(id) {
     throw createServiceError(404, "Atividade experimental não encontrada.");
   }
 
-  if (task.mode !== "MANUAL" && task.mode !== "SIMPLE_PROMPT") {
+  if (
+    !["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"].includes(task.mode)
+  ) {
     throw createServiceError(
       400,
       "A consulta de resultado desse modo ainda não foi implementada.",
