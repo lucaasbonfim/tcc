@@ -1,8 +1,10 @@
 import axios from "axios";
 
+const REQUEST_TIMEOUT_MS = 120000;
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  timeout: 10000,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
   },
