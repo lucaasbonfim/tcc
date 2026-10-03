@@ -1,24 +1,10 @@
 import { Navigate } from "react-router-dom";
-
-function hasParticipantSession() {
-  const storedParticipant = sessionStorage.getItem("participant");
-
-  if (!storedParticipant) {
-    return false;
-  }
-
-  try {
-    const participant = JSON.parse(storedParticipant);
-
-    return Boolean(participant?.id && participant?.code);
-  } catch {
-    sessionStorage.removeItem("participant");
-    return false;
-  }
-}
+import { useParticipant } from "../contexts/useParticipant";
 
 function ProtectedRoute({ children }) {
-  if (!hasParticipantSession()) {
+  const { hasActiveSession } = useParticipant();
+
+  if (!hasActiveSession) {
     return <Navigate to="/" replace />;
   }
 
