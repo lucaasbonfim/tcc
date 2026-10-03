@@ -3,6 +3,7 @@ import {
   findAllParticipants,
   findExperimentGroupById,
   findParticipantById,
+  updateParticipantById,
 } from "../services/participant.service.js";
 
 export async function listParticipants(request, response, next) {
@@ -27,6 +28,50 @@ export async function getParticipantById(request, response, next) {
 
     return response.status(200).json({ data: participant });
   } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateParticipantController(request, response, next) {
+  try {
+    const { code, group_id, consent_confirmed } = request.body;
+
+    if (!code || !group_id || consent_confirmed === undefined) {
+      return response.status(400).json({
+        error: "Os campos code, group_id e consent_confirmed são obrigatórios.",
+      });
+    }
+
+    const currentParticipant = await findParticipantById(request.params.id);
+
+    if (!currentParticipant) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    const group = await findExperimentGroupById(group_id);
+
+    if (!group) {
+      return response.status(400).json({
+        error: "Grupo informado não existe.",
+      });
+    }
+
+    const participant = await updateParticipantById(request.params.id, {
+      code,
+      group_id,
+      consent_confirmed,
+    });
+
+    return response.status(200).json({ data: participant });
+  } catch (error) {
+    if (error.code === "23505") {
+      return response.status(409).json({
+        error: "Já existe um participante com este código.",
+      });
+    }
+
     return next(error);
   }
 }

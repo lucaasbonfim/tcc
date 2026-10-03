@@ -55,3 +55,26 @@ export async function createParticipant({
 
   return rows[0];
 }
+
+export async function updateParticipantById(
+  id,
+  { code, group_id, consent_confirmed },
+) {
+  const query = `
+    UPDATE participants
+    SET code = $1,
+        group_id = $2,
+        consent_confirmed = $3
+    WHERE id = $4
+    RETURNING id, code, group_id, consent_confirmed, created_at
+  `;
+
+  const { rows } = await pool.query(query, [
+    code,
+    group_id,
+    consent_confirmed,
+    id,
+  ]);
+
+  return rows[0] ?? null;
+}
