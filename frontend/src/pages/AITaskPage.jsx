@@ -10,6 +10,7 @@ import {
   generateExperimentTask,
   getExperimentTask,
   getExperimentTaskAiRun,
+  getExperimentTaskResult,
   startExperimentTask,
 } from "../services/experimentTask.service";
 
@@ -52,6 +53,12 @@ function AITaskPage({ initialTask = null }) {
               throw error;
             }
           }
+        }
+
+        if (taskData.status === "COMPLETED") {
+          const result = await getExperimentTaskResult(taskData.id);
+
+          currentAiResponse = result.ai_run?.raw_response || "";
         }
 
         if (isMounted) {
@@ -277,6 +284,12 @@ function AITaskPage({ initialTask = null }) {
                 <h2 className="text-2xl font-semibold">
                   Atividade concluida.
                 </h2>
+                <Button
+                  className="mt-5"
+                  onClick={() => navigate("/experiment")}
+                >
+                  Voltar ao experimento
+                </Button>
               </Card>
             ) : null}
           </>
