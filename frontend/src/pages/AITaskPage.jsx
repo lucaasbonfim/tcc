@@ -200,7 +200,9 @@ function AITaskPage({ initialTask = null }) {
                 <h2 className="text-2xl font-semibold">
                   Casos de teste gerados
                 </h2>
-                <p className="mt-4 text-slate-700">{aiResponse}</p>
+                <pre className="mt-4 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-800">
+                  {aiResponse}
+                </pre>
               </Card>
             ) : null}
 
