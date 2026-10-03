@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   completeManualExperimentTaskController,
+  generateSimplePromptResultController,
   getExperimentTaskById,
   getManualExperimentTaskResult,
   startExperimentTaskController,
@@ -16,6 +17,7 @@ const router = Router();
 
 router.patch("/:id/start", startExperimentTaskController);
 router.patch("/:id/complete", completeManualExperimentTaskController);
+router.post("/:id/generate", generateSimplePromptResultController);
 router.get("/:id/result", getManualExperimentTaskResult);
 router.get("/:taskId/test-cases", listExperimentTaskTestCases);
 router.post("/:taskId/test-cases", createManualTestCaseController);

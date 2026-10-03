@@ -1,4 +1,5 @@
 import { findParticipantById } from "../services/participant.service.js";
+import { generateSimplePromptResult } from "../services/simplePromptGeneration.service.js";
 import {
   completeManualExperimentTaskById,
   findExperimentTaskById,
@@ -20,6 +21,20 @@ export async function initializeParticipantExperimentTasksController(
     );
 
     return response.status(201).json({ data: tasks });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function generateSimplePromptResultController(
+  request,
+  response,
+  next,
+) {
+  try {
+    const result = await generateSimplePromptResult(request.params.id);
+
+    return response.status(200).json({ data: result });
   } catch (error) {
     return next(error);
   }
