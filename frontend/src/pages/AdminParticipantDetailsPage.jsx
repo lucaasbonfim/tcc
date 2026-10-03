@@ -77,6 +77,52 @@ function InfoItem({ label, value }) {
   );
 }
 
+function ReadOnlyBlock({ label, value }) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-800">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
+function ParticipantInputDetails({ mode, participantInput }) {
+  if (!participantInput) {
+    return null;
+  }
+
+  if (mode === "SIMPLE_PROMPT") {
+    return (
+      <ReadOnlyBlock
+        label="Entrada do participante"
+        value={participantInput.instruction}
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <ReadOnlyBlock label="Objetivo" value={participantInput.objective} />
+      <ReadOnlyBlock label="Aspectos" value={participantInput.aspects} />
+      <ReadOnlyBlock label="Cenarios" value={participantInput.scenarios} />
+      <ReadOnlyBlock
+        label="Formato esperado"
+        value={participantInput.output_format}
+      />
+      <ReadOnlyBlock
+        label="Outras orientacoes"
+        value={participantInput.other_instructions}
+      />
+    </div>
+  );
+}
+
 function AdminParticipantDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -240,6 +286,23 @@ function AdminParticipantDetailsPage() {
                     </>
                   )}
                 </div>
+
+                {activity.mode !== "MANUAL" && activity.ai ? (
+                  <div className="mt-6 grid gap-5">
+                    <ParticipantInputDetails
+                      mode={activity.mode}
+                      participantInput={activity.ai.participant_input}
+                    />
+                    <ReadOnlyBlock
+                      label="Prompt final enviado a IA"
+                      value={activity.ai.final_prompt}
+                    />
+                    <ReadOnlyBlock
+                      label="Resposta da IA"
+                      value={activity.ai.raw_response}
+                    />
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
