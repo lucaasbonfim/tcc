@@ -373,13 +373,13 @@ export async function completeManualExperimentTaskById(id) {
       throw createServiceError(404, "Atividade experimental não encontrada.");
     }
 
-    if (task.mode !== "MANUAL") {
-      if (task.mode !== "SIMPLE_PROMPT") {
-        throw createServiceError(
-          400,
-          "A finalização deste modo ainda não foi implementada.",
-        );
-      }
+    if (
+      !["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"].includes(task.mode)
+    ) {
+      throw createServiceError(
+        400,
+        "A finalização deste modo ainda não foi implementada.",
+      );
     }
 
     if (task.status === "PENDING") {
@@ -408,7 +408,7 @@ export async function completeManualExperimentTaskById(id) {
       }
     }
 
-    if (task.mode === "SIMPLE_PROMPT") {
+    if (["SIMPLE_PROMPT", "STRUCTURED_PROMPT"].includes(task.mode)) {
       const aiRunResult = await client.query(
         `
           SELECT id
