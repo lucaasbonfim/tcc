@@ -5,7 +5,10 @@ import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import UseCaseView from "../components/UseCaseView";
-import { getExperimentTask } from "../services/experimentTask.service";
+import {
+  getExperimentTask,
+  startExperimentTask,
+} from "../services/experimentTask.service";
 
 const AI_MODES = ["SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
 const MODE_LABELS = {
@@ -19,6 +22,7 @@ function AITaskPage({ initialTask = null }) {
   const [task, setTask] = useState(initialTask);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,6 +54,24 @@ function AITaskPage({ initialTask = null }) {
       isMounted = false;
     };
   }, [initialTask, taskId]);
+
+  async function handleStartTask() {
+    try {
+      setIsStarting(true);
+      setError("");
+
+      const startedTask = await startExperimentTask(task.id);
+
+      setTask((currentTask) => ({
+        ...currentTask,
+        ...startedTask,
+      }));
+    } catch (error) {
+      setError(error.message || "Nao foi possivel iniciar a atividade.");
+    } finally {
+      setIsStarting(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -110,6 +132,41 @@ function AITaskPage({ initialTask = null }) {
             </Card>
 
             <UseCaseView useCase={task.use_case} />
+
+            {task.status === "PENDING" ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">Iniciar atividade</h2>
+                <p className="mt-3 leading-7 text-slate-600">
+                  Quando iniciar, o backend registrara o inicio da atividade.
+                  Depois disso, a geracao dos casos de teste ficara disponivel.
+                </p>
+                <Button
+                  className="mt-5"
+                  disabled={isStarting}
+                  onClick={handleStartTask}
+                >
+                  {isStarting ? "Iniciando..." : "Iniciar atividade"}
+                </Button>
+              </Card>
+            ) : null}
+
+            {task.status === "IN_PROGRESS" ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">Geracao por IA</h2>
+                <p className="mt-3 leading-7 text-slate-600">
+                  A atividade foi iniciada. A geracao dos casos de teste sera
+                  realizada pelo backend.
+                </p>
+              </Card>
+            ) : null}
+
+            {task.status === "COMPLETED" ? (
+              <Card className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                <h2 className="text-2xl font-semibold">
+                  Atividade concluida.
+                </h2>
+              </Card>
+            ) : null}
           </>
         ) : null}
       </div>
