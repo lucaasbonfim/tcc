@@ -312,3 +312,77 @@ export async function findExperimentTasks(filters = {}) {
         : null,
   }));
 }
+
+export async function getExperimentSummary() {
+  const participantsQuery = `
+    SELECT
+      COUNT(participants.id)::int AS total,
+      COUNT(completed_participants.participant_id)::int AS with_completed_experiment
+    FROM participants
+    LEFT JOIN (
+      SELECT participant_id
+      FROM experiment_tasks
+      GROUP BY participant_id
+      HAVING COUNT(id) = 3
+        AND COUNT(id) FILTER (WHERE status = 'COMPLETED') = 3
+    ) completed_participants
+      ON completed_participants.participant_id = participants.id
+  `;
+
+  const tasksQuery = `
+    SELECT
+      COUNT(id)::int AS total,
+      COUNT(id) FILTER (WHERE status = 'PENDING')::int AS pending,
+      COUNT(id) FILTER (WHERE status = 'IN_PROGRESS')::int AS in_progress,
+      COUNT(id) FILTER (WHERE status = 'COMPLETED')::int AS completed
+    FROM experiment_tasks
+  `;
+
+  const modesQuery = `
+    SELECT
+      mode,
+      COUNT(id)::int AS total,
+      COUNT(id) FILTER (WHERE status = 'COMPLETED')::int AS completed
+    FROM experiment_tasks
+    GROUP BY mode
+  `;
+
+  const [participantsResult, tasksResult, modesResult] = await Promise.all([
+    pool.query(participantsQuery),
+    pool.query(tasksQuery),
+    pool.query(modesQuery),
+  ]);
+
+  const byMode = VALID_MODES.reduce((summary, mode) => {
+    summary[mode] = {
+      total: 0,
+      completed: 0,
+    };
+
+    return summary;
+  }, {});
+
+  modesResult.rows.forEach((row) => {
+    byMode[row.mode] = {
+      total: row.total,
+      completed: row.completed,
+    };
+  });
+
+  const participants = participantsResult.rows[0];
+  const tasks = tasksResult.rows[0];
+
+  return {
+    participants: {
+      total: participants.total,
+      with_completed_experiment: participants.with_completed_experiment,
+    },
+    tasks: {
+      total: tasks.total,
+      pending: tasks.pending,
+      in_progress: tasks.in_progress,
+      completed: tasks.completed,
+    },
+    by_mode: byMode,
+  };
+}
