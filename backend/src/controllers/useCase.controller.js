@@ -1,4 +1,5 @@
 import {
+  createUseCase,
   findAllUseCases,
   findUseCaseById,
 } from "../services/useCase.service.js";
@@ -25,6 +26,30 @@ export async function getUseCaseById(request, response, next) {
 
     return response.status(200).json({ data: useCase });
   } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createUseCaseController(request, response, next) {
+  try {
+    const { code, title, content } = request.body;
+
+    if (!code || !title || content === undefined) {
+      return response.status(400).json({
+        error: "Os campos code, title e content são obrigatórios.",
+      });
+    }
+
+    const useCase = await createUseCase({ code, title, content });
+
+    return response.status(201).json({ data: useCase });
+  } catch (error) {
+    if (error.code === "23505") {
+      return response.status(409).json({
+        error: "Já existe um caso de uso com este código.",
+      });
+    }
+
     return next(error);
   }
 }

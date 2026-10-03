@@ -23,3 +23,15 @@ export async function findUseCaseById(id) {
 
   return rows[0] ?? null;
 }
+
+export async function createUseCase({ code, title, content }) {
+  const query = `
+    INSERT INTO use_cases (code, title, content)
+    VALUES ($1, $2, $3)
+    RETURNING id, code, title, content
+  `;
+
+  const { rows } = await pool.query(query, [code, title, content]);
+
+  return rows[0];
+}
