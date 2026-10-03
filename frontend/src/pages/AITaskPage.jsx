@@ -6,6 +6,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import UseCaseView from "../components/UseCaseView";
 import {
+  completeExperimentTask,
   generateExperimentTask,
   getExperimentTask,
   getExperimentTaskAiRun,
@@ -27,6 +28,8 @@ function AITaskPage({ initialTask = null }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -77,6 +80,7 @@ function AITaskPage({ initialTask = null }) {
     try {
       setIsStarting(true);
       setError("");
+      setSuccessMessage("");
 
       const startedTask = await startExperimentTask(task.id);
 
@@ -95,6 +99,7 @@ function AITaskPage({ initialTask = null }) {
     try {
       setIsGenerating(true);
       setError("");
+      setSuccessMessage("");
 
       const result = await generateExperimentTask(task.id);
 
@@ -103,6 +108,34 @@ function AITaskPage({ initialTask = null }) {
       setError(error.message || "Nao foi possivel gerar os casos de teste.");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleCompleteTask() {
+    const confirmed = window.confirm(
+      "Apos finalizar, esta atividade nao podera ser realizada novamente. Deseja continuar?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsCompleting(true);
+      setError("");
+      setSuccessMessage("");
+
+      const completedTask = await completeExperimentTask(task.id);
+
+      setTask((currentTask) => ({
+        ...currentTask,
+        ...completedTask,
+      }));
+      setSuccessMessage("Atividade concluida com sucesso.");
+    } catch (error) {
+      setError(error.message || "Nao foi possivel finalizar a atividade.");
+    } finally {
+      setIsCompleting(false);
     }
   }
 
@@ -120,6 +153,12 @@ function AITaskPage({ initialTask = null }) {
     <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <ErrorMessage>{error}</ErrorMessage>
+
+        {successMessage ? (
+          <Card className="border-emerald-200 bg-emerald-50 text-emerald-800">
+            {successMessage}
+          </Card>
+        ) : null}
 
         {!error && task?.mode === "MANUAL" ? (
           <Card>
@@ -212,9 +251,21 @@ function AITaskPage({ initialTask = null }) {
 
             {aiResponse ? (
               <Card>
-                <h2 className="text-2xl font-semibold">
-                  Casos de teste gerados
-                </h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-2xl font-semibold">
+                    Casos de teste gerados
+                  </h2>
+                  {task.status === "IN_PROGRESS" ? (
+                    <Button
+                      disabled={isCompleting}
+                      onClick={handleCompleteTask}
+                    >
+                      {isCompleting
+                        ? "Finalizando..."
+                        : "Finalizar atividade"}
+                    </Button>
+                  ) : null}
+                </div>
                 <pre className="mt-4 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-800">
                   {aiResponse}
                 </pre>
