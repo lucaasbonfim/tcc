@@ -2,6 +2,7 @@ import pool from "../config/database.js";
 
 const ACTIVE_PROMPT_VERSIONS = {
   SIMPLE_PROMPT: "1.0",
+  STRUCTURED_PROMPT: "1.0",
 };
 
 function createPromptVersionError(message) {
