@@ -39,10 +39,10 @@ export async function generateSimplePromptResult(experimentTaskId) {
       throw createServiceError(404, "Atividade experimental não encontrada.");
     }
 
-    if (task.mode !== "SIMPLE_PROMPT") {
+    if (!["SIMPLE_PROMPT", "STRUCTURED_PROMPT"].includes(task.mode)) {
       throw createServiceError(
         400,
-        "A geração está disponível somente para atividades SIMPLE_PROMPT.",
+        "A geração está disponível somente para atividades de prompt.",
       );
     }
 
@@ -71,7 +71,7 @@ export async function generateSimplePromptResult(experimentTaskId) {
     }
 
     const model = getGeminiModel();
-    const promptVersion = await findActivePromptVersionByMode("SIMPLE_PROMPT");
+    const promptVersion = await findActivePromptVersionByMode(task.mode);
     const serializedUseCase = serializeUseCaseForPrompt({
       id: task.use_case_id,
       title: task.use_case_title,
