@@ -284,6 +284,9 @@ function ExperimentPage() {
                     </p>
                   </div>
                 </div>
+                <p className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                  A interface deste modo ainda nao foi implementada.
+                </p>
               </Card>
             ) : null}
           </>
