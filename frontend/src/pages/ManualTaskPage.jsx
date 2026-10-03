@@ -5,7 +5,10 @@ import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import UseCaseView from "../components/UseCaseView";
-import { getExperimentTask } from "../services/experimentTask.service";
+import {
+  getExperimentTask,
+  startExperimentTask,
+} from "../services/experimentTask.service";
 
 function ManualTaskPage() {
   const navigate = useNavigate();
@@ -13,6 +16,7 @@ function ManualTaskPage() {
   const [task, setTask] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,6 +48,24 @@ function ManualTaskPage() {
       isMounted = false;
     };
   }, [taskId]);
+
+  async function handleStartTask() {
+    try {
+      setIsStarting(true);
+      setError("");
+
+      const startedTask = await startExperimentTask(taskId);
+
+      setTask((currentTask) => ({
+        ...currentTask,
+        ...startedTask,
+      }));
+    } catch (error) {
+      setError(error.message || "Nao foi possivel iniciar a atividade.");
+    } finally {
+      setIsStarting(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -90,6 +112,47 @@ function ManualTaskPage() {
             </Card>
 
             <UseCaseView useCase={task.use_case} />
+
+            {task.status === "PENDING" ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">Iniciar atividade</h2>
+                <p className="mt-3 leading-7 text-slate-600">
+                  Quando iniciar, leia o caso de uso e crie os casos de teste
+                  que considerar necessarios. O registro experimental comeca
+                  somente apos clicar no botao abaixo.
+                </p>
+                <Button
+                  className="mt-5"
+                  disabled={isStarting}
+                  onClick={handleStartTask}
+                >
+                  {isStarting ? "Iniciando..." : "Iniciar atividade"}
+                </Button>
+              </Card>
+            ) : null}
+
+            {task.status === "IN_PROGRESS" ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">
+                  Casos de teste manuais
+                </h2>
+                <p className="mt-3 leading-7 text-slate-600">
+                  A interface para criar os casos de teste sera exibida aqui.
+                </p>
+              </Card>
+            ) : null}
+
+            {task.status === "COMPLETED" ? (
+              <Card className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                <h2 className="text-2xl font-semibold">
+                  Atividade concluida.
+                </h2>
+                <p className="mt-3 leading-7">
+                  Os casos de teste desta atividade nao podem mais ser
+                  alterados.
+                </p>
+              </Card>
+            ) : null}
           </>
         ) : null}
       </div>
