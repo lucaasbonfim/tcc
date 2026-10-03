@@ -54,15 +54,19 @@ function formatResponseTime(milliseconds) {
 
 function AdminTasksPage() {
   const [tasks, setTasks] = useState([]);
+  const [filters, setFilters] = useState({
+    mode: "",
+    status: "",
+  });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  async function loadTasks() {
+  async function loadTasks(nextFilters = filters) {
     try {
       setIsLoading(true);
       setError("");
 
-      const data = await getExperimentTasks();
+      const data = await getExperimentTasks(nextFilters);
 
       setTasks(data);
     } catch (error) {
@@ -77,7 +81,7 @@ function AdminTasksPage() {
 
     async function loadInitialTasks() {
       try {
-        const data = await getExperimentTasks();
+        const data = await getExperimentTasks(filters);
 
         if (isMounted) {
           setTasks(data);
@@ -98,7 +102,21 @@ function AdminTasksPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [filters]);
+
+  function handleFilterChange(field, value) {
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      [field]: value,
+    }));
+  }
+
+  function handleClearFilters() {
+    setFilters({
+      mode: "",
+      status: "",
+    });
+  }
 
   if (isLoading) {
     return <Loading>Carregando atividades...</Loading>;
@@ -108,7 +126,7 @@ function AdminTasksPage() {
     return (
       <Card>
         <ErrorMessage>{error}</ErrorMessage>
-        <Button className="mt-4" onClick={loadTasks}>
+        <Button className="mt-4" onClick={() => loadTasks()}>
           Tentar novamente
         </Button>
       </Card>
@@ -122,8 +140,52 @@ function AdminTasksPage() {
         Consulta administrativa consolidada das atividades do experimento.
       </p>
 
+      <div className="mt-6 grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Modo
+          </label>
+          <select
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            onChange={(event) => handleFilterChange("mode", event.target.value)}
+            value={filters.mode}
+          >
+            <option value="">Todos</option>
+            <option value="MANUAL">Manual</option>
+            <option value="SIMPLE_PROMPT">IA com prompt simples</option>
+            <option value="STRUCTURED_PROMPT">
+              IA com prompt estruturado
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Status
+          </label>
+          <select
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            onChange={(event) =>
+              handleFilterChange("status", event.target.value)
+            }
+            value={filters.status}
+          >
+            <option value="">Todos</option>
+            <option value="PENDING">Pendente</option>
+            <option value="IN_PROGRESS">Em andamento</option>
+            <option value="COMPLETED">Concluida</option>
+          </select>
+        </div>
+
+        <Button onClick={handleClearFilters} variant="secondary">
+          Limpar filtros
+        </Button>
+      </div>
+
       {tasks.length === 0 ? (
-        <p className="mt-6 text-slate-600">Nenhuma atividade encontrada.</p>
+        <p className="mt-6 text-slate-600">
+          Nenhuma atividade corresponde aos filtros selecionados.
+        </p>
       ) : (
         <div className="mt-6 overflow-x-auto">
           <table className="min-w-[1100px] w-full border-collapse text-left text-sm">
