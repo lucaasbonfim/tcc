@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import TestCaseForm from "../components/TestCaseForm";
+import TestCaseList from "../components/TestCaseList";
 import UseCaseView from "../components/UseCaseView";
 import {
   getExperimentTask,
@@ -34,10 +35,14 @@ function ManualTaskPage() {
         setIsLoading(true);
         setError("");
 
-        const taskData = await getExperimentTask(taskId);
+        const [taskData, testCasesData] = await Promise.all([
+          getExperimentTask(taskId),
+          getTestCases(taskId),
+        ]);
 
         if (isMounted) {
           setTask(taskData);
+          setTestCases(testCasesData);
         }
       } catch (error) {
         if (isMounted) {
@@ -184,6 +189,17 @@ function ManualTaskPage() {
                 <p className="mt-4 text-sm text-slate-500">
                   {testCases.length} caso(s) de teste salvo(s).
                 </p>
+              </Card>
+            ) : null}
+
+            {task.status === "IN_PROGRESS" || task.status === "COMPLETED" ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">
+                  Casos de teste criados
+                </h2>
+                <div className="mt-5">
+                  <TestCaseList testCases={testCases} />
+                </div>
               </Card>
             ) : null}
 
