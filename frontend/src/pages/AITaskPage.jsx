@@ -11,6 +11,7 @@ import {
   getExperimentTask,
   getExperimentTaskAiRun,
   getExperimentTaskResult,
+  previewExperimentPrompt,
   startExperimentTask,
 } from "../services/experimentTask.service";
 
@@ -19,6 +20,35 @@ const MODE_LABELS = {
   SIMPLE_PROMPT: "IA com prompt simples",
   STRUCTURED_PROMPT: "IA com prompt estruturado",
 };
+const EMPTY_STRUCTURED_INPUT = {
+  objective: "",
+  aspects: "",
+  scenarios: "",
+  output_format: "",
+  other_instructions: "",
+};
+
+function TextareaField({
+  label,
+  onChange,
+  required = false,
+  value,
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-semibold text-slate-700">
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <textarea
+        className="mt-2 min-h-28 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Digite aqui..."
+        value={value}
+      />
+    </label>
+  );
+}
 
 function AITaskPage({ initialTask = null }) {
   const navigate = useNavigate();
@@ -26,8 +56,13 @@ function AITaskPage({ initialTask = null }) {
   const [task, setTask] = useState(initialTask);
   const [error, setError] = useState("");
   const [aiResponse, setAiResponse] = useState("");
+  const [simpleInstruction, setSimpleInstruction] = useState("");
+  const [structuredInput, setStructuredInput] = useState(EMPTY_STRUCTURED_INPUT);
+  const [promptPreview, setPromptPreview] = useState(null);
+  const [previewParticipantInput, setPreviewParticipantInput] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -64,6 +99,8 @@ function AITaskPage({ initialTask = null }) {
         if (isMounted) {
           setTask(taskData);
           setAiResponse(currentAiResponse);
+          setPromptPreview(null);
+          setPreviewParticipantInput(null);
         }
       } catch (error) {
         if (isMounted) {
@@ -102,15 +139,54 @@ function AITaskPage({ initialTask = null }) {
     }
   }
 
+  function getParticipantInput() {
+    if (task.mode === "SIMPLE_PROMPT") {
+      return {
+        instruction: simpleInstruction,
+      };
+    }
+
+    return structuredInput;
+  }
+
+  async function handlePreviewPrompt() {
+    try {
+      setIsPreviewing(true);
+      setError("");
+      setSuccessMessage("");
+
+      const participantInput = getParticipantInput();
+      const preview = await previewExperimentPrompt(task.id, participantInput);
+
+      setPromptPreview(preview);
+      setPreviewParticipantInput(participantInput);
+    } catch (error) {
+      setError(error.message || "Nao foi possivel visualizar o prompt.");
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  function handleBackToEdit() {
+    setError("");
+    setPromptPreview(null);
+    setPreviewParticipantInput(null);
+  }
+
   async function handleGenerate() {
     try {
       setIsGenerating(true);
       setError("");
       setSuccessMessage("");
 
-      const result = await generateExperimentTask(task.id);
+      const result = await generateExperimentTask(
+        task.id,
+        previewParticipantInput,
+      );
 
       setAiResponse(result.response);
+      setPromptPreview(null);
+      setPreviewParticipantInput(null);
     } catch (error) {
       setError(error.message || "Nao foi possivel gerar os casos de teste.");
     } finally {
@@ -144,6 +220,13 @@ function AITaskPage({ initialTask = null }) {
     } finally {
       setIsCompleting(false);
     }
+  }
+
+  function updateStructuredInput(field, value) {
+    setStructuredInput((currentInput) => ({
+      ...currentInput,
+      [field]: value,
+    }));
   }
 
   if (isLoading) {
@@ -217,7 +300,7 @@ function AITaskPage({ initialTask = null }) {
                 <h2 className="text-2xl font-semibold">Iniciar atividade</h2>
                 <p className="mt-3 leading-7 text-slate-600">
                   Quando iniciar, o backend registrara o inicio da atividade.
-                  Depois disso, a geracao dos casos de teste ficara disponivel.
+                  Depois disso, a elaboracao do prompt ficara disponivel.
                 </p>
                 <Button
                   className="mt-5"
@@ -229,30 +312,109 @@ function AITaskPage({ initialTask = null }) {
               </Card>
             ) : null}
 
-            {task.status === "IN_PROGRESS" ? (
+            {task.status === "IN_PROGRESS" && !aiResponse && !promptPreview ? (
               <Card>
-                <h2 className="text-2xl font-semibold">Geracao por IA</h2>
-                {aiResponse ? (
-                  <p className="mt-3 leading-7 text-slate-600">
-                    Casos de teste gerados.
-                  </p>
+                {task.mode === "SIMPLE_PROMPT" ? (
+                  <>
+                    <h2 className="text-2xl font-semibold">
+                      Elabore sua instrucao para a IA
+                    </h2>
+                    <p className="mt-3 leading-7 text-slate-600">
+                      Escreva uma instrucao solicitando a IA a geracao de casos
+                      de teste para o caso de uso apresentado.
+                    </p>
+                    <label className="mt-5 block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Sua instrucao
+                      </span>
+                      <textarea
+                        className="mt-2 min-h-44 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                        onChange={(event) =>
+                          setSimpleInstruction(event.target.value)
+                        }
+                        value={simpleInstruction}
+                      />
+                    </label>
+                  </>
                 ) : (
                   <>
-                    <p className="mt-3 leading-7 text-slate-600">
-                      A atividade foi iniciada. A geracao dos casos de teste
-                      sera realizada pelo backend.
-                    </p>
-                    <Button
-                      className="mt-5"
-                      disabled={isGenerating}
-                      onClick={handleGenerate}
-                    >
-                      {isGenerating
-                        ? "Gerando casos de teste..."
-                        : "Gerar casos de teste"}
-                    </Button>
+                    <h2 className="text-2xl font-semibold">
+                      Estruture sua solicitacao para a IA
+                    </h2>
+                    <div className="mt-5 grid gap-5">
+                      <TextareaField
+                        label="Objetivo da solicitacao"
+                        onChange={(value) =>
+                          updateStructuredInput("objective", value)
+                        }
+                        required
+                        value={structuredInput.objective}
+                      />
+                      <TextareaField
+                        label="Aspectos que devem ser considerados"
+                        onChange={(value) =>
+                          updateStructuredInput("aspects", value)
+                        }
+                        required
+                        value={structuredInput.aspects}
+                      />
+                      <TextareaField
+                        label="Cenarios que devem ser contemplados"
+                        onChange={(value) =>
+                          updateStructuredInput("scenarios", value)
+                        }
+                        required
+                        value={structuredInput.scenarios}
+                      />
+                      <TextareaField
+                        label="Formato esperado dos casos de teste"
+                        onChange={(value) =>
+                          updateStructuredInput("output_format", value)
+                        }
+                        required
+                        value={structuredInput.output_format}
+                      />
+                      <TextareaField
+                        label="Outras orientacoes"
+                        onChange={(value) =>
+                          updateStructuredInput("other_instructions", value)
+                        }
+                        value={structuredInput.other_instructions}
+                      />
+                    </div>
                   </>
                 )}
+
+                <Button
+                  className="mt-5"
+                  disabled={isPreviewing}
+                  onClick={handlePreviewPrompt}
+                >
+                  {isPreviewing ? "Visualizando..." : "Visualizar prompt"}
+                </Button>
+              </Card>
+            ) : null}
+
+            {task.status === "IN_PROGRESS" && !aiResponse && promptPreview ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">
+                  Prompt que sera enviado a IA
+                </h2>
+                <pre className="mt-4 max-h-[560px] overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-800">
+                  {promptPreview.final_prompt}
+                </pre>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button
+                    disabled={isGenerating}
+                    onClick={handleBackToEdit}
+                    variant="secondary"
+                  >
+                    Voltar e editar
+                  </Button>
+                  <Button disabled={isGenerating} onClick={handleGenerate}>
+                    {isGenerating ? "Gerando casos de teste..." : "Enviar para IA"}
+                  </Button>
+                </div>
               </Card>
             ) : null}
 
