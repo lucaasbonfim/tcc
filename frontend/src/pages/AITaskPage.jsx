@@ -6,6 +6,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import UseCaseView from "../components/UseCaseView";
 import {
+  generateExperimentTask,
   getExperimentTask,
   startExperimentTask,
 } from "../services/experimentTask.service";
@@ -21,8 +22,10 @@ function AITaskPage({ initialTask = null }) {
   const { taskId } = useParams();
   const [task, setTask] = useState(initialTask);
   const [error, setError] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,6 +73,21 @@ function AITaskPage({ initialTask = null }) {
       setError(error.message || "Nao foi possivel iniciar a atividade.");
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  async function handleGenerate() {
+    try {
+      setIsGenerating(true);
+      setError("");
+
+      const result = await generateExperimentTask(task.id);
+
+      setAiResponse(result.response);
+    } catch (error) {
+      setError(error.message || "Nao foi possivel gerar os casos de teste.");
+    } finally {
+      setIsGenerating(false);
     }
   }
 
@@ -153,10 +171,36 @@ function AITaskPage({ initialTask = null }) {
             {task.status === "IN_PROGRESS" ? (
               <Card>
                 <h2 className="text-2xl font-semibold">Geracao por IA</h2>
-                <p className="mt-3 leading-7 text-slate-600">
-                  A atividade foi iniciada. A geracao dos casos de teste sera
-                  realizada pelo backend.
-                </p>
+                {aiResponse ? (
+                  <p className="mt-3 leading-7 text-slate-600">
+                    Casos de teste gerados.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-3 leading-7 text-slate-600">
+                      A atividade foi iniciada. A geracao dos casos de teste
+                      sera realizada pelo backend.
+                    </p>
+                    <Button
+                      className="mt-5"
+                      disabled={isGenerating}
+                      onClick={handleGenerate}
+                    >
+                      {isGenerating
+                        ? "Gerando casos de teste..."
+                        : "Gerar casos de teste"}
+                    </Button>
+                  </>
+                )}
+              </Card>
+            ) : null}
+
+            {aiResponse ? (
+              <Card>
+                <h2 className="text-2xl font-semibold">
+                  Casos de teste gerados
+                </h2>
+                <p className="mt-4 text-slate-700">{aiResponse}</p>
               </Card>
             ) : null}
 
