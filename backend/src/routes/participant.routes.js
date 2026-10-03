@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createParticipantController,
   deleteParticipantController,
+  getParticipantByCode,
   getParticipantById,
   listParticipants,
   updateParticipantController,
@@ -21,6 +22,7 @@ const router = Router();
 
 router.get("/", listParticipants);
 router.post("/", createParticipantController);
+router.get("/by-code/:code", getParticipantByCode);
 router.get("/:participantId/experiment-tasks", listParticipantExperimentTasks);
 router.get(
   "/:participantId/experiment-tasks/next",

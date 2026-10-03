@@ -3,6 +3,7 @@ import {
   deleteParticipantById,
   findAllParticipants,
   findExperimentGroupById,
+  findParticipantByCode,
   findParticipantById,
   updateParticipantById,
 } from "../services/participant.service.js";
@@ -24,6 +25,30 @@ export async function getParticipantById(request, response, next) {
     if (!participant) {
       return response.status(404).json({
         error: "Participante não encontrado.",
+      });
+    }
+
+    return response.status(200).json({ data: participant });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getParticipantByCode(request, response, next) {
+  try {
+    const code = request.params.code.trim();
+
+    if (!code) {
+      return response.status(400).json({
+        error: "Codigo do participante e obrigatorio.",
+      });
+    }
+
+    const participant = await findParticipantByCode(code);
+
+    if (!participant) {
+      return response.status(404).json({
+        error: "Participante nao encontrado.",
       });
     }
 
