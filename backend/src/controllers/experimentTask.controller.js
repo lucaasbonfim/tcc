@@ -1,5 +1,6 @@
 import { findParticipantById } from "../services/participant.service.js";
 import {
+  completeManualExperimentTaskById,
   findExperimentTaskById,
   findNextParticipantExperimentTask,
   findParticipantExperimentTasks,
@@ -18,6 +19,20 @@ export async function initializeParticipantExperimentTasksController(
     );
 
     return response.status(201).json({ data: tasks });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function completeManualExperimentTaskController(
+  request,
+  response,
+  next,
+) {
+  try {
+    const task = await completeManualExperimentTaskById(request.params.id);
+
+    return response.status(200).json({ data: task });
   } catch (error) {
     return next(error);
   }

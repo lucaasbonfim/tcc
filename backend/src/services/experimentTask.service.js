@@ -351,3 +351,83 @@ export async function startExperimentTaskById(id) {
     client.release();
   }
 }
+
+export async function completeManualExperimentTaskById(id) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const taskResult = await client.query(
+      `
+        SELECT id, mode, status, started_at, finished_at
+        FROM experiment_tasks
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    );
+    const task = taskResult.rows[0];
+
+    if (!task) {
+      throw createServiceError(404, "Atividade experimental não encontrada.");
+    }
+
+    if (task.mode !== "MANUAL") {
+      throw createServiceError(
+        400,
+        "A finalização manual está disponível somente para atividades MANUAL.",
+      );
+    }
+
+    if (task.status === "PENDING") {
+      throw createServiceError(409, "A atividade ainda não foi iniciada.");
+    }
+
+    if (task.status === "COMPLETED") {
+      throw createServiceError(409, "A atividade já foi concluída.");
+    }
+
+    const testCasesCountResult = await client.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM test_cases
+        WHERE experiment_task_id = $1
+      `,
+      [id],
+    );
+
+    if (testCasesCountResult.rows[0].total === 0) {
+      throw createServiceError(
+        409,
+        "A atividade precisa possuir pelo menos um caso de teste.",
+      );
+    }
+
+    const completedTaskResult = await client.query(
+      `
+        UPDATE experiment_tasks
+        SET status = 'COMPLETED',
+            finished_at = COALESCE(finished_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING
+          id,
+          status,
+          started_at,
+          finished_at,
+          EXTRACT(EPOCH FROM (finished_at - started_at))::int AS duration_seconds
+      `,
+      [id],
+    );
+
+    await client.query("COMMIT");
+
+    return completedTaskResult.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
