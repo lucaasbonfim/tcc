@@ -14,8 +14,11 @@ api.interceptors.response.use(
     const message =
       error.response?.data?.error ||
       "Nao foi possivel concluir a requisicao. Tente novamente.";
+    const normalizedError = new Error(message);
 
-    return Promise.reject(new Error(message));
+    normalizedError.status = error.response?.status;
+
+    return Promise.reject(normalizedError);
   },
 );
 
