@@ -488,30 +488,14 @@ export async function findManualExperimentTaskResultById(id) {
     throw createServiceError(404, "Atividade experimental não encontrada.");
   }
 
-  if (task.mode !== "MANUAL") {
+  if (task.mode !== "MANUAL" && task.mode !== "SIMPLE_PROMPT") {
     throw createServiceError(
       400,
       "A consulta de resultado desse modo ainda não foi implementada.",
     );
   }
 
-  const testCasesResult = await pool.query(
-    `
-      SELECT
-        id,
-        sequence_number,
-        title,
-        preconditions,
-        steps,
-        expected_result
-      FROM test_cases
-      WHERE experiment_task_id = $1
-      ORDER BY sequence_number
-    `,
-    [id],
-  );
-
-  return {
+  const result = {
     id: task.id,
     mode: task.mode,
     status: task.status,
@@ -524,6 +508,56 @@ export async function findManualExperimentTaskResultById(id) {
       code: task.use_case_code,
       title: task.use_case_title,
     },
-    test_cases: testCasesResult.rows,
+  };
+
+  if (task.mode === "MANUAL") {
+    const testCasesResult = await pool.query(
+      `
+        SELECT
+          id,
+          sequence_number,
+          title,
+          preconditions,
+          steps,
+          expected_result
+        FROM test_cases
+        WHERE experiment_task_id = $1
+        ORDER BY sequence_number
+      `,
+      [id],
+    );
+
+    return {
+      ...result,
+      test_cases: testCasesResult.rows,
+    };
+  }
+
+  const aiRunResult = await pool.query(
+    `
+      SELECT
+        ai_runs.model,
+        prompt_versions.version AS prompt_version,
+        ai_runs.response_time_ms,
+        ai_runs.raw_response
+      FROM ai_runs
+      INNER JOIN prompt_versions
+        ON prompt_versions.id = ai_runs.prompt_version_id
+      WHERE ai_runs.experiment_task_id = $1
+    `,
+    [id],
+  );
+  const aiRun = aiRunResult.rows[0];
+
+  return {
+    ...result,
+    ai_run: aiRun
+      ? {
+          model: aiRun.model,
+          prompt_version: aiRun.prompt_version,
+          response_time_ms: aiRun.response_time_ms,
+          raw_response: aiRun.raw_response,
+        }
+      : null,
   };
 }
