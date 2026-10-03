@@ -4,6 +4,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import UseCaseView from "../components/UseCaseView";
 import { getExperimentTask } from "../services/experimentTask.service";
 
 const AI_MODES = ["SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
@@ -95,17 +96,21 @@ function AITaskPage({ initialTask = null }) {
         ) : null}
 
         {!error && task && AI_MODES.includes(task.mode) ? (
-          <Card>
-            <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
-              Atividade com IA
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">
-              {task.use_case.title}
-            </h1>
-            <p className="mt-3 text-slate-600">
-              Modo: {MODE_LABELS[task.mode]}
-            </p>
-          </Card>
+          <>
+            <Card>
+              <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
+                Atividade com IA
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold">
+                {task.use_case.title}
+              </h1>
+              <p className="mt-3 text-slate-600">
+                Modo: {MODE_LABELS[task.mode]}
+              </p>
+            </Card>
+
+            <UseCaseView useCase={task.use_case} />
+          </>
         ) : null}
       </div>
     </main>
