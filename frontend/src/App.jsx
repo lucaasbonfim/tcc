@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { ParticipantProvider } from "./contexts/ParticipantContext";
 import ExperimentPage from "./pages/ExperimentPage";
 import IdentificationPage from "./pages/IdentificationPage";
+import ManualTaskPage from "./pages/ManualTaskPage";
 
 function App() {
   return (
@@ -15,6 +16,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ExperimentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/experiment/task/:taskId"
+            element={
+              <ProtectedRoute>
+                <ManualTaskPage />
               </ProtectedRoute>
             }
           />
