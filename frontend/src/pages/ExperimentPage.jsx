@@ -135,6 +135,11 @@ function ExperimentPage() {
         return;
       }
 
+      if (result.data.mode === "MANUAL") {
+        navigate(`/experiment/task/${result.data.id}`);
+        return;
+      }
+
       setNextTask(result.data);
     } catch (error) {
       setError(
