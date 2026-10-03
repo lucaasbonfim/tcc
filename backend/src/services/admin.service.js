@@ -1,5 +1,14 @@
 import pool from "../config/database.js";
 
+const VALID_MODES = ["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
+const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED"];
+
+function createBadRequestError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
 export async function findParticipantsProgress() {
   const query = `
     SELECT
@@ -188,4 +197,118 @@ export async function findParticipantDetailsById(participantId) {
           : null,
     })),
   };
+}
+
+export async function findExperimentTasks(filters = {}) {
+  const where = [];
+  const values = [];
+
+  if (filters.mode) {
+    if (!VALID_MODES.includes(filters.mode)) {
+      throw createBadRequestError("Modo invalido.");
+    }
+
+    values.push(filters.mode);
+    where.push(`experiment_tasks.mode = $${values.length}`);
+  }
+
+  if (filters.status) {
+    if (!VALID_STATUSES.includes(filters.status)) {
+      throw createBadRequestError("Status invalido.");
+    }
+
+    values.push(filters.status);
+    where.push(`experiment_tasks.status = $${values.length}`);
+  }
+
+  if (filters.participant_id) {
+    values.push(filters.participant_id);
+    where.push(`experiment_tasks.participant_id = $${values.length}`);
+  }
+
+  if (filters.group_id) {
+    values.push(filters.group_id);
+    where.push(`participants.group_id = $${values.length}`);
+  }
+
+  if (filters.use_case_id) {
+    values.push(filters.use_case_id);
+    where.push(`experiment_tasks.use_case_id = $${values.length}`);
+  }
+
+  const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+
+  const query = `
+    SELECT
+      experiment_tasks.id AS task_id,
+      experiment_tasks.task_order,
+      experiment_tasks.mode,
+      experiment_tasks.status,
+      experiment_tasks.started_at,
+      experiment_tasks.finished_at,
+      CASE
+        WHEN experiment_tasks.started_at IS NOT NULL
+          AND experiment_tasks.finished_at IS NOT NULL
+        THEN EXTRACT(
+          EPOCH FROM (experiment_tasks.finished_at - experiment_tasks.started_at)
+        )::int
+        ELSE NULL
+      END AS duration_seconds,
+      participants.id AS participant_id,
+      participants.code AS participant_code,
+      experiment_groups.id AS group_id,
+      experiment_groups.name AS group_name,
+      use_cases.id AS use_case_id,
+      use_cases.code AS use_case_code,
+      use_cases.title AS use_case_title,
+      ai_runs.model,
+      prompt_versions.version AS prompt_version,
+      ai_runs.response_time_ms
+    FROM experiment_tasks
+    INNER JOIN participants
+      ON participants.id = experiment_tasks.participant_id
+    INNER JOIN experiment_groups
+      ON experiment_groups.id = participants.group_id
+    INNER JOIN use_cases
+      ON use_cases.id = experiment_tasks.use_case_id
+    LEFT JOIN ai_runs
+      ON ai_runs.experiment_task_id = experiment_tasks.id
+    LEFT JOIN prompt_versions
+      ON prompt_versions.id = ai_runs.prompt_version_id
+    ${whereSql}
+    ORDER BY participants.code, experiment_tasks.task_order
+  `;
+
+  const { rows } = await pool.query(query, values);
+
+  return rows.map((row) => ({
+    task_id: row.task_id,
+    participant: {
+      id: row.participant_id,
+      code: row.participant_code,
+    },
+    group: {
+      id: row.group_id,
+      name: row.group_name,
+    },
+    task_order: row.task_order,
+    mode: row.mode,
+    status: row.status,
+    started_at: row.started_at,
+    finished_at: row.finished_at,
+    duration_seconds: row.duration_seconds,
+    use_case: {
+      id: row.use_case_id,
+      code: row.use_case_code,
+      title: row.use_case_title,
+    },
+    ai:
+      row.mode === "SIMPLE_PROMPT" || row.mode === "STRUCTURED_PROMPT"
+        ? {
+            model: row.model,
+            prompt_version: row.prompt_version,
+            response_time_ms: row.response_time_ms,
+          }
+        : null,
+  }));
 }
