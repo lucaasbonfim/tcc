@@ -130,3 +130,39 @@ export async function initializeParticipantExperimentTasks(participantId) {
     client.release();
   }
 }
+
+export async function findParticipantExperimentTasks(participantId) {
+  const query = `
+    SELECT
+      experiment_tasks.id,
+      experiment_tasks.task_order,
+      experiment_tasks.mode,
+      experiment_tasks.status,
+      experiment_tasks.started_at,
+      experiment_tasks.finished_at,
+      use_cases.id AS use_case_id,
+      use_cases.code AS use_case_code,
+      use_cases.title AS use_case_title
+    FROM experiment_tasks
+    INNER JOIN use_cases
+      ON use_cases.id = experiment_tasks.use_case_id
+    WHERE experiment_tasks.participant_id = $1
+    ORDER BY experiment_tasks.task_order
+  `;
+
+  const { rows } = await pool.query(query, [participantId]);
+
+  return rows.map((row) => ({
+    id: row.id,
+    task_order: row.task_order,
+    mode: row.mode,
+    status: row.status,
+    started_at: row.started_at,
+    finished_at: row.finished_at,
+    use_case: {
+      id: row.use_case_id,
+      code: row.use_case_code,
+      title: row.use_case_title,
+    },
+  }));
+}
