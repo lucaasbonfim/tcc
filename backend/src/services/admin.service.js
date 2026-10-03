@@ -119,15 +119,18 @@ function formatCsvValue(value) {
     return "";
   }
 
-  const stringValue = (
+  const stringValue =
     value instanceof Date
       ? value.toISOString()
       : typeof value === "object"
         ? JSON.stringify(value)
-        : String(value)
-  ).replace(/\r\n|\r|\n/g, "\\n");
+        : String(value);
 
-  if (stringValue.includes('"') || stringValue.includes(CSV_SEPARATOR)) {
+  if (
+    stringValue.includes('"') ||
+    stringValue.includes(CSV_SEPARATOR) ||
+    /[\r\n]/.test(stringValue)
+  ) {
     return `"${stringValue.replaceAll('"', '""')}"`;
   }
 
