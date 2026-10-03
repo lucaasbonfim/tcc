@@ -12,6 +12,7 @@ import {
   updateParticipantProfileController,
 } from "../controllers/participantProfile.controller.js";
 import {
+  getNextParticipantExperimentTask,
   initializeParticipantExperimentTasksController,
   listParticipantExperimentTasks,
 } from "../controllers/experimentTask.controller.js";
@@ -21,6 +22,10 @@ const router = Router();
 router.get("/", listParticipants);
 router.post("/", createParticipantController);
 router.get("/:participantId/experiment-tasks", listParticipantExperimentTasks);
+router.get(
+  "/:participantId/experiment-tasks/next",
+  getNextParticipantExperimentTask,
+);
 router.post(
   "/:participantId/experiment-tasks/initialize",
   initializeParticipantExperimentTasksController,

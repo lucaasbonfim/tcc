@@ -1,6 +1,7 @@
 import { findParticipantById } from "../services/participant.service.js";
 import {
   findExperimentTaskById,
+  findNextParticipantExperimentTask,
   findParticipantExperimentTasks,
   initializeParticipantExperimentTasks,
 } from "../services/experimentTask.service.js";
@@ -16,6 +17,46 @@ export async function initializeParticipantExperimentTasksController(
     );
 
     return response.status(201).json({ data: tasks });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getNextParticipantExperimentTask(
+  request,
+  response,
+  next,
+) {
+  try {
+    const participant = await findParticipantById(request.params.participantId);
+
+    if (!participant) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    const result = await findNextParticipantExperimentTask(
+      request.params.participantId,
+    );
+
+    if (!result.initialized) {
+      return response.status(404).json({
+        error: "As atividades do participante ainda não foram inicializadas.",
+      });
+    }
+
+    if (result.completed) {
+      return response.status(200).json({
+        data: null,
+        completed: true,
+      });
+    }
+
+    return response.status(200).json({
+      data: result.task,
+      completed: false,
+    });
   } catch (error) {
     return next(error);
   }

@@ -6,6 +6,24 @@ function createServiceError(statusCode, message) {
   return error;
 }
 
+function mapExperimentTaskWithUseCase(task) {
+  return {
+    id: task.id,
+    participant_id: task.participant_id,
+    task_order: task.task_order,
+    mode: task.mode,
+    status: task.status,
+    started_at: task.started_at,
+    finished_at: task.finished_at,
+    use_case: {
+      id: task.use_case_id,
+      code: task.use_case_code,
+      title: task.use_case_title,
+      content: task.use_case_content,
+    },
+  };
+}
+
 export async function initializeParticipantExperimentTasks(participantId) {
   const client = await pool.connect();
 
@@ -194,19 +212,48 @@ export async function findExperimentTaskById(id) {
     return null;
   }
 
+  return mapExperimentTaskWithUseCase(task);
+}
+
+export async function findNextParticipantExperimentTask(participantId) {
+  const query = `
+    SELECT
+      experiment_tasks.id,
+      experiment_tasks.participant_id,
+      experiment_tasks.task_order,
+      experiment_tasks.mode,
+      experiment_tasks.status,
+      experiment_tasks.started_at,
+      experiment_tasks.finished_at,
+      use_cases.id AS use_case_id,
+      use_cases.code AS use_case_code,
+      use_cases.title AS use_case_title,
+      use_cases.content AS use_case_content
+    FROM experiment_tasks
+    INNER JOIN use_cases
+      ON use_cases.id = experiment_tasks.use_case_id
+    WHERE experiment_tasks.participant_id = $1
+    ORDER BY experiment_tasks.task_order
+  `;
+
+  const { rows } = await pool.query(query, [participantId]);
+
+  if (rows.length === 0) {
+    return {
+      initialized: false,
+      completed: false,
+      task: null,
+    };
+  }
+
+  const nextTask =
+    rows.find((task) => task.status === "IN_PROGRESS") ??
+    rows.find((task) => task.status === "PENDING") ??
+    null;
+
   return {
-    id: task.id,
-    participant_id: task.participant_id,
-    task_order: task.task_order,
-    mode: task.mode,
-    status: task.status,
-    started_at: task.started_at,
-    finished_at: task.finished_at,
-    use_case: {
-      id: task.use_case_id,
-      code: task.use_case_code,
-      title: task.use_case_title,
-      content: task.use_case_content,
-    },
+    initialized: true,
+    completed: !nextTask,
+    task: nextTask ? mapExperimentTaskWithUseCase(nextTask) : null,
   };
 }
