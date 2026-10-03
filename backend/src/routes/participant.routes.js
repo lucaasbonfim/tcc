@@ -9,6 +9,7 @@ import {
 import {
   createParticipantProfileController,
   getParticipantProfile,
+  updateParticipantProfileController,
 } from "../controllers/participantProfile.controller.js";
 
 const router = Router();
@@ -17,6 +18,7 @@ router.get("/", listParticipants);
 router.post("/", createParticipantController);
 router.get("/:participantId/profile", getParticipantProfile);
 router.post("/:participantId/profile", createParticipantProfileController);
+router.put("/:participantId/profile", updateParticipantProfileController);
 router.get("/:id", getParticipantById);
 router.put("/:id", updateParticipantController);
 router.delete("/:id", deleteParticipantController);
