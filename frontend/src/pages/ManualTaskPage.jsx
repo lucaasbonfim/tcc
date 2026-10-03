@@ -4,19 +4,27 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import TestCaseForm from "../components/TestCaseForm";
 import UseCaseView from "../components/UseCaseView";
 import {
   getExperimentTask,
   startExperimentTask,
 } from "../services/experimentTask.service";
+import {
+  createTestCase,
+  getTestCases,
+} from "../services/testCase.service";
 
 function ManualTaskPage() {
   const navigate = useNavigate();
   const { taskId } = useParams();
   const [task, setTask] = useState(null);
+  const [testCases, setTestCases] = useState([]);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isSavingTestCase, setIsSavingTestCase] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,6 +61,7 @@ function ManualTaskPage() {
     try {
       setIsStarting(true);
       setError("");
+      setSuccessMessage("");
 
       const startedTask = await startExperimentTask(taskId);
 
@@ -64,6 +73,30 @@ function ManualTaskPage() {
       setError(error.message || "Nao foi possivel iniciar a atividade.");
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  async function refreshTestCases() {
+    const testCasesData = await getTestCases(taskId);
+
+    setTestCases(testCasesData);
+  }
+
+  async function handleCreateTestCase(data) {
+    try {
+      setIsSavingTestCase(true);
+      setError("");
+      setSuccessMessage("");
+
+      await createTestCase(taskId, data);
+      await refreshTestCases();
+
+      setSuccessMessage("Caso de teste salvo com sucesso.");
+    } catch (error) {
+      setError(error.message || "Nao foi possivel salvar o caso de teste.");
+      throw error;
+    } finally {
+      setIsSavingTestCase(false);
     }
   }
 
@@ -81,6 +114,12 @@ function ManualTaskPage() {
     <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <ErrorMessage>{error}</ErrorMessage>
+
+        {successMessage ? (
+          <Card className="border-emerald-200 bg-emerald-50 text-emerald-800">
+            {successMessage}
+          </Card>
+        ) : null}
 
         {!error && task?.mode !== "MANUAL" ? (
           <Card>
@@ -136,8 +175,14 @@ function ManualTaskPage() {
                 <h2 className="text-2xl font-semibold">
                   Casos de teste manuais
                 </h2>
-                <p className="mt-3 leading-7 text-slate-600">
-                  A interface para criar os casos de teste sera exibida aqui.
+                <div className="mt-5">
+                  <TestCaseForm
+                    isSubmitting={isSavingTestCase}
+                    onSubmit={handleCreateTestCase}
+                  />
+                </div>
+                <p className="mt-4 text-sm text-slate-500">
+                  {testCases.length} caso(s) de teste salvo(s).
                 </p>
               </Card>
             ) : null}
