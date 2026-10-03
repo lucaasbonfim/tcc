@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ParticipantProvider } from "./contexts/ParticipantContext";
+import AITaskPage from "./pages/AITaskPage";
 import ExperimentPage from "./pages/ExperimentPage";
 import IdentificationPage from "./pages/IdentificationPage";
 import ManualTaskPage from "./pages/ManualTaskPage";
@@ -24,6 +25,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ManualTaskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/experiment/task/:taskId/ai"
+            element={
+              <ProtectedRoute>
+                <AITaskPage />
               </ProtectedRoute>
             }
           />
