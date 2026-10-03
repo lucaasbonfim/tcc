@@ -2,6 +2,7 @@ import {
   createParticipant,
   findAllParticipants,
   findExperimentGroupById,
+  findParticipantById,
 } from "../services/participant.service.js";
 
 export async function listParticipants(request, response, next) {
@@ -11,6 +12,22 @@ export async function listParticipants(request, response, next) {
     response.status(200).json({ data: participants });
   } catch (error) {
     next(error);
+  }
+}
+
+export async function getParticipantById(request, response, next) {
+  try {
+    const participant = await findParticipantById(request.params.id);
+
+    if (!participant) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    return response.status(200).json({ data: participant });
+  } catch (error) {
+    return next(error);
   }
 }
 

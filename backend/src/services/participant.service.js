@@ -12,6 +12,18 @@ export async function findAllParticipants() {
   return rows;
 }
 
+export async function findParticipantById(id) {
+  const query = `
+    SELECT id, code, group_id, consent_confirmed, created_at
+    FROM participants
+    WHERE id = $1
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+
+  return rows[0] ?? null;
+}
+
 export async function findExperimentGroupById(id) {
   const query = `
     SELECT id
