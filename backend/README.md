@@ -64,7 +64,22 @@ A API fica disponivel em `http://localhost:3000/api`.
 - `POST /api/participants`
 - `GET /api/participants/:id/experiment-tasks/next`
 - `PATCH /api/experiment-tasks/:id/start`
+- `POST /api/experiment-tasks/:id/prompt/preview`
 - `POST /api/experiment-tasks/:id/generate`
 - `PATCH /api/experiment-tasks/:id/complete`
 - `GET /api/admin/export/json`
 - `GET /api/admin/export/csv`
+- `GET /api/admin/export/xls`
+
+## Fluxo de IA
+
+Os modos `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` recebem `participant_input`.
+O backend monta o prompt final usando o template ativo, adiciona o caso de uso e
+salva em `ai_runs`:
+
+- `participant_input`
+- `final_prompt`
+- versao do template
+- modelo
+- tempo de resposta
+- resposta bruta da IA
