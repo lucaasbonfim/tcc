@@ -24,8 +24,18 @@ export async function getExperimentTaskResult(id) {
   return response.data.data;
 }
 
-export async function generateExperimentTask(id) {
-  const response = await api.post(`/experiment-tasks/${id}/generate`);
+export async function previewExperimentPrompt(id, participantInput) {
+  const response = await api.post(`/experiment-tasks/${id}/prompt/preview`, {
+    participant_input: participantInput,
+  });
+
+  return response.data.data;
+}
+
+export async function generateExperimentTask(id, participantInput) {
+  const response = await api.post(`/experiment-tasks/${id}/generate`, {
+    participant_input: participantInput,
+  });
 
   return response.data.data;
 }
