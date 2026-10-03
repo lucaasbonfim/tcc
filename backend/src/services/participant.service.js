@@ -1,5 +1,17 @@
 import pool from "../config/database.js";
 
+export async function findAllParticipants() {
+  const query = `
+    SELECT id, code, group_id, consent_confirmed, created_at
+    FROM participants
+    ORDER BY code
+  `;
+
+  const { rows } = await pool.query(query);
+
+  return rows;
+}
+
 export async function findExperimentGroupById(id) {
   const query = `
     SELECT id

@@ -1,7 +1,18 @@
 import {
   createParticipant,
+  findAllParticipants,
   findExperimentGroupById,
 } from "../services/participant.service.js";
+
+export async function listParticipants(request, response, next) {
+  try {
+    const participants = await findAllParticipants();
+
+    response.status(200).json({ data: participants });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createParticipantController(request, response, next) {
   try {
