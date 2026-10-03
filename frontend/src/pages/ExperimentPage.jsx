@@ -4,6 +4,7 @@ import { useParticipant } from "../contexts/useParticipant";
 import {
   getParticipantProfile,
   getParticipantTasks,
+  initializeParticipantTasks,
 } from "../services/participant.service";
 
 const MODE_LABELS = {
@@ -29,6 +30,7 @@ function ExperimentPage() {
   const { clearParticipant, participant } = useParticipant();
   const [profile, setProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -93,6 +95,25 @@ function ExperimentPage() {
   function handleLogout() {
     clearParticipant();
     navigate("/", { replace: true });
+  }
+
+  async function handleInitializeExperiment() {
+    try {
+      setIsInitializing(true);
+      setError("");
+
+      await initializeParticipantTasks(participant.id);
+
+      const updatedTasks = await getParticipantTasks(participant.id);
+      setTasks(updatedTasks);
+    } catch (error) {
+      setError(
+        error.message ||
+          "Nao foi possivel inicializar as atividades do experimento.",
+      );
+    } finally {
+      setIsInitializing(false);
+    }
   }
 
   return (
@@ -185,9 +206,23 @@ function ExperimentPage() {
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-slate-600">
-                  As atividades ainda nao foram inicializadas.
-                </p>
+                <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-5">
+                  <p className="text-slate-600">
+                    As atividades ainda nao foram inicializadas.
+                  </p>
+                  {profile ? (
+                    <button
+                      className="mt-4 rounded-md bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={isInitializing}
+                      onClick={handleInitializeExperiment}
+                      type="button"
+                    >
+                      {isInitializing
+                        ? "Inicializando..."
+                        : "Iniciar experimento"}
+                    </button>
+                  ) : null}
+                </div>
               )}
             </section>
           </>
