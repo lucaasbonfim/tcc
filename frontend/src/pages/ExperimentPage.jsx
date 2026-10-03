@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParticipant } from "../contexts/useParticipant";
 import {
+  getNextParticipantTask,
   getParticipantProfile,
   getParticipantTasks,
   initializeParticipantTasks,
@@ -31,8 +32,11 @@ function ExperimentPage() {
   const [profile, setProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isLoadingNextTask, setIsLoadingNextTask] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [nextTask, setNextTask] = useState(null);
+  const [isExperimentCompleted, setIsExperimentCompleted] = useState(false);
 
   const completedTasks = useMemo(
     () => tasks.filter((task) => task.status === "COMPLETED").length,
@@ -106,6 +110,8 @@ function ExperimentPage() {
 
       const updatedTasks = await getParticipantTasks(participant.id);
       setTasks(updatedTasks);
+      setNextTask(null);
+      setIsExperimentCompleted(false);
     } catch (error) {
       setError(
         error.message ||
@@ -113,6 +119,30 @@ function ExperimentPage() {
       );
     } finally {
       setIsInitializing(false);
+    }
+  }
+
+  async function handleContinueExperiment() {
+    try {
+      setIsLoadingNextTask(true);
+      setError("");
+      setNextTask(null);
+      setIsExperimentCompleted(false);
+
+      const result = await getNextParticipantTask(participant.id);
+
+      if (result.completed) {
+        setIsExperimentCompleted(true);
+        return;
+      }
+
+      setNextTask(result.data);
+    } catch (error) {
+      setError(
+        error.message || "Nao foi possivel consultar a proxima atividade.",
+      );
+    } finally {
+      setIsLoadingNextTask(false);
     }
   }
 
@@ -173,7 +203,21 @@ function ExperimentPage() {
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold">Atividades</h2>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-xl font-semibold">Atividades</h2>
+                {tasks.length > 0 ? (
+                  <button
+                    className="rounded-md bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    disabled={isLoadingNextTask}
+                    onClick={handleContinueExperiment}
+                    type="button"
+                  >
+                    {isLoadingNextTask
+                      ? "Consultando..."
+                      : "Continuar experimento"}
+                  </button>
+                ) : null}
+              </div>
 
               {tasks.length > 0 ? (
                 <div className="mt-5 grid gap-4">
@@ -225,6 +269,38 @@ function ExperimentPage() {
                 </div>
               )}
             </section>
+
+            {isExperimentCompleted ? (
+              <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-emerald-800 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                  Experimento concluido.
+                </h2>
+              </section>
+            ) : null}
+
+            {nextTask ? (
+              <section className="rounded-lg border border-teal-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
+                  Proxima atividade
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Modo</p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {MODE_LABELS[nextTask.mode] || nextTask.mode}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">
+                      Caso de uso
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {nextTask.use_case.title}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
       </div>
