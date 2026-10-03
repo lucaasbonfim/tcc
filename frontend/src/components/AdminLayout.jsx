@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useState } from "react";
-import { downloadExperimentJson } from "../services/admin.service";
+import {
+  downloadExperimentCsv,
+  downloadExperimentJson,
+} from "../services/admin.service";
 
 const NAV_ITEMS = [
   { label: "Visao geral", to: "/admin" },
@@ -22,6 +25,7 @@ function downloadBlob(blob, filename) {
 
 function AdminLayout() {
   const [exportError, setExportError] = useState("");
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isExportingJson, setIsExportingJson] = useState(false);
 
   async function handleExportJson() {
@@ -36,6 +40,21 @@ function AdminLayout() {
       setExportError(error.message || "Nao foi possivel exportar os dados.");
     } finally {
       setIsExportingJson(false);
+    }
+  }
+
+  async function handleExportCsv() {
+    try {
+      setIsExportingCsv(true);
+      setExportError("");
+
+      const blob = await downloadExperimentCsv();
+
+      downloadBlob(blob, "experiment-results.csv");
+    } catch (error) {
+      setExportError(error.message || "Nao foi possivel exportar os dados.");
+    } finally {
+      setIsExportingCsv(false);
     }
   }
 
@@ -66,10 +85,12 @@ function AdminLayout() {
                 {isExportingJson ? "Exportando JSON..." : "Exportar JSON"}
               </button>
               <button
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isExportingCsv}
+                onClick={handleExportCsv}
                 type="button"
               >
-                Exportar CSV
+                {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
               </button>
             </div>
           </div>
