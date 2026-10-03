@@ -1,8 +1,7 @@
 import pool from "../config/database.js";
 import { getGeminiModel } from "../config/gemini.js";
 import { generateContentWithGemini } from "./gemini.service.js";
-import { findActivePromptVersionByMode } from "./promptVersion.service.js";
-import { serializeUseCaseForPrompt } from "./useCaseSerializer.service.js";
+import { buildPromptFromParticipantInput } from "./promptBuilder.service.js";
 
 function createServiceError(statusCode, message) {
   const error = new Error(message);
@@ -10,7 +9,10 @@ function createServiceError(statusCode, message) {
   return error;
 }
 
-export async function generateSimplePromptResult(experimentTaskId) {
+export async function generateSimplePromptResult(
+  experimentTaskId,
+  participantInput,
+) {
   const client = await pool.connect();
 
   try {
@@ -70,17 +72,20 @@ export async function generateSimplePromptResult(experimentTaskId) {
       );
     }
 
-    const model = getGeminiModel();
-    const promptVersion = await findActivePromptVersionByMode(task.mode);
-    const serializedUseCase = serializeUseCaseForPrompt({
-      id: task.use_case_id,
-      title: task.use_case_title,
-      content: task.use_case_content,
+    const {
+      finalPrompt,
+      participantInput: normalizedParticipantInput,
+      promptVersion,
+    } = await buildPromptFromParticipantInput({
+      mode: task.mode,
+      participantInput,
+      useCase: {
+        id: task.use_case_id,
+        title: task.use_case_title,
+        content: task.use_case_content,
+      },
     });
-    const finalPrompt = promptVersion.prompt.replace(
-      "{{USE_CASE}}",
-      serializedUseCase,
-    );
+    const model = getGeminiModel();
     const geminiResult = await generateContentWithGemini({
       prompt: finalPrompt,
       model,
@@ -91,18 +96,22 @@ export async function generateSimplePromptResult(experimentTaskId) {
         INSERT INTO ai_runs (
           experiment_task_id,
           prompt_version_id,
+          participant_input,
+          final_prompt,
           model,
           started_at,
           finished_at,
           response_time_ms,
           raw_response
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
       `,
       [
         experimentTaskId,
         promptVersion.id,
+        JSON.stringify(normalizedParticipantInput),
+        finalPrompt,
         geminiResult.model,
         geminiResult.startedAt,
         geminiResult.finishedAt,
@@ -118,6 +127,8 @@ export async function generateSimplePromptResult(experimentTaskId) {
       mode: task.mode,
       model: geminiResult.model,
       prompt_version: promptVersion.version,
+      participant_input: normalizedParticipantInput,
+      final_prompt: finalPrompt,
       response_time_ms: geminiResult.responseTimeMs,
       response: geminiResult.text,
       ai_run_id: aiRunResult.rows[0].id,

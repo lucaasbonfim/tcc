@@ -44,7 +44,10 @@ export async function generateSimplePromptResultController(
   next,
 ) {
   try {
-    const result = await generateSimplePromptResult(request.params.id);
+    const result = await generateSimplePromptResult(
+      request.params.id,
+      request.body.participant_input,
+    );
 
     return response.status(200).json({ data: result });
   } catch (error) {
