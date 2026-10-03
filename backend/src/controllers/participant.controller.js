@@ -1,5 +1,6 @@
 import {
   createParticipant,
+  deleteParticipantById,
   findAllParticipants,
   findExperimentGroupById,
   findParticipantById,
@@ -28,6 +29,28 @@ export async function getParticipantById(request, response, next) {
 
     return response.status(200).json({ data: participant });
   } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteParticipantController(request, response, next) {
+  try {
+    const deletedParticipant = await deleteParticipantById(request.params.id);
+
+    if (!deletedParticipant) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    return response.status(204).send();
+  } catch (error) {
+    if (error.code === "23503") {
+      return response.status(409).json({
+        error: "Participante não pode ser excluído pois possui vínculos.",
+      });
+    }
+
     return next(error);
   }
 }

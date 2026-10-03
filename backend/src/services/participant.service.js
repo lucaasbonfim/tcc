@@ -78,3 +78,15 @@ export async function updateParticipantById(
 
   return rows[0] ?? null;
 }
+
+export async function deleteParticipantById(id) {
+  const query = `
+    DELETE FROM participants
+    WHERE id = $1
+    RETURNING id
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+
+  return rows[0] ?? null;
+}
