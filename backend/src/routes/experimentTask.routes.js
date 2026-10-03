@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   completeManualExperimentTaskController,
   getExperimentTaskById,
+  getManualExperimentTaskResult,
   startExperimentTaskController,
 } from "../controllers/experimentTask.controller.js";
 import {
@@ -15,6 +16,7 @@ const router = Router();
 
 router.patch("/:id/start", startExperimentTaskController);
 router.patch("/:id/complete", completeManualExperimentTaskController);
+router.get("/:id/result", getManualExperimentTaskResult);
 router.get("/:taskId/test-cases", listExperimentTaskTestCases);
 router.post("/:taskId/test-cases", createManualTestCaseController);
 router.put("/:taskId/test-cases/:testCaseId", updateManualTestCaseController);

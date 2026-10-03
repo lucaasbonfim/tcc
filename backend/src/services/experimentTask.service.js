@@ -431,3 +431,77 @@ export async function completeManualExperimentTaskById(id) {
     client.release();
   }
 }
+
+export async function findManualExperimentTaskResultById(id) {
+  const taskResult = await pool.query(
+    `
+      SELECT
+        experiment_tasks.id,
+        experiment_tasks.mode,
+        experiment_tasks.status,
+        experiment_tasks.task_order,
+        experiment_tasks.started_at,
+        experiment_tasks.finished_at,
+        CASE
+          WHEN experiment_tasks.started_at IS NOT NULL
+            AND experiment_tasks.finished_at IS NOT NULL
+          THEN EXTRACT(
+            EPOCH FROM (experiment_tasks.finished_at - experiment_tasks.started_at)
+          )::int
+          ELSE NULL
+        END AS duration_seconds,
+        use_cases.id AS use_case_id,
+        use_cases.code AS use_case_code,
+        use_cases.title AS use_case_title
+      FROM experiment_tasks
+      INNER JOIN use_cases
+        ON use_cases.id = experiment_tasks.use_case_id
+      WHERE experiment_tasks.id = $1
+    `,
+    [id],
+  );
+  const task = taskResult.rows[0];
+
+  if (!task) {
+    throw createServiceError(404, "Atividade experimental não encontrada.");
+  }
+
+  if (task.mode !== "MANUAL") {
+    throw createServiceError(
+      400,
+      "A consulta de resultado desse modo ainda não foi implementada.",
+    );
+  }
+
+  const testCasesResult = await pool.query(
+    `
+      SELECT
+        id,
+        sequence_number,
+        title,
+        preconditions,
+        steps,
+        expected_result
+      FROM test_cases
+      WHERE experiment_task_id = $1
+      ORDER BY sequence_number
+    `,
+    [id],
+  );
+
+  return {
+    id: task.id,
+    mode: task.mode,
+    status: task.status,
+    task_order: task.task_order,
+    started_at: task.started_at,
+    finished_at: task.finished_at,
+    duration_seconds: task.duration_seconds,
+    use_case: {
+      id: task.use_case_id,
+      code: task.use_case_code,
+      title: task.use_case_title,
+    },
+    test_cases: testCasesResult.rows,
+  };
+}
