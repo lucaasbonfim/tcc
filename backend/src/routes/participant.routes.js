@@ -11,11 +11,16 @@ import {
   getParticipantProfile,
   updateParticipantProfileController,
 } from "../controllers/participantProfile.controller.js";
+import { initializeParticipantExperimentTasksController } from "../controllers/experimentTask.controller.js";
 
 const router = Router();
 
 router.get("/", listParticipants);
 router.post("/", createParticipantController);
+router.post(
+  "/:participantId/experiment-tasks/initialize",
+  initializeParticipantExperimentTasksController,
+);
 router.get("/:participantId/profile", getParticipantProfile);
 router.post("/:participantId/profile", createParticipantProfileController);
 router.put("/:participantId/profile", updateParticipantProfileController);
