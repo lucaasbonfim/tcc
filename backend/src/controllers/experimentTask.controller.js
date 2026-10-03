@@ -4,6 +4,7 @@ import {
   findNextParticipantExperimentTask,
   findParticipantExperimentTasks,
   initializeParticipantExperimentTasks,
+  startExperimentTaskById,
 } from "../services/experimentTask.service.js";
 
 export async function initializeParticipantExperimentTasksController(
@@ -17,6 +18,16 @@ export async function initializeParticipantExperimentTasksController(
     );
 
     return response.status(201).json({ data: tasks });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function startExperimentTaskController(request, response, next) {
+  try {
+    const task = await startExperimentTaskById(request.params.id);
+
+    return response.status(200).json({ data: task });
   } catch (error) {
     return next(error);
   }

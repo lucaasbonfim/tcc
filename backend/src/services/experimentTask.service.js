@@ -257,3 +257,97 @@ export async function findNextParticipantExperimentTask(participantId) {
     task: nextTask ? mapExperimentTaskWithUseCase(nextTask) : null,
   };
 }
+
+export async function startExperimentTaskById(id) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const taskResult = await client.query(
+      `
+        SELECT id, participant_id, task_order, status, started_at
+        FROM experiment_tasks
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    );
+    const task = taskResult.rows[0];
+
+    if (!task) {
+      throw createServiceError(404, "Atividade experimental não encontrada.");
+    }
+
+    if (task.status === "COMPLETED") {
+      throw createServiceError(409, "Atividade experimental já concluída.");
+    }
+
+    const participantTasksResult = await client.query(
+      `
+        SELECT id, task_order, status
+        FROM experiment_tasks
+        WHERE participant_id = $1
+        ORDER BY task_order
+        FOR UPDATE
+      `,
+      [task.participant_id],
+    );
+
+    if (task.status === "IN_PROGRESS") {
+      await client.query("COMMIT");
+
+      return {
+        id: task.id,
+        status: task.status,
+        started_at: task.started_at,
+      };
+    }
+
+    const previousIncompleteTask = participantTasksResult.rows.find(
+      (participantTask) =>
+        participantTask.task_order < task.task_order &&
+        participantTask.status !== "COMPLETED",
+    );
+
+    if (previousIncompleteTask) {
+      throw createServiceError(
+        409,
+        "A atividade anterior ainda não foi concluída.",
+      );
+    }
+
+    const inProgressTask = participantTasksResult.rows.find(
+      (participantTask) =>
+        participantTask.status === "IN_PROGRESS" && participantTask.id !== task.id,
+    );
+
+    if (inProgressTask) {
+      throw createServiceError(
+        409,
+        "Já existe uma atividade em andamento para este participante.",
+      );
+    }
+
+    const updatedTaskResult = await client.query(
+      `
+        UPDATE experiment_tasks
+        SET status = 'IN_PROGRESS',
+            started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING id, status, started_at
+      `,
+      [id],
+    );
+
+    await client.query("COMMIT");
+
+    return updatedTaskResult.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

@@ -1,8 +1,12 @@
 import { Router } from "express";
-import { getExperimentTaskById } from "../controllers/experimentTask.controller.js";
+import {
+  getExperimentTaskById,
+  startExperimentTaskController,
+} from "../controllers/experimentTask.controller.js";
 
 const router = Router();
 
+router.patch("/:id/start", startExperimentTaskController);
 router.get("/:id", getExperimentTaskById);
 
 export default router;
