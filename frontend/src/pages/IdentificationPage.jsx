@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Button from "../components/Button";
+import Card from "../components/Card";
+import ErrorMessage from "../components/ErrorMessage";
 import { useParticipant } from "../contexts/useParticipant";
 import { findParticipantByCode } from "../services/participant.service";
 
@@ -49,7 +52,7 @@ function IdentificationPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-900">
-      <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+      <Card className="w-full max-w-md p-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-teal-700">
           Experimento
         </p>
@@ -79,21 +82,17 @@ function IdentificationPage() {
             />
           </div>
 
-          {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          ) : null}
+          <ErrorMessage>{error}</ErrorMessage>
 
-          <button
-            className="w-full rounded-md bg-teal-700 px-4 py-3 text-base font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          <Button
+            className="w-full text-base"
             disabled={isLoading}
             type="submit"
           >
             {isLoading ? "Validando..." : "Continuar"}
-          </button>
+          </Button>
         </form>
-      </section>
+      </Card>
     </main>
   );
 }

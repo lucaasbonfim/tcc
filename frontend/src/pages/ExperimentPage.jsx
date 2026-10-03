@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Button from "../components/Button";
+import Card from "../components/Card";
+import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
+import StatusBadge from "../components/StatusBadge";
 import { useParticipant } from "../contexts/useParticipant";
 import {
   getNextParticipantTask,
@@ -18,12 +23,6 @@ const STATUS_LABELS = {
   PENDING: "Pendente",
   IN_PROGRESS: "Em andamento",
   COMPLETED: "Concluida",
-};
-
-const STATUS_STYLES = {
-  PENDING: "border-slate-200 bg-slate-100 text-slate-700",
-  IN_PROGRESS: "border-amber-200 bg-amber-50 text-amber-800",
-  COMPLETED: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
 function ExperimentPage() {
@@ -149,7 +148,7 @@ function ExperimentPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
               Area do participante
@@ -164,58 +163,44 @@ function ExperimentPage() {
               </span>
             </p>
           </div>
-          <button
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-            onClick={handleLogout}
-            type="button"
-          >
+          <Button className="py-2" onClick={handleLogout} variant="secondary">
             Sair
-          </button>
-        </header>
+          </Button>
+        </Card>
 
-        {isLoading ? (
-          <section className="rounded-lg border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
-            Carregando dados do experimento...
-          </section>
-        ) : null}
+        {isLoading ? <Loading>Carregando dados do experimento...</Loading> : null}
 
-        {error ? (
-          <section className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-            {error}
-          </section>
-        ) : null}
+        <ErrorMessage>{error}</ErrorMessage>
 
         {!isLoading && !error ? (
           <>
             <section className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              <Card>
                 <p className="text-sm font-medium text-slate-500">Perfil</p>
                 <p className="mt-2 text-2xl font-semibold">
                   {profile ? "Preenchido" : "Pendente"}
                 </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              </Card>
+              <Card>
                 <p className="text-sm font-medium text-slate-500">Progresso</p>
                 <p className="mt-2 text-2xl font-semibold">
                   {completedTasks} de 3 atividades concluidas
                 </p>
-              </div>
+              </Card>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <Card>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-xl font-semibold">Atividades</h2>
                 {tasks.length > 0 ? (
-                  <button
-                    className="rounded-md bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  <Button
                     disabled={isLoadingNextTask}
                     onClick={handleContinueExperiment}
-                    type="button"
                   >
                     {isLoadingNextTask
                       ? "Consultando..."
                       : "Continuar experimento"}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
 
@@ -238,13 +223,9 @@ function ExperimentPage() {
                             {MODE_LABELS[task.mode] || task.mode}
                           </p>
                         </div>
-                        <span
-                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-sm font-medium ${
-                            STATUS_STYLES[task.status] || STATUS_STYLES.PENDING
-                          }`}
-                        >
+                        <StatusBadge status={task.status}>
                           {STATUS_LABELS[task.status] || task.status}
-                        </span>
+                        </StatusBadge>
                       </div>
                     </article>
                   ))}
@@ -255,31 +236,30 @@ function ExperimentPage() {
                     As atividades ainda nao foram inicializadas.
                   </p>
                   {profile ? (
-                    <button
-                      className="mt-4 rounded-md bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    <Button
+                      className="mt-4"
                       disabled={isInitializing}
                       onClick={handleInitializeExperiment}
-                      type="button"
                     >
                       {isInitializing
                         ? "Inicializando..."
                         : "Iniciar experimento"}
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               )}
-            </section>
+            </Card>
 
             {isExperimentCompleted ? (
-              <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-emerald-800 shadow-sm">
+              <Card className="border-emerald-200 bg-emerald-50 text-emerald-800">
                 <h2 className="text-xl font-semibold">
                   Experimento concluido.
                 </h2>
-              </section>
+              </Card>
             ) : null}
 
             {nextTask ? (
-              <section className="rounded-lg border border-teal-200 bg-white p-6 shadow-sm">
+              <Card className="border-teal-200">
                 <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
                   Proxima atividade
                 </p>
@@ -299,7 +279,7 @@ function ExperimentPage() {
                     </p>
                   </div>
                 </div>
-              </section>
+              </Card>
             ) : null}
           </>
         ) : null}
