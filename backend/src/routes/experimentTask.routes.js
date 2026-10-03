@@ -5,6 +5,7 @@ import {
   getExperimentTaskAiRun,
   getExperimentTaskById,
   getManualExperimentTaskResult,
+  previewExperimentTaskPromptController,
   startExperimentTaskController,
 } from "../controllers/experimentTask.controller.js";
 import {
@@ -18,6 +19,7 @@ const router = Router();
 
 router.patch("/:id/start", startExperimentTaskController);
 router.patch("/:id/complete", completeManualExperimentTaskController);
+router.post("/:id/prompt/preview", previewExperimentTaskPromptController);
 router.post("/:id/generate", generateSimplePromptResultController);
 router.get("/:id/ai-run", getExperimentTaskAiRun);
 router.get("/:id/result", getManualExperimentTaskResult);

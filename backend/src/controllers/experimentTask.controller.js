@@ -1,5 +1,6 @@
 import { findParticipantById } from "../services/participant.service.js";
 import { findAiRunByExperimentTaskId } from "../services/aiRun.service.js";
+import { previewExperimentTaskPrompt } from "../services/promptPreview.service.js";
 import { generateSimplePromptResult } from "../services/simplePromptGeneration.service.js";
 import {
   completeManualExperimentTaskById,
@@ -44,6 +45,23 @@ export async function generateSimplePromptResultController(
 ) {
   try {
     const result = await generateSimplePromptResult(request.params.id);
+
+    return response.status(200).json({ data: result });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function previewExperimentTaskPromptController(
+  request,
+  response,
+  next,
+) {
+  try {
+    const result = await previewExperimentTaskPrompt(
+      request.params.id,
+      request.body.participant_input,
+    );
 
     return response.status(200).json({ data: result });
   } catch (error) {
