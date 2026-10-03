@@ -2,12 +2,28 @@ import { useState } from "react";
 import Button from "./Button";
 import ErrorMessage from "./ErrorMessage";
 
-const EMPTY_FORM = {
-  title: "",
-  preconditions: [""],
-  steps: [""],
-  expected_result: "",
-};
+function createEmptyForm() {
+  return {
+    title: "",
+    preconditions: [""],
+    steps: [""],
+    expected_result: "",
+  };
+}
+
+function createFormFromTestCase(testCase) {
+  if (!testCase) {
+    return createEmptyForm();
+  }
+
+  return {
+    title: testCase.title || "",
+    preconditions:
+      testCase.preconditions?.length > 0 ? testCase.preconditions : [""],
+    steps: testCase.steps?.length > 0 ? testCase.steps : [""],
+    expected_result: testCase.expected_result || "",
+  };
+}
 
 function updateListItem(items, index, value) {
   return items.map((item, currentIndex) =>
@@ -70,12 +86,20 @@ function DynamicList({
   );
 }
 
-function TestCaseForm({ isSubmitting, onSubmit }) {
-  const [formData, setFormData] = useState(EMPTY_FORM);
+function TestCaseForm({
+  initialValue = null,
+  isSubmitting,
+  onCancel,
+  onSubmit,
+  submitLabel = "Salvar caso de teste",
+}) {
+  const [formData, setFormData] = useState(() =>
+    createFormFromTestCase(initialValue),
+  );
   const [error, setError] = useState("");
 
   function resetForm() {
-    setFormData(EMPTY_FORM);
+    setFormData(createEmptyForm());
   }
 
   async function handleSubmit(event) {
@@ -107,7 +131,9 @@ function TestCaseForm({ isSubmitting, onSubmit }) {
 
     try {
       await onSubmit(payload);
-      resetForm();
+      if (!initialValue) {
+        resetForm();
+      }
     } catch {
       // A mensagem amigavel e exibida pela pagina que executa a requisicao.
     }
@@ -219,9 +245,20 @@ function TestCaseForm({ isSubmitting, onSubmit }) {
         />
       </div>
 
-      <Button disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Salvando..." : "Salvar caso de teste"}
-      </Button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Salvando..." : submitLabel}
+        </Button>
+        {onCancel ? (
+          <Button
+            disabled={isSubmitting}
+            onClick={onCancel}
+            variant="secondary"
+          >
+            Cancelar edicao
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

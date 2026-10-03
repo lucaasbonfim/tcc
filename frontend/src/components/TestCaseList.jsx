@@ -1,3 +1,5 @@
+import Button from "./Button";
+
 function TextList({ emptyMessage, items, ordered = false }) {
   if (!Array.isArray(items) || items.length === 0) {
     return <p className="text-sm text-slate-500">{emptyMessage}</p>;
@@ -18,7 +20,7 @@ function TextList({ emptyMessage, items, ordered = false }) {
   );
 }
 
-function TestCaseList({ testCases }) {
+function TestCaseList({ canEdit = false, onEdit, testCases }) {
   if (testCases.length === 0) {
     return <p className="text-slate-600">Nenhum caso de teste criado.</p>;
   }
@@ -30,12 +32,25 @@ function TestCaseList({ testCases }) {
           className="rounded-lg border border-slate-200 p-5"
           key={testCase.id}
         >
-          <p className="text-sm font-medium text-slate-500">
-            Caso de Teste {testCase.sequence_number}
-          </p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">
-            {testCase.title}
-          </h3>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Caso de Teste {testCase.sequence_number}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                {testCase.title}
+              </h3>
+            </div>
+            {canEdit ? (
+              <Button
+                className="py-2"
+                onClick={() => onEdit(testCase)}
+                variant="secondary"
+              >
+                Editar
+              </Button>
+            ) : null}
+          </div>
 
           <div className="mt-4 grid gap-4">
             <section>

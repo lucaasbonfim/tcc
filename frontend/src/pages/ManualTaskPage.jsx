@@ -14,6 +14,7 @@ import {
 import {
   createTestCase,
   getTestCases,
+  updateTestCase,
 } from "../services/testCase.service";
 
 function ManualTaskPage() {
@@ -21,6 +22,7 @@ function ManualTaskPage() {
   const { taskId } = useParams();
   const [task, setTask] = useState(null);
   const [testCases, setTestCases] = useState([]);
+  const [editingTestCase, setEditingTestCase] = useState(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +69,7 @@ function ManualTaskPage() {
       setIsStarting(true);
       setError("");
       setSuccessMessage("");
+      setEditingTestCase(null);
 
       const startedTask = await startExperimentTask(taskId);
 
@@ -103,6 +106,35 @@ function ManualTaskPage() {
     } finally {
       setIsSavingTestCase(false);
     }
+  }
+
+  async function handleUpdateTestCase(data) {
+    try {
+      setIsSavingTestCase(true);
+      setError("");
+      setSuccessMessage("");
+
+      await updateTestCase(taskId, editingTestCase.id, data);
+      await refreshTestCases();
+
+      setEditingTestCase(null);
+      setSuccessMessage("Alteracoes salvas com sucesso.");
+    } catch (error) {
+      setError(error.message || "Nao foi possivel salvar as alteracoes.");
+      throw error;
+    } finally {
+      setIsSavingTestCase(false);
+    }
+  }
+
+  function handleEditTestCase(testCase) {
+    setError("");
+    setSuccessMessage("");
+    setEditingTestCase(testCase);
+  }
+
+  function handleCancelEdit() {
+    setEditingTestCase(null);
   }
 
   if (isLoading) {
@@ -182,8 +214,22 @@ function ManualTaskPage() {
                 </h2>
                 <div className="mt-5">
                   <TestCaseForm
+                    initialValue={editingTestCase}
                     isSubmitting={isSavingTestCase}
-                    onSubmit={handleCreateTestCase}
+                    key={editingTestCase?.id || "new-test-case"}
+                    onCancel={
+                      editingTestCase ? handleCancelEdit : undefined
+                    }
+                    onSubmit={
+                      editingTestCase
+                        ? handleUpdateTestCase
+                        : handleCreateTestCase
+                    }
+                    submitLabel={
+                      editingTestCase
+                        ? "Salvar alteracoes"
+                        : "Salvar caso de teste"
+                    }
                   />
                 </div>
                 <p className="mt-4 text-sm text-slate-500">
@@ -198,7 +244,11 @@ function ManualTaskPage() {
                   Casos de teste criados
                 </h2>
                 <div className="mt-5">
-                  <TestCaseList testCases={testCases} />
+                  <TestCaseList
+                    canEdit={task.status === "IN_PROGRESS"}
+                    onEdit={handleEditTestCase}
+                    testCases={testCases}
+                  />
                 </div>
               </Card>
             ) : null}
