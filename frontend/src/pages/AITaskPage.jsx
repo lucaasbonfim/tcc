@@ -12,10 +12,10 @@ const MODE_LABELS = {
   STRUCTURED_PROMPT: "IA com prompt estruturado",
 };
 
-function AITaskPage() {
+function AITaskPage({ initialTask = null }) {
   const navigate = useNavigate();
   const { taskId } = useParams();
-  const [task, setTask] = useState(null);
+  const [task, setTask] = useState(initialTask);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,7 +27,7 @@ function AITaskPage() {
         setIsLoading(true);
         setError("");
 
-        const taskData = await getExperimentTask(taskId);
+        const taskData = initialTask || (await getExperimentTask(taskId));
 
         if (isMounted) {
           setTask(taskData);
@@ -48,7 +48,7 @@ function AITaskPage() {
     return () => {
       isMounted = false;
     };
-  }, [taskId]);
+  }, [initialTask, taskId]);
 
   if (isLoading) {
     return (

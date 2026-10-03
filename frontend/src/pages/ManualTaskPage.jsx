@@ -19,10 +19,11 @@ import {
   updateTestCase,
 } from "../services/testCase.service";
 
-function ManualTaskPage() {
+function ManualTaskPage({ initialTask = null }) {
   const navigate = useNavigate();
   const { taskId } = useParams();
-  const [task, setTask] = useState(null);
+  const currentTaskId = initialTask?.id || taskId;
+  const [task, setTask] = useState(initialTask);
   const [testCases, setTestCases] = useState([]);
   const [editingTestCase, setEditingTestCase] = useState(null);
   const [error, setError] = useState("");
@@ -41,10 +42,12 @@ function ManualTaskPage() {
         setIsLoading(true);
         setError("");
 
-        const [taskData, testCasesData] = await Promise.all([
-          getExperimentTask(taskId),
-          getTestCases(taskId),
-        ]);
+        const [taskData, testCasesData] = initialTask
+          ? [initialTask, await getTestCases(currentTaskId)]
+          : await Promise.all([
+              getExperimentTask(currentTaskId),
+              getTestCases(currentTaskId),
+            ]);
 
         if (isMounted) {
           setTask(taskData);
@@ -66,7 +69,7 @@ function ManualTaskPage() {
     return () => {
       isMounted = false;
     };
-  }, [taskId]);
+  }, [currentTaskId, initialTask]);
 
   async function handleStartTask() {
     try {
@@ -75,7 +78,7 @@ function ManualTaskPage() {
       setSuccessMessage("");
       setEditingTestCase(null);
 
-      const startedTask = await startExperimentTask(taskId);
+      const startedTask = await startExperimentTask(currentTaskId);
 
       setTask((currentTask) => ({
         ...currentTask,
@@ -89,7 +92,7 @@ function ManualTaskPage() {
   }
 
   async function refreshTestCases() {
-    const testCasesData = await getTestCases(taskId);
+    const testCasesData = await getTestCases(currentTaskId);
 
     setTestCases(testCasesData);
   }
@@ -100,7 +103,7 @@ function ManualTaskPage() {
       setError("");
       setSuccessMessage("");
 
-      await createTestCase(taskId, data);
+      await createTestCase(currentTaskId, data);
       await refreshTestCases();
 
       setSuccessMessage("Caso de teste salvo com sucesso.");
@@ -118,7 +121,7 @@ function ManualTaskPage() {
       setError("");
       setSuccessMessage("");
 
-      await updateTestCase(taskId, editingTestCase.id, data);
+      await updateTestCase(currentTaskId, editingTestCase.id, data);
       await refreshTestCases();
 
       setEditingTestCase(null);
@@ -155,7 +158,7 @@ function ManualTaskPage() {
       setError("");
       setSuccessMessage("");
 
-      await deleteTestCase(taskId, testCase.id);
+      await deleteTestCase(currentTaskId, testCase.id);
       await refreshTestCases();
 
       if (editingTestCase?.id === testCase.id) {
@@ -184,7 +187,7 @@ function ManualTaskPage() {
       setError("");
       setSuccessMessage("");
 
-      const completedTask = await completeExperimentTask(taskId);
+      const completedTask = await completeExperimentTask(currentTaskId);
 
       setTask((currentTask) => ({
         ...currentTask,
