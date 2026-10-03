@@ -540,6 +540,8 @@ export async function findManualExperimentTaskResultById(id) {
       SELECT
         ai_runs.model,
         prompt_versions.version AS prompt_version,
+        ai_runs.participant_input,
+        ai_runs.final_prompt,
         ai_runs.response_time_ms,
         ai_runs.raw_response
       FROM ai_runs
@@ -557,6 +559,8 @@ export async function findManualExperimentTaskResultById(id) {
       ? {
           model: aiRun.model,
           prompt_version: aiRun.prompt_version,
+          participant_input: aiRun.participant_input,
+          final_prompt: aiRun.final_prompt,
           response_time_ms: aiRun.response_time_ms,
           raw_response: aiRun.raw_response,
         }
