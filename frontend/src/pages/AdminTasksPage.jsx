@@ -1,12 +1,182 @@
+import { useEffect, useState } from "react";
+import Button from "../components/Button";
 import Card from "../components/Card";
+import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
+import StatusBadge from "../components/StatusBadge";
+import { getExperimentTasks } from "../services/admin.service";
+
+const MODE_LABELS = {
+  MANUAL: "Manual",
+  SIMPLE_PROMPT: "IA com prompt simples",
+  STRUCTURED_PROMPT: "IA com prompt estruturado",
+};
+
+const STATUS_LABELS = {
+  PENDING: "Pendente",
+  IN_PROGRESS: "Em andamento",
+  COMPLETED: "Concluida",
+};
+
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatDuration(seconds) {
+  if (seconds == null) {
+    return "-";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds} s`;
+  }
+
+  return `${minutes} min ${remainingSeconds} s`;
+}
+
+function formatResponseTime(milliseconds) {
+  if (milliseconds == null) {
+    return "-";
+  }
+
+  return `${milliseconds} ms`;
+}
 
 function AdminTasksPage() {
+  const [tasks, setTasks] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function loadTasks() {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const data = await getExperimentTasks();
+
+      setTasks(data);
+    } catch (error) {
+      setError(error.message || "Nao foi possivel carregar as atividades.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialTasks() {
+      try {
+        const data = await getExperimentTasks();
+
+        if (isMounted) {
+          setTasks(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(error.message || "Nao foi possivel carregar as atividades.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadInitialTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (isLoading) {
+    return <Loading>Carregando atividades...</Loading>;
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <ErrorMessage>{error}</ErrorMessage>
+        <Button className="mt-4" onClick={loadTasks}>
+          Tentar novamente
+        </Button>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <h2 className="text-2xl font-semibold">Atividades</h2>
-      <p className="mt-3 text-slate-600">
-        A listagem administrativa das atividades sera exibida nesta pagina.
+      <p className="mt-2 text-slate-600">
+        Consulta administrativa consolidada das atividades do experimento.
       </p>
+
+      {tasks.length === 0 ? (
+        <p className="mt-6 text-slate-600">Nenhuma atividade encontrada.</p>
+      ) : (
+        <div className="mt-6 overflow-x-auto">
+          <table className="min-w-[1100px] w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3 pr-4 font-semibold">Participante</th>
+                <th className="py-3 pr-4 font-semibold">Grupo</th>
+                <th className="py-3 pr-4 font-semibold">Ordem</th>
+                <th className="py-3 pr-4 font-semibold">Caso de uso</th>
+                <th className="py-3 pr-4 font-semibold">Modo</th>
+                <th className="py-3 pr-4 font-semibold">Status</th>
+                <th className="py-3 pr-4 font-semibold">Inicio</th>
+                <th className="py-3 pr-4 font-semibold">Fim</th>
+                <th className="py-3 pr-4 font-semibold">Duracao</th>
+                <th className="py-3 pr-4 font-semibold">Tempo IA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((task) => (
+                <tr
+                  className="border-b border-slate-100 text-slate-700"
+                  key={task.task_id}
+                >
+                  <td className="py-4 pr-4 font-semibold text-slate-900">
+                    {task.participant.code}
+                  </td>
+                  <td className="py-4 pr-4">{task.group.name}</td>
+                  <td className="py-4 pr-4">{task.task_order}</td>
+                  <td className="py-4 pr-4">{task.use_case.title}</td>
+                  <td className="py-4 pr-4">
+                    {MODE_LABELS[task.mode] || task.mode}
+                  </td>
+                  <td className="py-4 pr-4">
+                    <StatusBadge status={task.status}>
+                      {STATUS_LABELS[task.status] || task.status}
+                    </StatusBadge>
+                  </td>
+                  <td className="py-4 pr-4">{formatDate(task.started_at)}</td>
+                  <td className="py-4 pr-4">{formatDate(task.finished_at)}</td>
+                  <td className="py-4 pr-4">
+                    {formatDuration(task.duration_seconds)}
+                  </td>
+                  <td className="py-4 pr-4">
+                    {task.mode === "MANUAL"
+                      ? "-"
+                      : formatResponseTime(task.ai?.response_time_ms)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }
