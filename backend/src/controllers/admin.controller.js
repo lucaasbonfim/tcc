@@ -1,4 +1,5 @@
 import {
+  exportExperimentDataAsJson,
   findExperimentTasks,
   findParticipantDetailsById,
   findParticipantsProgress,
@@ -40,6 +41,16 @@ export async function showExperimentSummary(request, response, next) {
     const summary = await getExperimentSummary();
 
     return response.status(200).json({ data: summary });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function exportExperimentJson(request, response, next) {
+  try {
+    const data = await exportExperimentDataAsJson();
+
+    return response.status(200).json({ data });
   } catch (error) {
     return next(error);
   }

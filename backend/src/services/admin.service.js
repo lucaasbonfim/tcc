@@ -386,3 +386,156 @@ export async function getExperimentSummary() {
     by_mode: byMode,
   };
 }
+
+export async function exportExperimentDataAsJson() {
+  const tasksQuery = `
+    SELECT
+      experiment_tasks.id AS task_id,
+      experiment_tasks.task_order,
+      experiment_tasks.mode,
+      experiment_tasks.status,
+      experiment_tasks.started_at,
+      experiment_tasks.finished_at,
+      CASE
+        WHEN experiment_tasks.started_at IS NOT NULL
+          AND experiment_tasks.finished_at IS NOT NULL
+        THEN EXTRACT(
+          EPOCH FROM (experiment_tasks.finished_at - experiment_tasks.started_at)
+        )::int
+        ELSE NULL
+      END AS duration_seconds,
+      participants.id AS participant_id,
+      participants.code AS participant_code,
+      participants.consent_confirmed,
+      participants.created_at AS participant_created_at,
+      experiment_groups.id AS group_id,
+      experiment_groups.name AS group_name,
+      participant_profiles.course_period,
+      participant_profiles.software_dev_experience,
+      participant_profiles.software_testing_experience,
+      participant_profiles.test_case_experience,
+      participant_profiles.requirements_familiarity,
+      participant_profiles.genai_usage_frequency,
+      participant_profiles.genai_software_usage,
+      participant_profiles.genai_test_case_usage,
+      participant_profiles.created_at AS profile_created_at,
+      use_cases.id AS use_case_id,
+      use_cases.code AS use_case_code,
+      use_cases.title AS use_case_title,
+      ai_runs.model,
+      prompt_versions.version AS prompt_version,
+      ai_runs.started_at AS ai_started_at,
+      ai_runs.finished_at AS ai_finished_at,
+      ai_runs.response_time_ms,
+      ai_runs.raw_response
+    FROM experiment_tasks
+    INNER JOIN participants
+      ON participants.id = experiment_tasks.participant_id
+    INNER JOIN experiment_groups
+      ON experiment_groups.id = participants.group_id
+    LEFT JOIN participant_profiles
+      ON participant_profiles.participant_id = participants.id
+    INNER JOIN use_cases
+      ON use_cases.id = experiment_tasks.use_case_id
+    LEFT JOIN ai_runs
+      ON ai_runs.experiment_task_id = experiment_tasks.id
+    LEFT JOIN prompt_versions
+      ON prompt_versions.id = ai_runs.prompt_version_id
+    ORDER BY participants.code, experiment_tasks.task_order
+  `;
+
+  const tasksResult = await pool.query(tasksQuery);
+  const taskIds = tasksResult.rows.map((task) => task.task_id);
+
+  if (taskIds.length === 0) {
+    return [];
+  }
+
+  const testCasesQuery = `
+    SELECT
+      id,
+      experiment_task_id,
+      sequence_number,
+      title,
+      preconditions,
+      steps,
+      expected_result,
+      created_at,
+      updated_at
+    FROM test_cases
+    WHERE experiment_task_id = ANY($1::bigint[])
+    ORDER BY experiment_task_id, sequence_number
+  `;
+
+  const testCasesResult = await pool.query(testCasesQuery, [taskIds]);
+  const testCasesByTask = testCasesResult.rows.reduce((groups, testCase) => {
+    const taskCases = groups.get(testCase.experiment_task_id) || [];
+
+    taskCases.push({
+      id: testCase.id,
+      sequence_number: testCase.sequence_number,
+      title: testCase.title,
+      preconditions: testCase.preconditions,
+      steps: testCase.steps,
+      expected_result: testCase.expected_result,
+      created_at: testCase.created_at,
+      updated_at: testCase.updated_at,
+    });
+
+    groups.set(testCase.experiment_task_id, taskCases);
+
+    return groups;
+  }, new Map());
+
+  return tasksResult.rows.map((row) => ({
+    participant: {
+      id: row.participant_id,
+      code: row.participant_code,
+      consent_confirmed: row.consent_confirmed,
+      created_at: row.participant_created_at,
+    },
+    group: {
+      id: row.group_id,
+      name: row.group_name,
+    },
+    profile: row.profile_created_at
+      ? {
+          course_period: row.course_period,
+          software_dev_experience: row.software_dev_experience,
+          software_testing_experience: row.software_testing_experience,
+          test_case_experience: row.test_case_experience,
+          requirements_familiarity: row.requirements_familiarity,
+          genai_usage_frequency: row.genai_usage_frequency,
+          genai_software_usage: row.genai_software_usage,
+          genai_test_case_usage: row.genai_test_case_usage,
+          created_at: row.profile_created_at,
+        }
+      : null,
+    activity: {
+      id: row.task_id,
+      task_order: row.task_order,
+      mode: row.mode,
+      status: row.status,
+      started_at: row.started_at,
+      finished_at: row.finished_at,
+      duration_seconds: row.duration_seconds,
+    },
+    use_case: {
+      id: row.use_case_id,
+      code: row.use_case_code,
+      title: row.use_case_title,
+    },
+    ai:
+      row.mode === "SIMPLE_PROMPT" || row.mode === "STRUCTURED_PROMPT"
+        ? {
+            model: row.model,
+            prompt_version: row.prompt_version,
+            ai_started_at: row.ai_started_at,
+            ai_finished_at: row.ai_finished_at,
+            response_time_ms: row.response_time_ms,
+            raw_response: row.raw_response,
+          }
+        : null,
+    test_cases: testCasesByTask.get(row.task_id) || [],
+  }));
+}

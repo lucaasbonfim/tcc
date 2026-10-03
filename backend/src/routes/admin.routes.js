@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  exportExperimentJson,
   getParticipantDetails,
   listExperimentTasks,
   listParticipantsProgress,
@@ -8,6 +9,7 @@ import {
 
 const router = Router();
 
+router.get("/export/json", exportExperimentJson);
 router.get("/experiment-tasks", listExperimentTasks);
 router.get("/experiment-summary", showExperimentSummary);
 router.get("/participants", listParticipantsProgress);
