@@ -2,11 +2,70 @@ import pool from "../config/database.js";
 
 const VALID_MODES = ["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
 const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED"];
+const CSV_COLUMNS = [
+  "participant_id",
+  "participant_code",
+  "group_id",
+  "group_name",
+  "course_period",
+  "software_dev_experience",
+  "software_testing_experience",
+  "test_case_experience",
+  "requirements_familiarity",
+  "genai_usage_frequency",
+  "genai_software_usage",
+  "genai_test_case_usage",
+  "experiment_task_id",
+  "task_order",
+  "mode",
+  "status",
+  "use_case_id",
+  "use_case_code",
+  "use_case_title",
+  "started_at",
+  "finished_at",
+  "duration_seconds",
+  "model",
+  "prompt_version",
+  "ai_started_at",
+  "ai_finished_at",
+  "response_time_ms",
+  "raw_response",
+  "test_cases",
+];
 
 function createBadRequestError(message) {
   const error = new Error(message);
   error.statusCode = 400;
   return error;
+}
+
+function formatCsvValue(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const stringValue =
+    value instanceof Date
+      ? value.toISOString()
+      : typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+
+  if (/[",\r\n]/.test(stringValue)) {
+    return `"${stringValue.replaceAll('"', '""')}"`;
+  }
+
+  return stringValue;
+}
+
+function toCsv(rows) {
+  const header = CSV_COLUMNS.join(",");
+  const body = rows.map((row) =>
+    CSV_COLUMNS.map((column) => formatCsvValue(row[column])).join(","),
+  );
+
+  return `\uFEFF${[header, ...body].join("\r\n")}`;
 }
 
 export async function findParticipantsProgress() {
@@ -538,4 +597,42 @@ export async function exportExperimentDataAsJson() {
         : null,
     test_cases: testCasesByTask.get(row.task_id) || [],
   }));
+}
+
+export async function exportExperimentDataAsCsv() {
+  const data = await exportExperimentDataAsJson();
+
+  const rows = data.map((item) => ({
+    participant_id: item.participant.id,
+    participant_code: item.participant.code,
+    group_id: item.group.id,
+    group_name: item.group.name,
+    course_period: item.profile?.course_period,
+    software_dev_experience: item.profile?.software_dev_experience,
+    software_testing_experience: item.profile?.software_testing_experience,
+    test_case_experience: item.profile?.test_case_experience,
+    requirements_familiarity: item.profile?.requirements_familiarity,
+    genai_usage_frequency: item.profile?.genai_usage_frequency,
+    genai_software_usage: item.profile?.genai_software_usage,
+    genai_test_case_usage: item.profile?.genai_test_case_usage,
+    experiment_task_id: item.activity.id,
+    task_order: item.activity.task_order,
+    mode: item.activity.mode,
+    status: item.activity.status,
+    use_case_id: item.use_case.id,
+    use_case_code: item.use_case.code,
+    use_case_title: item.use_case.title,
+    started_at: item.activity.started_at,
+    finished_at: item.activity.finished_at,
+    duration_seconds: item.activity.duration_seconds,
+    model: item.ai?.model,
+    prompt_version: item.ai?.prompt_version,
+    ai_started_at: item.ai?.ai_started_at,
+    ai_finished_at: item.ai?.ai_finished_at,
+    response_time_ms: item.ai?.response_time_ms,
+    raw_response: item.ai?.raw_response,
+    test_cases: item.test_cases,
+  }));
+
+  return toCsv(rows);
 }

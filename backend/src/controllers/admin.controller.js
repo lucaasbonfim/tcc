@@ -1,4 +1,5 @@
 import {
+  exportExperimentDataAsCsv,
   exportExperimentDataAsJson,
   findExperimentTasks,
   findParticipantDetailsById,
@@ -51,6 +52,22 @@ export async function exportExperimentJson(request, response, next) {
     const data = await exportExperimentDataAsJson();
 
     return response.status(200).json({ data });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function exportExperimentCsv(request, response, next) {
+  try {
+    const csv = await exportExperimentDataAsCsv();
+
+    response.setHeader("Content-Type", "text/csv; charset=utf-8");
+    response.setHeader(
+      "Content-Disposition",
+      'attachment; filename="experiment-results.csv"',
+    );
+
+    return response.status(200).send(csv);
   } catch (error) {
     return next(error);
   }
