@@ -208,3 +208,47 @@ export async function updateManualTestCase(taskId, testCaseId, testCase) {
     client.release();
   }
 }
+
+export async function deleteManualTestCase(taskId, testCaseId) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const taskResult = await client.query(
+      `
+        SELECT id, mode, status
+        FROM experiment_tasks
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [taskId],
+    );
+    const task = taskResult.rows[0];
+
+    validateManualTaskForChanges(task);
+
+    const deletedTestCaseResult = await client.query(
+      `
+        DELETE FROM test_cases
+        WHERE id = $1
+          AND experiment_task_id = $2
+        RETURNING id
+      `,
+      [testCaseId, taskId],
+    );
+
+    if (!deletedTestCaseResult.rows[0]) {
+      throw createServiceError(404, "Caso de teste não encontrado.");
+    }
+
+    await client.query("COMMIT");
+
+    return deletedTestCaseResult.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

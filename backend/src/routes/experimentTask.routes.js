@@ -5,6 +5,7 @@ import {
 } from "../controllers/experimentTask.controller.js";
 import {
   createManualTestCaseController,
+  deleteManualTestCaseController,
   listExperimentTaskTestCases,
   updateManualTestCaseController,
 } from "../controllers/testCase.controller.js";
@@ -15,6 +16,7 @@ router.patch("/:id/start", startExperimentTaskController);
 router.get("/:taskId/test-cases", listExperimentTaskTestCases);
 router.post("/:taskId/test-cases", createManualTestCaseController);
 router.put("/:taskId/test-cases/:testCaseId", updateManualTestCaseController);
+router.delete("/:taskId/test-cases/:testCaseId", deleteManualTestCaseController);
 router.get("/:id", getExperimentTaskById);
 
 export default router;

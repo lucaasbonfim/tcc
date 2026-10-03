@@ -1,5 +1,6 @@
 import {
   createManualTestCase,
+  deleteManualTestCase,
   findTestCasesByExperimentTaskId,
   updateManualTestCase,
 } from "../services/testCase.service.js";
@@ -70,6 +71,19 @@ export async function updateManualTestCaseController(request, response, next) {
     );
 
     return response.status(200).json({ data: testCase });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteManualTestCaseController(request, response, next) {
+  try {
+    await deleteManualTestCase(
+      request.params.taskId,
+      request.params.testCaseId,
+    );
+
+    return response.status(204).send();
   } catch (error) {
     return next(error);
   }
