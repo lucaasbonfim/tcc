@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createUseCaseController,
+  deleteUseCaseController,
   getUseCaseById,
   listUseCases,
   updateUseCaseController,
@@ -12,5 +13,6 @@ router.get("/", listUseCases);
 router.post("/", createUseCaseController);
 router.get("/:id", getUseCaseById);
 router.put("/:id", updateUseCaseController);
+router.delete("/:id", deleteUseCaseController);
 
 export default router;

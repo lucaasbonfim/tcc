@@ -1,5 +1,6 @@
 import {
   createUseCase,
+  deleteUseCaseById,
   findAllUseCases,
   findUseCaseById,
   updateUseCaseById,
@@ -27,6 +28,28 @@ export async function getUseCaseById(request, response, next) {
 
     return response.status(200).json({ data: useCase });
   } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteUseCaseController(request, response, next) {
+  try {
+    const deletedUseCase = await deleteUseCaseById(request.params.id);
+
+    if (!deletedUseCase) {
+      return response.status(404).json({
+        error: "Caso de uso não encontrado.",
+      });
+    }
+
+    return response.status(204).send();
+  } catch (error) {
+    if (error.code === "23503") {
+      return response.status(409).json({
+        error: "Caso de uso não pode ser excluído pois possui vínculos.",
+      });
+    }
+
     return next(error);
   }
 }

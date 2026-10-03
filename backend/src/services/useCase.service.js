@@ -50,3 +50,15 @@ export async function updateUseCaseById(id, { code, title, content }) {
 
   return rows[0] ?? null;
 }
+
+export async function deleteUseCaseById(id) {
+  const query = `
+    DELETE FROM use_cases
+    WHERE id = $1
+    RETURNING id
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+
+  return rows[0] ?? null;
+}
