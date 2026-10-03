@@ -288,7 +288,7 @@ function AITaskPage({ initialTask = null }) {
                   className="mt-5"
                   onClick={() => navigate("/experiment")}
                 >
-                  Voltar ao experimento
+                  {successMessage ? "Continuar" : "Voltar ao experimento"}
                 </Button>
               </Card>
             ) : null}
