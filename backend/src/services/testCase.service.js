@@ -97,3 +97,39 @@ export async function createManualTestCase(taskId, testCase) {
     client.release();
   }
 }
+
+export async function findTestCasesByExperimentTaskId(taskId) {
+  const taskResult = await pool.query(
+    `
+      SELECT id
+      FROM experiment_tasks
+      WHERE id = $1
+    `,
+    [taskId],
+  );
+
+  if (!taskResult.rows[0]) {
+    throw createServiceError(404, "Atividade experimental não encontrada.");
+  }
+
+  const testCasesResult = await pool.query(
+    `
+      SELECT
+        id,
+        experiment_task_id,
+        sequence_number,
+        title,
+        preconditions,
+        steps,
+        expected_result,
+        created_at,
+        updated_at
+      FROM test_cases
+      WHERE experiment_task_id = $1
+      ORDER BY sequence_number ASC
+    `,
+    [taskId],
+  );
+
+  return testCasesResult.rows;
+}
