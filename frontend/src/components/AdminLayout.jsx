@@ -1,4 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { downloadExperimentJson } from "../services/admin.service";
 
 const NAV_ITEMS = [
   { label: "Visao geral", to: "/admin" },
@@ -6,7 +8,37 @@ const NAV_ITEMS = [
   { label: "Atividades", to: "/admin/tasks" },
 ];
 
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function AdminLayout() {
+  const [exportError, setExportError] = useState("");
+  const [isExportingJson, setIsExportingJson] = useState(false);
+
+  async function handleExportJson() {
+    try {
+      setIsExportingJson(true);
+      setExportError("");
+
+      const blob = await downloadExperimentJson();
+
+      downloadBlob(blob, "experiment-results.json");
+    } catch (error) {
+      setExportError(error.message || "Nao foi possivel exportar os dados.");
+    } finally {
+      setIsExportingJson(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -26,10 +58,12 @@ function AdminLayout() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isExportingJson}
+                onClick={handleExportJson}
                 type="button"
               >
-                Exportar JSON
+                {isExportingJson ? "Exportando JSON..." : "Exportar JSON"}
               </button>
               <button
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
@@ -39,6 +73,11 @@ function AdminLayout() {
               </button>
             </div>
           </div>
+          {exportError ? (
+            <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {exportError}
+            </p>
+          ) : null}
         </header>
 
         <nav className="flex flex-wrap gap-2">
