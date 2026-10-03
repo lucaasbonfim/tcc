@@ -307,7 +307,10 @@ export async function findParticipantDetailsById(participantId) {
       COUNT(test_cases.id)::int AS test_cases_count,
       ai_runs.model,
       prompt_versions.version AS prompt_version,
-      ai_runs.response_time_ms
+      ai_runs.participant_input,
+      ai_runs.final_prompt,
+      ai_runs.response_time_ms,
+      ai_runs.raw_response
     FROM experiment_tasks
     INNER JOIN use_cases
       ON use_cases.id = experiment_tasks.use_case_id
@@ -325,7 +328,10 @@ export async function findParticipantDetailsById(participantId) {
       use_cases.title,
       ai_runs.model,
       prompt_versions.version,
-      ai_runs.response_time_ms
+      ai_runs.participant_input,
+      ai_runs.final_prompt,
+      ai_runs.response_time_ms,
+      ai_runs.raw_response
     ORDER BY experiment_tasks.task_order
   `;
   const tasksResult = await pool.query(tasksQuery, [participantId]);
@@ -376,10 +382,13 @@ export async function findParticipantDetailsById(participantId) {
       ai:
         task.mode === "SIMPLE_PROMPT" || task.mode === "STRUCTURED_PROMPT"
           ? {
-              model: task.model,
-              prompt_version: task.prompt_version,
-              response_time_ms: task.response_time_ms,
-            }
+            model: task.model,
+            prompt_version: task.prompt_version,
+            participant_input: task.participant_input,
+            final_prompt: task.final_prompt,
+            raw_response: task.raw_response,
+            response_time_ms: task.response_time_ms,
+          }
           : null,
     })),
   };
