@@ -4,6 +4,32 @@ import {
   findParticipantProfileByParticipantId,
 } from "../services/participantProfile.service.js";
 
+export async function getParticipantProfile(request, response, next) {
+  try {
+    const participant = await findParticipantById(request.params.participantId);
+
+    if (!participant) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    const profile = await findParticipantProfileByParticipantId(
+      request.params.participantId,
+    );
+
+    if (!profile) {
+      return response.status(404).json({
+        error: "Perfil do participante não encontrado.",
+      });
+    }
+
+    return response.status(200).json({ data: profile });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createParticipantProfileController(
   request,
   response,

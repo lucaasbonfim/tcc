@@ -6,12 +6,16 @@ import {
   listParticipants,
   updateParticipantController,
 } from "../controllers/participant.controller.js";
-import { createParticipantProfileController } from "../controllers/participantProfile.controller.js";
+import {
+  createParticipantProfileController,
+  getParticipantProfile,
+} from "../controllers/participantProfile.controller.js";
 
 const router = Router();
 
 router.get("/", listParticipants);
 router.post("/", createParticipantController);
+router.get("/:participantId/profile", getParticipantProfile);
 router.post("/:participantId/profile", createParticipantProfileController);
 router.get("/:id", getParticipantById);
 router.put("/:id", updateParticipantController);
