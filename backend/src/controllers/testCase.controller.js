@@ -1,6 +1,7 @@
 import {
   createManualTestCase,
   findTestCasesByExperimentTaskId,
+  updateManualTestCase,
 } from "../services/testCase.service.js";
 
 function validateTestCaseBody(body) {
@@ -49,6 +50,26 @@ export async function listExperimentTaskTestCases(request, response, next) {
     );
 
     return response.status(200).json({ data: testCases });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateManualTestCaseController(request, response, next) {
+  try {
+    const validationError = validateTestCaseBody(request.body);
+
+    if (validationError) {
+      return response.status(400).json({ error: validationError });
+    }
+
+    const testCase = await updateManualTestCase(
+      request.params.taskId,
+      request.params.testCaseId,
+      request.body,
+    );
+
+    return response.status(200).json({ data: testCase });
   } catch (error) {
     return next(error);
   }

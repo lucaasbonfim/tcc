@@ -133,3 +133,78 @@ export async function findTestCasesByExperimentTaskId(taskId) {
 
   return testCasesResult.rows;
 }
+
+export async function updateManualTestCase(taskId, testCaseId, testCase) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const taskResult = await client.query(
+      `
+        SELECT id, mode, status
+        FROM experiment_tasks
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [taskId],
+    );
+    const task = taskResult.rows[0];
+
+    validateManualTaskForChanges(task);
+
+    const currentTestCaseResult = await client.query(
+      `
+        SELECT id
+        FROM test_cases
+        WHERE id = $1
+          AND experiment_task_id = $2
+      `,
+      [testCaseId, taskId],
+    );
+
+    if (!currentTestCaseResult.rows[0]) {
+      throw createServiceError(404, "Caso de teste não encontrado.");
+    }
+
+    const updatedTestCaseResult = await client.query(
+      `
+        UPDATE test_cases
+        SET title = $1,
+            preconditions = $2,
+            steps = $3,
+            expected_result = $4,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+          AND experiment_task_id = $6
+        RETURNING
+          id,
+          experiment_task_id,
+          sequence_number,
+          title,
+          preconditions,
+          steps,
+          expected_result,
+          created_at,
+          updated_at
+      `,
+      [
+        testCase.title,
+        JSON.stringify(testCase.preconditions),
+        JSON.stringify(testCase.steps),
+        testCase.expected_result,
+        testCaseId,
+        taskId,
+      ],
+    );
+
+    await client.query("COMMIT");
+
+    return updatedTestCaseResult.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
