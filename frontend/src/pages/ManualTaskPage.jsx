@@ -13,6 +13,7 @@ import {
 } from "../services/experimentTask.service";
 import {
   createTestCase,
+  deleteTestCase,
   getTestCases,
   updateTestCase,
 } from "../services/testCase.service";
@@ -28,6 +29,7 @@ function ManualTaskPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isSavingTestCase, setIsSavingTestCase] = useState(false);
+  const [deletingTestCaseId, setDeletingTestCaseId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -135,6 +137,35 @@ function ManualTaskPage() {
 
   function handleCancelEdit() {
     setEditingTestCase(null);
+  }
+
+  async function handleDeleteTestCase(testCase) {
+    const confirmed = window.confirm(
+      "Tem certeza que deseja excluir este caso de teste?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingTestCaseId(testCase.id);
+      setError("");
+      setSuccessMessage("");
+
+      await deleteTestCase(taskId, testCase.id);
+      await refreshTestCases();
+
+      if (editingTestCase?.id === testCase.id) {
+        setEditingTestCase(null);
+      }
+
+      setSuccessMessage("Caso de teste excluido com sucesso.");
+    } catch (error) {
+      setError(error.message || "Nao foi possivel excluir o caso de teste.");
+    } finally {
+      setDeletingTestCaseId(null);
+    }
   }
 
   if (isLoading) {
@@ -245,7 +276,10 @@ function ManualTaskPage() {
                 </h2>
                 <div className="mt-5">
                   <TestCaseList
+                    canDelete={task.status === "IN_PROGRESS"}
                     canEdit={task.status === "IN_PROGRESS"}
+                    deletingTestCaseId={deletingTestCaseId}
+                    onDelete={handleDeleteTestCase}
                     onEdit={handleEditTestCase}
                     testCases={testCases}
                   />

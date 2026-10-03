@@ -20,7 +20,14 @@ function TextList({ emptyMessage, items, ordered = false }) {
   );
 }
 
-function TestCaseList({ canEdit = false, onEdit, testCases }) {
+function TestCaseList({
+  canDelete = false,
+  canEdit = false,
+  deletingTestCaseId = null,
+  onDelete,
+  onEdit,
+  testCases,
+}) {
   if (testCases.length === 0) {
     return <p className="text-slate-600">Nenhum caso de teste criado.</p>;
   }
@@ -41,14 +48,31 @@ function TestCaseList({ canEdit = false, onEdit, testCases }) {
                 {testCase.title}
               </h3>
             </div>
-            {canEdit ? (
-              <Button
-                className="py-2"
-                onClick={() => onEdit(testCase)}
-                variant="secondary"
-              >
-                Editar
-              </Button>
+            {canEdit || canDelete ? (
+              <div className="flex gap-2">
+                {canEdit ? (
+                  <Button
+                    className="py-2"
+                    disabled={deletingTestCaseId === testCase.id}
+                    onClick={() => onEdit(testCase)}
+                    variant="secondary"
+                  >
+                    Editar
+                  </Button>
+                ) : null}
+                {canDelete ? (
+                  <Button
+                    className="py-2"
+                    disabled={deletingTestCaseId === testCase.id}
+                    onClick={() => onDelete(testCase)}
+                    variant="secondary"
+                  >
+                    {deletingTestCaseId === testCase.id
+                      ? "Excluindo..."
+                      : "Excluir"}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
 
