@@ -8,6 +8,7 @@ import TestCaseForm from "../components/TestCaseForm";
 import TestCaseList from "../components/TestCaseList";
 import UseCaseView from "../components/UseCaseView";
 import {
+  completeExperimentTask,
   getExperimentTask,
   startExperimentTask,
 } from "../services/experimentTask.service";
@@ -29,6 +30,7 @@ function ManualTaskPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isSavingTestCase, setIsSavingTestCase] = useState(false);
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
   const [deletingTestCaseId, setDeletingTestCaseId] = useState(null);
 
   useEffect(() => {
@@ -168,6 +170,35 @@ function ManualTaskPage() {
     }
   }
 
+  async function handleCompleteTask() {
+    const confirmed = window.confirm(
+      "Apos finalizar, os casos de teste nao poderao mais ser alterados. Deseja continuar?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsCompletingTask(true);
+      setError("");
+      setSuccessMessage("");
+
+      const completedTask = await completeExperimentTask(taskId);
+
+      setTask((currentTask) => ({
+        ...currentTask,
+        ...completedTask,
+      }));
+      setEditingTestCase(null);
+      setSuccessMessage("Atividade concluida com sucesso.");
+    } catch (error) {
+      setError(error.message || "Nao foi possivel finalizar a atividade.");
+    } finally {
+      setIsCompletingTask(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
@@ -271,9 +302,21 @@ function ManualTaskPage() {
 
             {task.status === "IN_PROGRESS" || task.status === "COMPLETED" ? (
               <Card>
-                <h2 className="text-2xl font-semibold">
-                  Casos de teste criados
-                </h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-2xl font-semibold">
+                    Casos de teste criados
+                  </h2>
+                  {task.status === "IN_PROGRESS" ? (
+                    <Button
+                      disabled={testCases.length === 0 || isCompletingTask}
+                      onClick={handleCompleteTask}
+                    >
+                      {isCompletingTask
+                        ? "Finalizando..."
+                        : "Finalizar atividade"}
+                    </Button>
+                  ) : null}
+                </div>
                 <div className="mt-5">
                   <TestCaseList
                     canDelete={task.status === "IN_PROGRESS"}
