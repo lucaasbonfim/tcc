@@ -2,37 +2,49 @@ import pool from "../config/database.js";
 
 const VALID_MODES = ["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
 const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED"];
-const CSV_COLUMNS = [
-  "participant_id",
-  "participant_code",
-  "group_id",
-  "group_name",
-  "course_period",
-  "software_dev_experience",
-  "software_testing_experience",
-  "test_case_experience",
-  "requirements_familiarity",
-  "genai_usage_frequency",
-  "genai_software_usage",
-  "genai_test_case_usage",
-  "experiment_task_id",
-  "task_order",
-  "mode",
-  "status",
-  "use_case_id",
-  "use_case_code",
-  "use_case_title",
-  "started_at",
-  "finished_at",
-  "duration_seconds",
-  "model",
-  "prompt_version",
-  "ai_started_at",
-  "ai_finished_at",
-  "response_time_ms",
-  "raw_response",
-  "test_cases",
+const CSV_SEPARATOR = ";";
+const APP_HIGHLIGHT_COLOR = "#0f766e";
+const EXPORT_COLUMNS = [
+  ["participant_id", "ID do participante"],
+  ["participant_code", "Codigo do participante"],
+  ["group_id", "ID do grupo"],
+  ["group_name", "Grupo"],
+  ["course_period", "Periodo do curso"],
+  ["software_dev_experience", "Experiencia em desenvolvimento"],
+  ["software_testing_experience", "Experiencia em testes"],
+  ["test_case_experience", "Experiencia com casos de teste"],
+  ["requirements_familiarity", "Familiaridade com requisitos"],
+  ["genai_usage_frequency", "Frequencia de uso de IA generativa"],
+  ["genai_software_usage", "Uso de IA em desenvolvimento"],
+  ["genai_test_case_usage", "Uso de IA para casos de teste"],
+  ["experiment_task_id", "ID da atividade"],
+  ["task_order", "Ordem da atividade"],
+  ["mode", "Modo"],
+  ["status", "Status"],
+  ["use_case_id", "ID do caso de uso"],
+  ["use_case_code", "Codigo do caso de uso"],
+  ["use_case_title", "Titulo do caso de uso"],
+  ["started_at", "Inicio"],
+  ["finished_at", "Fim"],
+  ["duration_seconds", "Duracao"],
+  ["model", "Modelo da IA"],
+  ["prompt_version", "Versao do prompt"],
+  ["ai_started_at", "Inicio da IA"],
+  ["ai_finished_at", "Fim da IA"],
+  ["response_time_ms", "Tempo de resposta da IA"],
+  ["raw_response", "Resposta da IA"],
+  ["test_cases", "Casos de teste manuais"],
 ];
+const MODE_LABELS = {
+  MANUAL: "Manual",
+  SIMPLE_PROMPT: "IA com prompt simples",
+  STRUCTURED_PROMPT: "IA com prompt estruturado",
+};
+const STATUS_LABELS = {
+  PENDING: "Pendente",
+  IN_PROGRESS: "Em andamento",
+  COMPLETED: "Concluida",
+};
 
 function createBadRequestError(message) {
   const error = new Error(message);
@@ -40,19 +52,80 @@ function createBadRequestError(message) {
   return error;
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "medium",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value));
+}
+
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined) {
+    return "";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds} s`;
+  }
+
+  return `${minutes} min ${remainingSeconds} s`;
+}
+
+function formatResponseTime(milliseconds) {
+  if (milliseconds === null || milliseconds === undefined) {
+    return "";
+  }
+
+  return `${milliseconds} ms`;
+}
+
+function formatTestCases(testCases) {
+  if (!Array.isArray(testCases) || testCases.length === 0) {
+    return "";
+  }
+
+  return testCases
+    .map((testCase) =>
+      [
+        `Caso ${testCase.sequence_number}: ${testCase.title}`,
+        `Pre-condicoes: ${(testCase.preconditions || []).join(" | ")}`,
+        `Passos: ${(testCase.steps || []).join(" | ")}`,
+        `Resultado esperado: ${testCase.expected_result}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function formatCsvValue(value) {
   if (value === null || value === undefined) {
     return "";
   }
 
-  const stringValue =
+  const stringValue = (
     value instanceof Date
       ? value.toISOString()
       : typeof value === "object"
         ? JSON.stringify(value)
-        : String(value);
+        : String(value)
+  ).replace(/\r\n|\r|\n/g, "\\n");
 
-  if (/[",\r\n]/.test(stringValue)) {
+  if (stringValue.includes('"') || stringValue.includes(CSV_SEPARATOR)) {
     return `"${stringValue.replaceAll('"', '""')}"`;
   }
 
@@ -60,12 +133,64 @@ function formatCsvValue(value) {
 }
 
 function toCsv(rows) {
-  const header = CSV_COLUMNS.join(",");
+  const header = EXPORT_COLUMNS.map(([, label]) => label).join(CSV_SEPARATOR);
   const body = rows.map((row) =>
-    CSV_COLUMNS.map((column) => formatCsvValue(row[column])).join(","),
+    EXPORT_COLUMNS.map(([column]) => formatCsvValue(row[column])).join(
+      CSV_SEPARATOR,
+    ),
   );
 
-  return `\uFEFF${[header, ...body].join("\r\n")}`;
+  return `\uFEFFsep=${CSV_SEPARATOR}\r\n${[header, ...body].join("\r\n")}`;
+}
+
+function toExcelHtml(rows) {
+  const header = EXPORT_COLUMNS.map(
+    ([, label]) => `<th>${escapeHtml(label)}</th>`,
+  ).join("");
+  const body = rows
+    .map((row) => {
+      const cells = EXPORT_COLUMNS.map(([column]) => {
+        const value = row[column] ?? "";
+        const htmlValue = escapeHtml(value)
+          .replace(/\r\n|\r|\n/g, "<br>")
+          .replaceAll("\\n", "<br>");
+
+        return `<td>${htmlValue}</td>`;
+      }).join("");
+
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: Arial, sans-serif; }
+      table { border-collapse: collapse; width: 100%; }
+      th {
+        background: ${APP_HIGHLIGHT_COLOR};
+        color: #ffffff;
+        font-weight: 700;
+        text-align: left;
+      }
+      th, td {
+        border: 1px solid #d1d5db;
+        padding: 8px;
+        vertical-align: top;
+        white-space: normal;
+      }
+      tr:nth-child(even) td { background: #f8fafc; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead><tr>${header}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  </body>
+</html>`;
 }
 
 export async function findParticipantsProgress() {
@@ -599,10 +724,10 @@ export async function exportExperimentDataAsJson() {
   }));
 }
 
-export async function exportExperimentDataAsCsv() {
+async function getFormattedExperimentExportRows() {
   const data = await exportExperimentDataAsJson();
 
-  const rows = data.map((item) => ({
+  return data.map((item) => ({
     participant_id: item.participant.id,
     participant_code: item.participant.code,
     group_id: item.group.id,
@@ -617,22 +742,32 @@ export async function exportExperimentDataAsCsv() {
     genai_test_case_usage: item.profile?.genai_test_case_usage,
     experiment_task_id: item.activity.id,
     task_order: item.activity.task_order,
-    mode: item.activity.mode,
-    status: item.activity.status,
+    mode: MODE_LABELS[item.activity.mode] || item.activity.mode,
+    status: STATUS_LABELS[item.activity.status] || item.activity.status,
     use_case_id: item.use_case.id,
     use_case_code: item.use_case.code,
     use_case_title: item.use_case.title,
-    started_at: item.activity.started_at,
-    finished_at: item.activity.finished_at,
-    duration_seconds: item.activity.duration_seconds,
+    started_at: formatDateTime(item.activity.started_at),
+    finished_at: formatDateTime(item.activity.finished_at),
+    duration_seconds: formatDuration(item.activity.duration_seconds),
     model: item.ai?.model,
     prompt_version: item.ai?.prompt_version,
-    ai_started_at: item.ai?.ai_started_at,
-    ai_finished_at: item.ai?.ai_finished_at,
-    response_time_ms: item.ai?.response_time_ms,
+    ai_started_at: formatDateTime(item.ai?.ai_started_at),
+    ai_finished_at: formatDateTime(item.ai?.ai_finished_at),
+    response_time_ms: formatResponseTime(item.ai?.response_time_ms),
     raw_response: item.ai?.raw_response,
-    test_cases: item.test_cases,
+    test_cases: formatTestCases(item.test_cases),
   }));
+}
+
+export async function exportExperimentDataAsCsv() {
+  const rows = await getFormattedExperimentExportRows();
 
   return toCsv(rows);
+}
+
+export async function exportExperimentDataAsXls() {
+  const rows = await getFormattedExperimentExportRows();
+
+  return toExcelHtml(rows);
 }

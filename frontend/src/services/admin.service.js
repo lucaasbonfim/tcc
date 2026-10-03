@@ -47,3 +47,11 @@ export async function downloadExperimentCsv() {
 
   return response.data;
 }
+
+export async function downloadExperimentXls() {
+  const response = await api.get("/admin/export/xls", {
+    responseType: "blob",
+  });
+
+  return response.data;
+}
