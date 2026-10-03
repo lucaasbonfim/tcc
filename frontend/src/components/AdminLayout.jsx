@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   downloadExperimentCsv,
   downloadExperimentJson,
+  downloadExperimentXls,
 } from "../services/admin.service";
 
 const NAV_ITEMS = [
@@ -27,6 +28,7 @@ function AdminLayout() {
   const [exportError, setExportError] = useState("");
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isExportingJson, setIsExportingJson] = useState(false);
+  const [isExportingXls, setIsExportingXls] = useState(false);
 
   async function handleExportJson() {
     try {
@@ -55,6 +57,21 @@ function AdminLayout() {
       setExportError(error.message || "Nao foi possivel exportar os dados.");
     } finally {
       setIsExportingCsv(false);
+    }
+  }
+
+  async function handleExportXls() {
+    try {
+      setIsExportingXls(true);
+      setExportError("");
+
+      const blob = await downloadExperimentXls();
+
+      downloadBlob(blob, "experiment-results.xls");
+    } catch (error) {
+      setExportError(error.message || "Nao foi possivel exportar os dados.");
+    } finally {
+      setIsExportingXls(false);
     }
   }
 
@@ -91,6 +108,14 @@ function AdminLayout() {
                 type="button"
               >
                 {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+              </button>
+              <button
+                className="rounded-md border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={isExportingXls}
+                onClick={handleExportXls}
+                type="button"
+              >
+                {isExportingXls ? "Exportando Excel..." : "Exportar Excel"}
               </button>
             </div>
           </div>
