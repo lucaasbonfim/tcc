@@ -11,3 +11,15 @@ export async function findAllUseCases() {
 
   return rows;
 }
+
+export async function findUseCaseById(id) {
+  const query = `
+    SELECT id, code, title, content
+    FROM use_cases
+    WHERE id = $1
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+
+  return rows[0] ?? null;
+}
