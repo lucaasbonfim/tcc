@@ -4,6 +4,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import UseCaseView from "../components/UseCaseView";
 import { getExperimentTask } from "../services/experimentTask.service";
 
 function ManualTaskPage() {
@@ -75,17 +76,21 @@ function ManualTaskPage() {
         ) : null}
 
         {!error && task?.mode === "MANUAL" ? (
-          <Card>
-            <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
-              Atividade manual
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">
-              {task.use_case.title}
-            </h1>
-            <p className="mt-3 text-slate-600">
-              O fluxo de execucao manual sera exibido nesta pagina.
-            </p>
-          </Card>
+          <>
+            <Card>
+              <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
+                Atividade manual
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold">
+                {task.use_case.title}
+              </h1>
+              <p className="mt-3 text-slate-600">
+                Consulte o caso de uso abaixo para criar os casos de teste.
+              </p>
+            </Card>
+
+            <UseCaseView useCase={task.use_case} />
+          </>
         ) : null}
       </div>
     </main>
