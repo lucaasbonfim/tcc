@@ -24,6 +24,14 @@ export async function getParticipantDetails(id) {
   return response.data.data;
 }
 
+export async function createAdminParticipant({ email }) {
+  const response = await api.post("/admin/participants", {
+    email,
+  });
+
+  return response.data.data;
+}
+
 export async function getExperimentTasks(filters = {}) {
   const response = await api.get("/admin/experiment-tasks", {
     params: removeEmptyFilters(filters),
