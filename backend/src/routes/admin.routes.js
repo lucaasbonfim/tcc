@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAdmin } from "../middlewares/auth.js";
 import {
+  createParticipantAccessController,
   exportExperimentCsv,
   exportExperimentJson,
   exportExperimentXlsx,
@@ -20,6 +21,7 @@ router.get("/export/xls", exportExperimentXlsx);
 router.get("/export/xlsx", exportExperimentXlsx);
 router.get("/experiment-tasks", listExperimentTasks);
 router.get("/experiment-summary", showExperimentSummary);
+router.post("/participants", createParticipantAccessController);
 router.get("/participants", listParticipantsProgress);
 router.get("/participants/:id", getParticipantDetails);
 

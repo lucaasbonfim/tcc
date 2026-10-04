@@ -7,6 +7,17 @@ import {
   findParticipantsProgress,
   getExperimentSummary,
 } from "../services/admin.service.js";
+import { createParticipantAccess as createParticipantAccessService } from "../services/participantAccess.service.js";
+
+export async function createParticipantAccessController(request, response, next) {
+  try {
+    const participant = await createParticipantAccessService(request.body);
+
+    return response.status(201).json({ data: participant });
+  } catch (error) {
+    return next(error);
+  }
+}
 
 export async function listParticipantsProgress(request, response, next) {
   try {
