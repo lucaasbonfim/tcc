@@ -4,12 +4,16 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import { useParticipant } from "../contexts/useParticipant";
-import { findParticipantByCode } from "../services/participant.service";
+import {
+  getAuthenticatedSession,
+  loginParticipant,
+} from "../services/auth.service";
 
 function IdentificationPage() {
   const navigate = useNavigate();
   const { hasActiveSession, setParticipant } = useParticipant();
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,10 +26,11 @@ function IdentificationPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    const trimmedCode = code.trim();
+    const trimmedEmail = email.trim();
+    const trimmedAccessCode = accessCode.trim();
 
-    if (!trimmedCode) {
-      setError("Informe o codigo do participante para continuar.");
+    if (!trimmedEmail || !trimmedAccessCode) {
+      setError("Informe seu e-mail e codigo de acesso para continuar.");
       return;
     }
 
@@ -33,17 +38,17 @@ function IdentificationPage() {
       setIsLoading(true);
       setError("");
 
-      const participant = await findParticipantByCode(trimmedCode);
-
-      setParticipant({
-        id: participant.id,
-        code: participant.code,
+      await loginParticipant({
+        email: trimmedEmail,
+        accessCode: trimmedAccessCode,
       });
+      const session = await getAuthenticatedSession();
+
+      setParticipant(session.participant);
       navigate("/experiment");
     } catch (error) {
       setError(
-        error.message ||
-          "Nao foi possivel validar o codigo. Verifique sua conexao.",
+        error.message || "E-mail ou codigo de acesso invalido.",
       );
     } finally {
       setIsLoading(false);
@@ -60,25 +65,42 @@ function IdentificationPage() {
           Experimento de Geracao de Casos de Teste
         </h1>
         <p className="mt-4 text-base leading-7 text-slate-600">
-          Informe seu codigo de participante para continuar.
+          Informe seu e-mail e codigo de acesso para continuar.
         </p>
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div>
             <label
               className="mb-2 block text-sm font-medium text-slate-700"
-              htmlFor="participant-code"
+              htmlFor="participant-email"
             >
-              Codigo do participante
+              E-mail
             </label>
             <input
               className="w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               disabled={isLoading}
-              id="participant-code"
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="P01"
+              id="participant-email"
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              value={email}
+            />
+          </div>
+          <div>
+            <label
+              className="mb-2 block text-sm font-medium text-slate-700"
+              htmlFor="participant-access-code"
+            >
+              Codigo de acesso
+            </label>
+            <input
+              autoComplete="one-time-code"
+              className="w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base uppercase text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              disabled={isLoading}
+              id="participant-access-code"
+              maxLength={8}
+              onChange={(event) => setAccessCode(event.target.value)}
               type="text"
-              value={code}
+              value={accessCode}
             />
           </div>
 
@@ -89,7 +111,7 @@ function IdentificationPage() {
             disabled={isLoading}
             type="submit"
           >
-            {isLoading ? "Validando..." : "Continuar"}
+            {isLoading ? "Entrando..." : "Entrar"}
           </Button>
         </form>
       </Card>
