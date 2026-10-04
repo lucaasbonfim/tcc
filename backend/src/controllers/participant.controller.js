@@ -1,4 +1,5 @@
 import {
+  confirmParticipantConsentById,
   createParticipant,
   deleteParticipantById,
   findAllParticipants,
@@ -47,6 +48,29 @@ export async function getParticipantOnboarding(request, response, next) {
     }
 
     return response.status(200).json({ data: onboarding });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function confirmParticipantConsent(request, response, next) {
+  try {
+    if (request.body.accepted !== true) {
+      return response.status(400).json({
+        error:
+          "É necessário confirmar o consentimento para participar do experimento.",
+      });
+    }
+
+    const consent = await confirmParticipantConsentById(request.participantId);
+
+    if (!consent) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    return response.status(200).json({ data: consent });
   } catch (error) {
     return next(error);
   }
