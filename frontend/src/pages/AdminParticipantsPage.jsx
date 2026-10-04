@@ -7,10 +7,38 @@ import Loading from "../components/Loading";
 import {
   createAdminParticipant,
   getParticipants,
+  resendParticipantAccess,
 } from "../services/admin.service";
 
 function formatBoolean(value, positiveLabel = "Confirmado") {
   return value ? positiveLabel : "Pendente";
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function getAccessStatus(access) {
+  if (!access) {
+    return "Nao configurado";
+  }
+
+  if (access.locked_until && new Date(access.locked_until) > new Date()) {
+    return "Bloqueado temporariamente";
+  }
+
+  if (access.last_sent_at) {
+    return "Enviado";
+  }
+
+  return "Pendente de envio";
 }
 
 function AdminParticipantsPage() {
@@ -20,8 +48,10 @@ function AdminParticipantsPage() {
   const [createdParticipant, setCreatedParticipant] = useState(null);
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
+  const [accessActionError, setAccessActionError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
+  const [resendingParticipantId, setResendingParticipantId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   async function loadParticipants() {
@@ -95,6 +125,36 @@ function AdminParticipantsPage() {
       );
     } finally {
       setIsCreatingParticipant(false);
+    }
+  }
+
+  async function handleResendAccess(participant) {
+    const confirmed = window.confirm(
+      "Reenviar o acesso invalida o codigo anterior. Deseja continuar?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setResendingParticipantId(participant.id);
+      setAccessActionError("");
+      setCreatedParticipant(null);
+
+      const result = await resendParticipantAccess(participant.id);
+
+      setCreatedParticipant({
+        ...result,
+        group: participant.group,
+      });
+      await loadParticipants();
+    } catch (error) {
+      setAccessActionError(
+        error.message || "Nao foi possivel reenviar o acesso.",
+      );
+    } finally {
+      setResendingParticipantId(null);
     }
   }
 
@@ -180,6 +240,8 @@ function AdminParticipantsPage() {
         </div>
       ) : null}
 
+      <ErrorMessage>{accessActionError}</ErrorMessage>
+
       {participants.length === 0 ? (
         <p className="mt-6 text-slate-600">Nenhum participante encontrado.</p>
       ) : (
@@ -214,6 +276,18 @@ function AdminParticipantsPage() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-500">E-mail</p>
+                    <p className="mt-1 break-words text-slate-900">
+                      {participant.access?.email || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-500">Acesso</p>
+                    <p className="mt-1 text-slate-900">
+                      {getAccessStatus(participant.access)}
+                    </p>
+                  </div>
                   <div>
                     <p className="font-medium text-slate-500">
                       Consentimento
@@ -250,16 +324,31 @@ function AdminParticipantsPage() {
                     </p>
                   </div>
                 </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    className="py-2"
+                    disabled={resendingParticipantId === participant.id}
+                    onClick={() => handleResendAccess(participant)}
+                    variant="secondary"
+                  >
+                    {resendingParticipantId === participant.id
+                      ? "Reenviando..."
+                      : "Reenviar acesso"}
+                  </Button>
+                </div>
               </article>
             ))}
           </div>
 
           <div className="mt-6 hidden overflow-x-auto md:block">
-          <table className="min-w-[920px] w-full border-collapse text-left text-sm">
+          <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-3 pr-4 font-semibold">Codigo</th>
+                <th className="py-3 pr-4 font-semibold">E-mail</th>
                 <th className="py-3 pr-4 font-semibold">Grupo</th>
+                <th className="py-3 pr-4 font-semibold">Acesso</th>
+                <th className="py-3 pr-4 font-semibold">Ultimo envio</th>
                 <th className="py-3 pr-4 font-semibold">Consentimento</th>
                 <th className="py-3 pr-4 font-semibold">Perfil</th>
                 <th className="py-3 pr-4 font-semibold">Pendentes</th>
@@ -277,7 +366,16 @@ function AdminParticipantsPage() {
                   <td className="py-4 pr-4 font-semibold text-slate-900">
                     {participant.code}
                   </td>
+                  <td className="max-w-56 break-words py-4 pr-4">
+                    {participant.access?.email || "-"}
+                  </td>
                   <td className="py-4 pr-4">{participant.group.name}</td>
+                  <td className="py-4 pr-4">
+                    {getAccessStatus(participant.access)}
+                  </td>
+                  <td className="py-4 pr-4">
+                    {formatDate(participant.access?.last_sent_at)}
+                  </td>
                   <td className="py-4 pr-4">
                     {formatBoolean(participant.consent_confirmed)}
                   </td>
@@ -290,15 +388,27 @@ function AdminParticipantsPage() {
                   </td>
                   <td className="py-4 pr-4">{participant.tasks.completed}</td>
                   <td className="py-4 pr-4">
-                    <Button
-                      className="py-2"
-                      onClick={() =>
-                        navigate(`/admin/participants/${participant.id}`)
-                      }
-                      variant="secondary"
-                    >
-                      Ver detalhes
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        className="py-2"
+                        disabled={resendingParticipantId === participant.id}
+                        onClick={() => handleResendAccess(participant)}
+                        variant="secondary"
+                      >
+                        {resendingParticipantId === participant.id
+                          ? "Reenviando..."
+                          : "Reenviar acesso"}
+                      </Button>
+                      <Button
+                        className="py-2"
+                        onClick={() =>
+                          navigate(`/admin/participants/${participant.id}`)
+                        }
+                        variant="secondary"
+                      >
+                        Ver detalhes
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
