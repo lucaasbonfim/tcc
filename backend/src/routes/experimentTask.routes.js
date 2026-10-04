@@ -1,5 +1,9 @@
 import { Router } from "express";
 import {
+  requireExperimentTaskOwner,
+  requireParticipant,
+} from "../middlewares/auth.js";
+import {
   completeManualExperimentTaskController,
   generateSimplePromptResultController,
   getExperimentTaskAiRun,
@@ -17,16 +21,54 @@ import {
 
 const router = Router();
 
-router.patch("/:id/start", startExperimentTaskController);
-router.patch("/:id/complete", completeManualExperimentTaskController);
-router.post("/:id/prompt/preview", previewExperimentTaskPromptController);
-router.post("/:id/generate", generateSimplePromptResultController);
-router.get("/:id/ai-run", getExperimentTaskAiRun);
-router.get("/:id/result", getManualExperimentTaskResult);
-router.get("/:taskId/test-cases", listExperimentTaskTestCases);
-router.post("/:taskId/test-cases", createManualTestCaseController);
-router.put("/:taskId/test-cases/:testCaseId", updateManualTestCaseController);
-router.delete("/:taskId/test-cases/:testCaseId", deleteManualTestCaseController);
-router.get("/:id", getExperimentTaskById);
+router.use(requireParticipant);
+
+router.patch(
+  "/:id/start",
+  requireExperimentTaskOwner(),
+  startExperimentTaskController,
+);
+router.patch(
+  "/:id/complete",
+  requireExperimentTaskOwner(),
+  completeManualExperimentTaskController,
+);
+router.post(
+  "/:id/prompt/preview",
+  requireExperimentTaskOwner(),
+  previewExperimentTaskPromptController,
+);
+router.post(
+  "/:id/generate",
+  requireExperimentTaskOwner(),
+  generateSimplePromptResultController,
+);
+router.get("/:id/ai-run", requireExperimentTaskOwner(), getExperimentTaskAiRun);
+router.get(
+  "/:id/result",
+  requireExperimentTaskOwner(),
+  getManualExperimentTaskResult,
+);
+router.get(
+  "/:taskId/test-cases",
+  requireExperimentTaskOwner("taskId"),
+  listExperimentTaskTestCases,
+);
+router.post(
+  "/:taskId/test-cases",
+  requireExperimentTaskOwner("taskId"),
+  createManualTestCaseController,
+);
+router.put(
+  "/:taskId/test-cases/:testCaseId",
+  requireExperimentTaskOwner("taskId"),
+  updateManualTestCaseController,
+);
+router.delete(
+  "/:taskId/test-cases/:testCaseId",
+  requireExperimentTaskOwner("taskId"),
+  deleteManualTestCaseController,
+);
+router.get("/:id", requireExperimentTaskOwner(), getExperimentTaskById);
 
 export default router;

@@ -1,3 +1,4 @@
+import pool from "../config/database.js";
 import { getSessionFromRequest } from "../services/auth.service.js";
 
 function createUnauthorizedError(message = "Sessao nao autorizada.") {
@@ -37,4 +38,47 @@ export function requireParticipant(request, _response, next) {
   } catch (error) {
     return next(error);
   }
+}
+
+export function requireSameParticipant(paramName = "participantId") {
+  return (request, _response, next) => {
+    const routeParticipantId = Number(request.params[paramName]);
+
+    if (!routeParticipantId || routeParticipantId !== request.participantId) {
+      return next(createUnauthorizedError());
+    }
+
+    return next();
+  };
+}
+
+export function requireExperimentTaskOwner(paramName = "id") {
+  return async (request, _response, next) => {
+    try {
+      const taskId = request.params[paramName];
+      const { rows } = await pool.query(
+        `
+          SELECT participant_id
+          FROM experiment_tasks
+          WHERE id = $1
+        `,
+        [taskId],
+      );
+      const task = rows[0];
+
+      if (!task) {
+        const error = new Error("Atividade experimental nao encontrada.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (Number(task.participant_id) !== request.participantId) {
+        throw createUnauthorizedError();
+      }
+
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
