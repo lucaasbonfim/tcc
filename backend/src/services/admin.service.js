@@ -3,7 +3,7 @@ import pool from "../config/database.js";
 const VALID_MODES = ["MANUAL", "SIMPLE_PROMPT", "STRUCTURED_PROMPT"];
 const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED"];
 const CSV_SEPARATOR = ";";
-const APP_HIGHLIGHT_COLOR = "#0f766e";
+const APP_HIGHLIGHT_COLOR = "0F766E";
 const EXPORT_COLUMNS = [
   ["participant_id", "ID do participante"],
   ["participant_code", "Codigo do participante"],
@@ -37,6 +37,39 @@ const EXPORT_COLUMNS = [
   ["raw_response", "Resposta da IA"],
   ["test_cases", "Casos de teste manuais"],
 ];
+const EXCEL_COLUMN_WIDTHS = {
+  participant_id: 14,
+  participant_code: 18,
+  group_id: 12,
+  group_name: 16,
+  course_period: 18,
+  software_dev_experience: 28,
+  software_testing_experience: 24,
+  test_case_experience: 28,
+  requirements_familiarity: 28,
+  genai_usage_frequency: 28,
+  genai_software_usage: 28,
+  genai_test_case_usage: 30,
+  experiment_task_id: 14,
+  task_order: 14,
+  mode: 24,
+  status: 16,
+  use_case_id: 14,
+  use_case_code: 16,
+  use_case_title: 34,
+  started_at: 20,
+  finished_at: 20,
+  duration_seconds: 14,
+  model: 24,
+  prompt_version: 16,
+  participant_input: 42,
+  final_prompt: 52,
+  ai_started_at: 20,
+  ai_finished_at: 20,
+  response_time_ms: 20,
+  raw_response: 56,
+  test_cases: 48,
+};
 const MODE_LABELS = {
   MANUAL: "Manual",
   SIMPLE_PROMPT: "IA com prompt simples",
@@ -106,14 +139,6 @@ function formatTestCases(testCases) {
     .join("\n\n");
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function formatCsvValue(value) {
   if (value === null || value === undefined) {
     return "";
@@ -148,54 +173,250 @@ function toCsv(rows) {
   return `\uFEFFsep=${CSV_SEPARATOR}\r\n${[header, ...body].join("\r\n")}`;
 }
 
-function toExcelHtml(rows) {
-  const header = EXPORT_COLUMNS.map(
-    ([, label]) => `<th>${escapeHtml(label)}</th>`,
+function escapeXml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+}
+
+function formatXlsxValue(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return String(value);
+}
+
+function getColumnLetter(columnNumber) {
+  let remaining = columnNumber;
+  let letters = "";
+
+  while (remaining > 0) {
+    const modulo = (remaining - 1) % 26;
+
+    letters = String.fromCharCode(65 + modulo) + letters;
+    remaining = Math.floor((remaining - modulo) / 26);
+  }
+
+  return letters;
+}
+
+function createCellXml(rowNumber, columnNumber, value, styleId = 0) {
+  const cellReference = `${getColumnLetter(columnNumber)}${rowNumber}`;
+  const formattedValue = escapeXml(formatXlsxValue(value));
+
+  return `<c r="${cellReference}" t="inlineStr" s="${styleId}"><is><t xml:space="preserve">${formattedValue}</t></is></c>`;
+}
+
+function buildWorksheetXml(rows) {
+  const totalRows = rows.length + 1;
+  const totalColumns = EXPORT_COLUMNS.length;
+  const lastCellReference = `${getColumnLetter(totalColumns)}${totalRows}`;
+  const columnsXml = EXPORT_COLUMNS.map(([key], index) => {
+    const columnNumber = index + 1;
+    const width = EXCEL_COLUMN_WIDTHS[key] || 18;
+
+    return `<col min="${columnNumber}" max="${columnNumber}" width="${width}" customWidth="1"/>`;
+  }).join("");
+  const headerCells = EXPORT_COLUMNS.map(([, label], index) =>
+    createCellXml(1, index + 1, label, 1),
   ).join("");
-  const body = rows
-    .map((row) => {
-      const cells = EXPORT_COLUMNS.map(([column]) => {
-        const value = row[column] ?? "";
-        const htmlValue = escapeHtml(value)
-          .replace(/\r\n|\r|\n/g, "<br>")
-          .replaceAll("\\n", "<br>");
+  const dataRows = rows.map((row, rowIndex) => {
+    const rowNumber = rowIndex + 2;
+    const cells = EXPORT_COLUMNS.map(([key], columnIndex) =>
+      createCellXml(rowNumber, columnIndex + 1, row[key]),
+    ).join("");
 
-        return `<td>${htmlValue}</td>`;
-      }).join("");
+    return `<row r="${rowNumber}" ht="24" customHeight="1">${cells}</row>`;
+  }).join("");
 
-      return `<tr>${cells}</tr>`;
-    })
-    .join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${lastCellReference}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+      <selection pane="bottomLeft" activeCell="A2" sqref="A2"/>
+    </sheetView>
+  </sheetViews>
+  <cols>${columnsXml}</cols>
+  <sheetData>
+    <row r="1" ht="28" customHeight="1">${headerCells}</row>
+    ${dataRows}
+  </sheetData>
+  <autoFilter ref="A1:${getColumnLetter(totalColumns)}1"/>
+</worksheet>`;
+}
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <style>
-      body { font-family: Arial, sans-serif; }
-      table { border-collapse: collapse; width: 100%; }
-      th {
-        background: ${APP_HIGHLIGHT_COLOR};
-        color: #ffffff;
-        font-weight: 700;
-        text-align: left;
-      }
-      th, td {
-        border: 1px solid #d1d5db;
-        padding: 8px;
-        vertical-align: top;
-        white-space: normal;
-      }
-      tr:nth-child(even) td { background: #f8fafc; }
-    </style>
-  </head>
-  <body>
-    <table>
-      <thead><tr>${header}</tr></thead>
-      <tbody>${body}</tbody>
-    </table>
-  </body>
-</html>`;
+function buildStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><color theme="1"/><name val="Arial"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF${APP_HIGHLIGHT_COLOR}"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFD1D5DB"/></left>
+      <right style="thin"><color rgb="FFD1D5DB"/></right>
+      <top style="thin"><color rgb="FFD1D5DB"/></top>
+      <bottom style="thin"><color rgb="FFD1D5DB"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
+  let crc = index;
+
+  for (let bit = 0; bit < 8; bit += 1) {
+    crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+  }
+
+  return crc >>> 0;
+});
+
+function getCrc32(buffer) {
+  let crc = 0xffffffff;
+
+  for (const byte of buffer) {
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createZip(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach(({ name, content }) => {
+    const nameBuffer = Buffer.from(name);
+    const contentBuffer = Buffer.from(content);
+    const crc32 = getCrc32(contentBuffer);
+    const localHeader = Buffer.alloc(30);
+
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0, 6);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt16LE(0, 10);
+    localHeader.writeUInt16LE(0, 12);
+    localHeader.writeUInt32LE(crc32, 14);
+    localHeader.writeUInt32LE(contentBuffer.length, 18);
+    localHeader.writeUInt32LE(contentBuffer.length, 22);
+    localHeader.writeUInt16LE(nameBuffer.length, 26);
+    localHeader.writeUInt16LE(0, 28);
+    localParts.push(localHeader, nameBuffer, contentBuffer);
+
+    const centralHeader = Buffer.alloc(46);
+
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0, 8);
+    centralHeader.writeUInt16LE(0, 10);
+    centralHeader.writeUInt16LE(0, 12);
+    centralHeader.writeUInt16LE(0, 14);
+    centralHeader.writeUInt32LE(crc32, 16);
+    centralHeader.writeUInt32LE(contentBuffer.length, 20);
+    centralHeader.writeUInt32LE(contentBuffer.length, 24);
+    centralHeader.writeUInt16LE(nameBuffer.length, 28);
+    centralHeader.writeUInt16LE(0, 30);
+    centralHeader.writeUInt16LE(0, 32);
+    centralHeader.writeUInt16LE(0, 34);
+    centralHeader.writeUInt16LE(0, 36);
+    centralHeader.writeUInt32LE(0, 38);
+    centralHeader.writeUInt32LE(offset, 42);
+    centralParts.push(centralHeader, nameBuffer);
+
+    offset += localHeader.length + nameBuffer.length + contentBuffer.length;
+  });
+
+  const centralDirectory = Buffer.concat(centralParts);
+  const centralDirectoryOffset = offset;
+  const endRecord = Buffer.alloc(22);
+
+  endRecord.writeUInt32LE(0x06054b50, 0);
+  endRecord.writeUInt16LE(0, 4);
+  endRecord.writeUInt16LE(0, 6);
+  endRecord.writeUInt16LE(files.length, 8);
+  endRecord.writeUInt16LE(files.length, 10);
+  endRecord.writeUInt32LE(centralDirectory.length, 12);
+  endRecord.writeUInt32LE(centralDirectoryOffset, 16);
+  endRecord.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localParts, centralDirectory, endRecord]);
+}
+
+function toXlsx(rows) {
+  const files = [
+    {
+      name: "[Content_Types].xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+    },
+    {
+      name: "_rels/.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+    },
+    {
+      name: "xl/workbook.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Resultados" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+    },
+    {
+      name: "xl/_rels/workbook.xml.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+    },
+    {
+      name: "xl/styles.xml",
+      content: buildStylesXml(),
+    },
+    {
+      name: "xl/worksheets/sheet1.xml",
+      content: buildWorksheetXml(rows),
+    },
+  ];
+
+  return createZip(files);
 }
 
 export async function findParticipantsProgress() {
@@ -786,8 +1007,8 @@ export async function exportExperimentDataAsCsv() {
   return toCsv(rows);
 }
 
-export async function exportExperimentDataAsXls() {
+export async function exportExperimentDataAsXlsx() {
   const rows = await getFormattedExperimentExportRows();
 
-  return toExcelHtml(rows);
+  return toXlsx(rows);
 }

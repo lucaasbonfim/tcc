@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   exportExperimentCsv,
   exportExperimentJson,
-  exportExperimentXls,
+  exportExperimentXlsx,
   getParticipantDetails,
   listExperimentTasks,
   listParticipantsProgress,
@@ -13,7 +13,8 @@ const router = Router();
 
 router.get("/export/csv", exportExperimentCsv);
 router.get("/export/json", exportExperimentJson);
-router.get("/export/xls", exportExperimentXls);
+router.get("/export/xls", exportExperimentXlsx);
+router.get("/export/xlsx", exportExperimentXlsx);
 router.get("/experiment-tasks", listExperimentTasks);
 router.get("/experiment-summary", showExperimentSummary);
 router.get("/participants", listParticipantsProgress);
