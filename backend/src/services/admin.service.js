@@ -427,6 +427,11 @@ export async function findParticipantsProgress() {
       experiment_groups.id AS group_id,
       experiment_groups.name AS group_name,
       participants.consent_confirmed,
+      participant_access.email,
+      participant_access.access_code_created_at,
+      participant_access.last_sent_at,
+      participant_access.failed_attempts,
+      participant_access.locked_until,
       (participant_profiles.id IS NOT NULL) AS profile_completed,
       COUNT(experiment_tasks.id)::int AS tasks_total,
       COUNT(experiment_tasks.id) FILTER (
@@ -441,6 +446,8 @@ export async function findParticipantsProgress() {
     FROM participants
     INNER JOIN experiment_groups
       ON experiment_groups.id = participants.group_id
+    LEFT JOIN participant_access
+      ON participant_access.participant_id = participants.id
     LEFT JOIN participant_profiles
       ON participant_profiles.participant_id = participants.id
     LEFT JOIN experiment_tasks
@@ -451,6 +458,11 @@ export async function findParticipantsProgress() {
       experiment_groups.id,
       experiment_groups.name,
       participants.consent_confirmed,
+      participant_access.email,
+      participant_access.access_code_created_at,
+      participant_access.last_sent_at,
+      participant_access.failed_attempts,
+      participant_access.locked_until,
       participant_profiles.id
     ORDER BY participants.code
   `;
@@ -464,6 +476,15 @@ export async function findParticipantsProgress() {
       id: row.group_id,
       name: row.group_name,
     },
+    access: row.email
+      ? {
+          email: row.email,
+          access_code_created_at: row.access_code_created_at,
+          last_sent_at: row.last_sent_at,
+          failed_attempts: row.failed_attempts,
+          locked_until: row.locked_until,
+        }
+      : null,
     consent_confirmed: row.consent_confirmed,
     profile_completed: row.profile_completed,
     tasks: {

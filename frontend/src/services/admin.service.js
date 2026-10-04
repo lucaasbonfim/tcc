@@ -32,6 +32,12 @@ export async function createAdminParticipant({ email }) {
   return response.data.data;
 }
 
+export async function resendParticipantAccess(id) {
+  const response = await api.post(`/admin/participants/${id}/resend-access`);
+
+  return response.data.data;
+}
+
 export async function getExperimentTasks(filters = {}) {
   const response = await api.get("/admin/experiment-tasks", {
     params: removeEmptyFilters(filters),
