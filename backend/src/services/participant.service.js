@@ -56,6 +56,20 @@ export async function findParticipantOnboardingById(id) {
   };
 }
 
+export async function confirmParticipantConsentById(id) {
+  const query = `
+    UPDATE participants
+    SET consent_confirmed = TRUE,
+        consent_confirmed_at = COALESCE(consent_confirmed_at, CURRENT_TIMESTAMP)
+    WHERE id = $1
+    RETURNING consent_confirmed, consent_confirmed_at
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+
+  return rows[0] ?? null;
+}
+
 export async function findExperimentGroupById(id) {
   const query = `
     SELECT id
