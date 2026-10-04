@@ -3,7 +3,7 @@ import { useState } from "react";
 import {
   downloadExperimentCsv,
   downloadExperimentJson,
-  downloadExperimentXls,
+  downloadExperimentXlsx,
 } from "../services/admin.service";
 
 const NAV_ITEMS = [
@@ -28,7 +28,7 @@ function AdminLayout() {
   const [exportError, setExportError] = useState("");
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isExportingJson, setIsExportingJson] = useState(false);
-  const [isExportingXls, setIsExportingXls] = useState(false);
+  const [isExportingXlsx, setIsExportingXlsx] = useState(false);
 
   async function handleExportJson() {
     try {
@@ -60,18 +60,18 @@ function AdminLayout() {
     }
   }
 
-  async function handleExportXls() {
+  async function handleExportXlsx() {
     try {
-      setIsExportingXls(true);
+      setIsExportingXlsx(true);
       setExportError("");
 
-      const blob = await downloadExperimentXls();
+      const blob = await downloadExperimentXlsx();
 
-      downloadBlob(blob, "experiment-results.xls");
+      downloadBlob(blob, "experiment-results.xlsx");
     } catch (error) {
       setExportError(error.message || "Nao foi possivel exportar os dados.");
     } finally {
-      setIsExportingXls(false);
+      setIsExportingXlsx(false);
     }
   }
 
@@ -111,11 +111,11 @@ function AdminLayout() {
               </button>
               <button
                 className="rounded-md border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
-                disabled={isExportingXls}
-                onClick={handleExportXls}
+                disabled={isExportingXlsx}
+                onClick={handleExportXlsx}
                 type="button"
               >
-                {isExportingXls ? "Exportando Excel..." : "Exportar Excel"}
+                {isExportingXlsx ? "Exportando Excel..." : "Exportar Excel"}
               </button>
             </div>
           </div>

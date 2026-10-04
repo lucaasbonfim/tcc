@@ -1,7 +1,7 @@
 import {
   exportExperimentDataAsCsv,
   exportExperimentDataAsJson,
-  exportExperimentDataAsXls,
+  exportExperimentDataAsXlsx,
   findExperimentTasks,
   findParticipantDetailsById,
   findParticipantsProgress,
@@ -74,17 +74,20 @@ export async function exportExperimentCsv(request, response, next) {
   }
 }
 
-export async function exportExperimentXls(request, response, next) {
+export async function exportExperimentXlsx(request, response, next) {
   try {
-    const xls = await exportExperimentDataAsXls();
+    const xlsx = await exportExperimentDataAsXlsx();
 
-    response.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
+    response.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
     response.setHeader(
       "Content-Disposition",
-      'attachment; filename="experiment-results.xls"',
+      'attachment; filename="experiment-results.xlsx"',
     );
 
-    return response.status(200).send(xls);
+    return response.status(200).send(xlsx);
   } catch (error) {
     return next(error);
   }

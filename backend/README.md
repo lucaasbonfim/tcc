@@ -69,7 +69,7 @@ A API fica disponivel em `http://localhost:3000/api`.
 - `PATCH /api/experiment-tasks/:id/complete`
 - `GET /api/admin/export/json`
 - `GET /api/admin/export/csv`
-- `GET /api/admin/export/xls`
+- `GET /api/admin/export/xlsx`
 
 ## Fluxo de IA
 
