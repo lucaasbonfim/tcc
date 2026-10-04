@@ -173,3 +173,68 @@ export async function createParticipantAccess({ email }) {
     email_sent: emailSent,
   };
 }
+
+export async function resendParticipantAccess(participantId) {
+  const accessCode = generateAccessCode();
+  const accessCodeHash = await hashAccessCode(accessCode);
+  const client = await pool.connect();
+  let participantAccess;
+
+  try {
+    await client.query("BEGIN");
+
+    const accessResult = await client.query(
+      `
+        SELECT
+          participants.id,
+          participants.code,
+          participant_access.email
+        FROM participants
+        INNER JOIN participant_access
+          ON participant_access.participant_id = participants.id
+        WHERE participants.id = $1
+        FOR UPDATE OF participant_access
+      `,
+      [participantId],
+    );
+    participantAccess = accessResult.rows[0];
+
+    if (!participantAccess) {
+      throw createServiceError(404, "Acesso do participante nao encontrado.");
+    }
+
+    await client.query(
+      `
+        UPDATE participant_access
+        SET access_code_hash = $1,
+            access_code_created_at = CURRENT_TIMESTAMP,
+            last_sent_at = NULL,
+            failed_attempts = 0,
+            locked_until = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE participant_id = $2
+      `,
+      [accessCodeHash, participantId],
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const emailSent = await sendAccessEmailAfterCommit({
+    participantId: participantAccess.id,
+    email: participantAccess.email,
+    accessCode,
+  });
+
+  return {
+    id: participantAccess.id,
+    code: participantAccess.code,
+    email: participantAccess.email,
+    email_sent: emailSent,
+  };
+}

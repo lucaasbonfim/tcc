@@ -8,6 +8,7 @@ import {
   getParticipantDetails,
   listExperimentTasks,
   listParticipantsProgress,
+  resendParticipantAccessController,
   showExperimentSummary,
 } from "../controllers/admin.controller.js";
 
@@ -23,6 +24,7 @@ router.get("/experiment-tasks", listExperimentTasks);
 router.get("/experiment-summary", showExperimentSummary);
 router.post("/participants", createParticipantAccessController);
 router.get("/participants", listParticipantsProgress);
+router.post("/participants/:id/resend-access", resendParticipantAccessController);
 router.get("/participants/:id", getParticipantDetails);
 
 export default router;
