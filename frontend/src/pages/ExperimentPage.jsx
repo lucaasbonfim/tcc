@@ -8,7 +8,6 @@ import StatusBadge from "../components/StatusBadge";
 import { useParticipant } from "../contexts/useParticipant";
 import {
   getNextParticipantTask,
-  getParticipantProfile,
   getParticipantTasks,
   initializeParticipantTasks,
 } from "../services/participant.service";
@@ -28,7 +27,6 @@ const STATUS_LABELS = {
 function ExperimentPage() {
   const navigate = useNavigate();
   const { clearParticipant, participant } = useParticipant();
-  const [profile, setProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false);
@@ -49,30 +47,13 @@ function ExperimentPage() {
         setIsLoading(true);
         setError("");
 
-        const [profileResult, tasksResult] = await Promise.allSettled([
-          getParticipantProfile(participant.id),
-          getParticipantTasks(participant.id),
-        ]);
+        const tasksResult = await getParticipantTasks(participant.id);
 
         if (!isMounted) {
           return;
         }
 
-        if (profileResult.status === "fulfilled") {
-          setProfile(profileResult.value);
-        } else if (profileResult.reason?.status === 404) {
-          setProfile(null);
-        } else {
-          throw profileResult.reason;
-        }
-
-        if (tasksResult.status === "fulfilled") {
-          setTasks(tasksResult.value);
-        } else if (tasksResult.reason?.status === 404) {
-          setTasks([]);
-        } else {
-          throw tasksResult.reason;
-        }
+        setTasks(tasksResult);
       } catch (error) {
         if (isMounted) {
           setError(
@@ -175,7 +156,7 @@ function ExperimentPage() {
               <Card>
                 <p className="text-sm font-medium text-slate-500">Perfil</p>
                 <p className="mt-2 text-2xl font-semibold">
-                  {profile ? "Preenchido" : "Pendente"}
+                  Concluído
                 </p>
               </Card>
               <Card>
@@ -232,17 +213,15 @@ function ExperimentPage() {
                   <p className="text-slate-600">
                     As atividades ainda nao foram inicializadas.
                   </p>
-                  {profile ? (
-                    <Button
-                      className="mt-4"
-                      disabled={isInitializing}
-                      onClick={handleInitializeExperiment}
-                    >
-                      {isInitializing
-                        ? "Inicializando..."
-                        : "Iniciar experimento"}
-                    </Button>
-                  ) : null}
+                  <Button
+                    className="mt-4"
+                    disabled={isInitializing}
+                    onClick={handleInitializeExperiment}
+                  >
+                    {isInitializing
+                      ? "Inicializando..."
+                      : "Iniciar experimento"}
+                  </Button>
                 </div>
               )}
             </Card>
