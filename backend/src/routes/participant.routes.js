@@ -5,7 +5,6 @@ import {
   requireSameParticipant,
 } from "../middlewares/auth.js";
 import {
-  createParticipantController,
   deleteParticipantController,
   getParticipantByCode,
   getParticipantById,
@@ -26,7 +25,12 @@ import {
 const router = Router();
 
 router.get("/", requireAdmin, listParticipants);
-router.post("/", createParticipantController);
+router.post("/", (_request, response) =>
+  response.status(410).json({
+    error:
+      "Cadastro publico de participantes desativado. Utilize a area administrativa.",
+  }),
+);
 router.get("/by-code/:code", getParticipantByCode);
 router.get(
   "/:participantId/experiment-tasks",
