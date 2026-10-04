@@ -1,5 +1,14 @@
 import api from "./api";
 
+export async function loginAdmin({ email, password }) {
+  const response = await api.post("/auth/admin/login", {
+    email,
+    password,
+  });
+
+  return response.data.data;
+}
+
 export async function loginParticipant({ email, accessCode }) {
   const response = await api.post("/auth/participant/login", {
     email,
