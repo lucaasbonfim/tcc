@@ -4,6 +4,7 @@ import {
   getCurrentSession,
   setSessionCookie,
 } from "../services/auth.service.js";
+import { authenticateParticipantAccess } from "../services/participantAccess.service.js";
 
 export async function adminLogin(request, response, next) {
   try {
@@ -16,6 +17,21 @@ export async function adminLogin(request, response, next) {
         role: "admin",
       },
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function participantLogin(request, response, next) {
+  try {
+    const session = await authenticateParticipantAccess(request.body);
+
+    setSessionCookie(response, {
+      role: session.role,
+      participantId: session.participant.id,
+    });
+
+    return response.status(200).json({ data: session });
   } catch (error) {
     return next(error);
   }
