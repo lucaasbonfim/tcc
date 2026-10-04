@@ -28,13 +28,20 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Grupos balanceados automaticamente entre Grupo 1, Grupo 2 e Grupo 3.
 - [ ] Reenvio de acesso testado.
 - [ ] Login do participante com e-mail e codigo validado.
+- [ ] Fluxo inicial validado: login -> consentimento -> questionario de caracterizacao -> experimento.
 
 ## Durante a coleta
 
 - [ ] Participante informou e-mail e codigo de acesso recebido por e-mail.
-- [ ] Consentimento confirmado pelo participante.
-- [ ] Questionario de perfil preenchido.
-- [ ] Atividades inicializadas somente apos perfil preenchido.
+- [ ] Consentimento exibido corretamente antes do questionario.
+- [ ] Checkbox de consentimento iniciou desmarcado.
+- [ ] Botao de confirmacao permaneceu bloqueado ate o checkbox ser marcado.
+- [ ] Consentimento registrado pelo participante.
+- [ ] Questionario de caracterizacao exibido depois do consentimento.
+- [ ] Questionario de caracterizacao preenchido antes do experimento.
+- [ ] `/experiment` bloqueado antes do consentimento e do questionario.
+- [ ] `/experiment/task/:id` bloqueado antes do consentimento e do questionario.
+- [ ] Atividades inicializadas somente apos consentimento e perfil preenchido.
 - [ ] Participante executou as atividades na ordem exibida.
 - [ ] Atividade manual concluida com pelo menos um caso de teste.
 - [ ] Atividade com prompt simples permitiu instrucao livre, preview e envio unico.

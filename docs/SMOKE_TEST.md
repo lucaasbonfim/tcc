@@ -19,11 +19,15 @@ Execute este roteiro depois de configurar o banco, backend e frontend.
 ## 2. Frontend do participante
 
 1. Abra o frontend no navegador.
-2. Informe um codigo de participante novo.
-3. Confirme o consentimento.
-4. Preencha o questionario de perfil.
-5. Inicie o experimento.
-6. Confirme que tres atividades aparecem em ordem.
+2. Informe e-mail e codigo de acesso do participante.
+3. Confirme que o participante sem consentimento e enviado para `/consent`.
+4. Confirme que o checkbox de consentimento inicia desmarcado.
+5. Marque o checkbox e confirme o consentimento.
+6. Confirme que o participante e enviado para `/profile`.
+7. Preencha o questionario de caracterizacao.
+8. Confirme que o participante e enviado para `/experiment`.
+9. Inicie o experimento.
+10. Confirme que tres atividades aparecem em ordem.
 
 ## 3. Atividade manual
 
