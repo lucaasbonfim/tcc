@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 import { useParticipant } from "../contexts/useParticipant";
-import { confirmParticipantConsent } from "../services/participant.service";
+import {
+  confirmParticipantConsent,
+  getParticipantOnboarding,
+} from "../services/participant.service";
 
 const CONSENT_ITEMS = [
   "Este é um experimento acadêmico sobre geração de casos de teste utilizando IA Generativa.",
@@ -22,7 +26,51 @@ function ConsentPage() {
   const { clearParticipant, participant } = useParticipant();
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function protectConsentStep() {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const onboarding = await getParticipantOnboarding();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (onboarding.consent_confirmed && onboarding.profile_completed) {
+          navigate("/experiment", { replace: true });
+          return;
+        }
+
+        if (onboarding.consent_confirmed) {
+          navigate("/profile", { replace: true });
+          return;
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(
+            error.message || "Não foi possível verificar o consentimento.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    protectConsentStep();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   async function handleConfirm() {
     if (!accepted || isSubmitting) {
@@ -72,7 +120,10 @@ function ConsentPage() {
           </Button>
         </Card>
 
-        <Card>
+        {isLoading ? <Loading>Verificando consentimento...</Loading> : null}
+
+        {!isLoading ? (
+          <Card>
           <div className="space-y-4 text-base leading-7 text-slate-700">
             {CONSENT_ITEMS.map((item) => (
               <p key={item}>{item}</p>
@@ -108,7 +159,8 @@ function ConsentPage() {
           >
             {isSubmitting ? "Confirmando..." : "Confirmar e continuar"}
           </Button>
-        </Card>
+          </Card>
+        ) : null}
       </div>
     </main>
   );
