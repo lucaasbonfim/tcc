@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAdmin } from "../middlewares/auth.js";
 import {
   exportExperimentCsv,
   exportExperimentJson,
@@ -10,6 +11,8 @@ import {
 } from "../controllers/admin.controller.js";
 
 const router = Router();
+
+router.use(requireAdmin);
 
 router.get("/export/csv", exportExperimentCsv);
 router.get("/export/json", exportExperimentJson);
