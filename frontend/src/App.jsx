@@ -12,6 +12,7 @@ import ConsentPage from "./pages/ConsentPage";
 import ExperimentPage from "./pages/ExperimentPage";
 import ExperimentTaskPage from "./pages/ExperimentTaskPage";
 import IdentificationPage from "./pages/IdentificationPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
@@ -40,6 +41,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ExperimentTaskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />
