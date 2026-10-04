@@ -20,6 +20,15 @@ export async function getParticipantProfile(participantId) {
   return response.data.data;
 }
 
+export async function createParticipantProfile(participantId, profile) {
+  const response = await api.post(
+    `/participants/${participantId}/profile`,
+    profile,
+  );
+
+  return response.data.data;
+}
+
 export async function getParticipantTasks(participantId) {
   const response = await api.get(
     `/participants/${participantId}/experiment-tasks`,
