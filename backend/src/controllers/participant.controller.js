@@ -4,6 +4,7 @@ import {
   findAllParticipants,
   findExperimentGroupById,
   findParticipantById,
+  findParticipantOnboardingById,
   updateParticipantById,
 } from "../services/participant.service.js";
 
@@ -28,6 +29,24 @@ export async function getParticipantById(request, response, next) {
     }
 
     return response.status(200).json({ data: participant });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getParticipantOnboarding(request, response, next) {
+  try {
+    const onboarding = await findParticipantOnboardingById(
+      request.participantId,
+    );
+
+    if (!onboarding) {
+      return response.status(404).json({
+        error: "Participante não encontrado.",
+      });
+    }
+
+    return response.status(200).json({ data: onboarding });
   } catch (error) {
     return next(error);
   }

@@ -14,7 +14,7 @@ export async function findAllParticipants() {
 
 export async function findParticipantById(id) {
   const query = `
-    SELECT id, code, group_id, consent_confirmed, created_at
+    SELECT id, code, group_id, consent_confirmed, consent_confirmed_at, created_at
     FROM participants
     WHERE id = $1
   `;
@@ -22,6 +22,38 @@ export async function findParticipantById(id) {
   const { rows } = await pool.query(query, [id]);
 
   return rows[0] ?? null;
+}
+
+export async function findParticipantOnboardingById(id) {
+  const query = `
+    SELECT
+      participants.id,
+      participants.code,
+      participants.consent_confirmed,
+      participants.consent_confirmed_at,
+      participant_profiles.id IS NOT NULL AS profile_completed
+    FROM participants
+    LEFT JOIN participant_profiles
+      ON participant_profiles.participant_id = participants.id
+    WHERE participants.id = $1
+  `;
+
+  const { rows } = await pool.query(query, [id]);
+  const participant = rows[0];
+
+  if (!participant) {
+    return null;
+  }
+
+  return {
+    participant: {
+      id: participant.id,
+      code: participant.code,
+    },
+    consent_confirmed: participant.consent_confirmed,
+    consent_confirmed_at: participant.consent_confirmed_at,
+    profile_completed: participant.profile_completed,
+  };
 }
 
 export async function findExperimentGroupById(id) {

@@ -5,6 +5,7 @@ import experimentGroupRoutes from "./experimentGroup.routes.js";
 import experimentTaskRoutes from "./experimentTask.routes.js";
 import healthRoutes from "./health.routes.js";
 import participantRoutes from "./participant.routes.js";
+import participantSelfRoutes from "./participantSelf.routes.js";
 import useCaseRoutes from "./useCase.routes.js";
 
 const router = Router();
@@ -14,6 +15,7 @@ router.use("/auth", authRoutes);
 router.use("/experiment-groups", experimentGroupRoutes);
 router.use("/experiment-tasks", experimentTaskRoutes);
 router.use("/health", healthRoutes);
+router.use("/participant", participantSelfRoutes);
 router.use("/participants", participantRoutes);
 router.use("/use-cases", useCaseRoutes);
 
