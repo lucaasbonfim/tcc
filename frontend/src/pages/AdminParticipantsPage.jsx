@@ -4,7 +4,10 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
-import { getParticipants } from "../services/admin.service";
+import {
+  createAdminParticipant,
+  getParticipants,
+} from "../services/admin.service";
 
 function formatBoolean(value, positiveLabel = "Confirmado") {
   return value ? positiveLabel : "Pendente";
@@ -13,8 +16,13 @@ function formatBoolean(value, positiveLabel = "Confirmado") {
 function AdminParticipantsPage() {
   const navigate = useNavigate();
   const [participants, setParticipants] = useState([]);
+  const [newParticipantEmail, setNewParticipantEmail] = useState("");
+  const [createdParticipant, setCreatedParticipant] = useState(null);
   const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   async function loadParticipants() {
     try {
@@ -61,6 +69,35 @@ function AdminParticipantsPage() {
     };
   }, []);
 
+  async function handleCreateParticipant(event) {
+    event.preventDefault();
+
+    if (!newParticipantEmail.trim()) {
+      setCreateError("Informe o e-mail do participante.");
+      return;
+    }
+
+    try {
+      setIsCreatingParticipant(true);
+      setCreateError("");
+      setCreatedParticipant(null);
+
+      const participant = await createAdminParticipant({
+        email: newParticipantEmail.trim(),
+      });
+
+      setCreatedParticipant(participant);
+      setNewParticipantEmail("");
+      await loadParticipants();
+    } catch (error) {
+      setCreateError(
+        error.message || "Nao foi possivel cadastrar o participante.",
+      );
+    } finally {
+      setIsCreatingParticipant(false);
+    }
+  }
+
   if (isLoading) {
     return <Loading>Carregando participantes...</Loading>;
   }
@@ -85,7 +122,63 @@ function AdminParticipantsPage() {
             Acompanhamento administrativo do progresso dos participantes.
           </p>
         </div>
+        <Button onClick={() => setShowCreateForm((current) => !current)}>
+          Novo participante
+        </Button>
       </div>
+
+      {showCreateForm ? (
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5">
+          <h3 className="text-lg font-semibold">Cadastrar participante</h3>
+          <form
+            className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]"
+            onSubmit={handleCreateParticipant}
+          >
+            <div>
+              <label
+                className="mb-2 block text-sm font-medium text-slate-700"
+                htmlFor="new-participant-email"
+              >
+                E-mail
+              </label>
+              <input
+                className="w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                disabled={isCreatingParticipant}
+                id="new-participant-email"
+                onChange={(event) => setNewParticipantEmail(event.target.value)}
+                type="email"
+                value={newParticipantEmail}
+              />
+            </div>
+            <Button
+              className="self-end"
+              disabled={isCreatingParticipant}
+              type="submit"
+            >
+              {isCreatingParticipant
+                ? "Cadastrando..."
+                : "Cadastrar e enviar acesso"}
+            </Button>
+          </form>
+          <ErrorMessage>{createError}</ErrorMessage>
+
+          {createdParticipant ? (
+            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <p className="font-semibold">
+                Participante cadastrado com sucesso.
+              </p>
+              <p className="mt-2">Codigo: {createdParticipant.code}</p>
+              <p>Grupo: {createdParticipant.group.name}</p>
+              <p>
+                Codigo de acesso{" "}
+                {createdParticipant.email_sent
+                  ? `enviado para: ${createdParticipant.email}`
+                  : `nao enviado para: ${createdParticipant.email}`}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {participants.length === 0 ? (
         <p className="mt-6 text-slate-600">Nenhum participante encontrado.</p>
