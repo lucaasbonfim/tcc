@@ -1,5 +1,10 @@
 import { Router } from "express";
 import {
+  requireAdmin,
+  requireParticipant,
+  requireSameParticipant,
+} from "../middlewares/auth.js";
+import {
   createParticipantController,
   deleteParticipantController,
   getParticipantByCode,
@@ -20,23 +25,52 @@ import {
 
 const router = Router();
 
-router.get("/", listParticipants);
+router.get("/", requireAdmin, listParticipants);
 router.post("/", createParticipantController);
 router.get("/by-code/:code", getParticipantByCode);
-router.get("/:participantId/experiment-tasks", listParticipantExperimentTasks);
+router.get(
+  "/:participantId/experiment-tasks",
+  requireParticipant,
+  requireSameParticipant(),
+  listParticipantExperimentTasks,
+);
 router.get(
   "/:participantId/experiment-tasks/next",
+  requireParticipant,
+  requireSameParticipant(),
   getNextParticipantExperimentTask,
 );
 router.post(
   "/:participantId/experiment-tasks/initialize",
+  requireParticipant,
+  requireSameParticipant(),
   initializeParticipantExperimentTasksController,
 );
-router.get("/:participantId/profile", getParticipantProfile);
-router.post("/:participantId/profile", createParticipantProfileController);
-router.put("/:participantId/profile", updateParticipantProfileController);
-router.get("/:id", getParticipantById);
-router.put("/:id", updateParticipantController);
-router.delete("/:id", deleteParticipantController);
+router.get(
+  "/:participantId/profile",
+  requireParticipant,
+  requireSameParticipant(),
+  getParticipantProfile,
+);
+router.post(
+  "/:participantId/profile",
+  requireParticipant,
+  requireSameParticipant(),
+  createParticipantProfileController,
+);
+router.put(
+  "/:participantId/profile",
+  requireParticipant,
+  requireSameParticipant(),
+  updateParticipantProfileController,
+);
+router.get(
+  "/:id",
+  requireParticipant,
+  requireSameParticipant("id"),
+  getParticipantById,
+);
+router.put("/:id", requireAdmin, updateParticipantController);
+router.delete("/:id", requireAdmin, deleteParticipantController);
 
 export default router;
