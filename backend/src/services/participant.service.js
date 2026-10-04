@@ -24,18 +24,6 @@ export async function findParticipantById(id) {
   return rows[0] ?? null;
 }
 
-export async function findParticipantByCode(code) {
-  const query = `
-    SELECT id, code, group_id, consent_confirmed, created_at
-    FROM participants
-    WHERE UPPER(code) = UPPER($1)
-  `;
-
-  const { rows } = await pool.query(query, [code.trim()]);
-
-  return rows[0] ?? null;
-}
-
 export async function findExperimentGroupById(id) {
   const query = `
     SELECT id

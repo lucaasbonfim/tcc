@@ -1,14 +1,5 @@
 import api from "./api";
 
-export async function findParticipantByCode(code) {
-  const normalizedCode = code.trim();
-  const response = await api.get(
-    `/participants/by-code/${encodeURIComponent(normalizedCode)}`,
-  );
-
-  return response.data.data;
-}
-
 export async function getParticipantProfile(participantId) {
   const response = await api.get(`/participants/${participantId}/profile`);
 

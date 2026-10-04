@@ -6,7 +6,6 @@ import {
 } from "../middlewares/auth.js";
 import {
   deleteParticipantController,
-  getParticipantByCode,
   getParticipantById,
   listParticipants,
   updateParticipantController,
@@ -31,7 +30,11 @@ router.post("/", (_request, response) =>
       "Cadastro publico de participantes desativado. Utilize a area administrativa.",
   }),
 );
-router.get("/by-code/:code", getParticipantByCode);
+router.get("/by-code/:code", (_request, response) =>
+  response.status(410).json({
+    error: "Acesso por codigo experimental desativado.",
+  }),
+);
 router.get(
   "/:participantId/experiment-tasks",
   requireParticipant,
