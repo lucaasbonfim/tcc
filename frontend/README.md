@@ -45,7 +45,7 @@ npm run build
 
 ## Fluxos disponiveis
 
-- Identificacao do participante.
+- Login do participante com e-mail e codigo de acesso.
 - Consentimento e questionario de perfil.
 - Execucao das tres atividades do experimento na ordem configurada pelo grupo.
 - Atividade manual com cadastro, edicao e exclusao de casos de teste.
@@ -53,8 +53,11 @@ npm run build
 - Atividade com prompt estruturado em que o participante preenche um formulario.
 - Pre-visualizacao do prompt final antes do envio para IA.
 - Confirmacao de envio unico para Gemini, sem regeneracao.
-- Area administrativa em `/admin` com visao geral, participantes, atividades, rastreabilidade dos prompts e exportacoes JSON/CSV/Excel.
+- Login administrativo em `/admin/login`.
+- Area administrativa em `/admin` com cadastro de participantes por e-mail, reenvio de acesso, visao geral, participantes, atividades, rastreabilidade dos prompts e exportacoes JSON/CSV/Excel.
 
-## Atencao
+## Pseudonimizacao
 
-A rota `/admin` ainda nao possui autenticacao. Use somente em ambiente controlado durante a preparacao e execucao do experimento.
+O e-mail e usado somente para controle de acesso. As telas e exportacoes de
+analise experimental continuam usando o codigo pseudonimizado do participante,
+como `P01` ou `P02`.
