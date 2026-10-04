@@ -8,6 +8,7 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminParticipantDetailsPage from "./pages/AdminParticipantDetailsPage";
 import AdminParticipantsPage from "./pages/AdminParticipantsPage";
 import AdminTasksPage from "./pages/AdminTasksPage";
+import ConsentPage from "./pages/ConsentPage";
 import ExperimentPage from "./pages/ExperimentPage";
 import ExperimentTaskPage from "./pages/ExperimentTaskPage";
 import IdentificationPage from "./pages/IdentificationPage";
@@ -18,6 +19,14 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<IdentificationPage />} />
+          <Route
+            path="/consent"
+            element={
+              <ProtectedRoute>
+                <ConsentPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/experiment"
             element={

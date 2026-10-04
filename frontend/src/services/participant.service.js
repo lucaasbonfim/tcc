@@ -1,5 +1,19 @@
 import api from "./api";
 
+export async function getParticipantOnboarding() {
+  const response = await api.get("/participant/onboarding");
+
+  return response.data.data;
+}
+
+export async function confirmParticipantConsent() {
+  const response = await api.post("/participant/consent", {
+    accepted: true,
+  });
+
+  return response.data.data;
+}
+
 export async function getParticipantProfile(participantId) {
   const response = await api.get(`/participants/${participantId}/profile`);
 
