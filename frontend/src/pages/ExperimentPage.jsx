@@ -94,8 +94,8 @@ function ExperimentPage() {
     };
   }, [participant.id]);
 
-  function handleLogout() {
-    clearParticipant();
+  async function handleLogout() {
+    await clearParticipant();
     navigate("/", { replace: true });
   }
 
