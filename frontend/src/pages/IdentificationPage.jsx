@@ -9,6 +9,8 @@ import {
   getAuthenticatedSession,
   loginParticipant,
 } from "../services/auth.service";
+import { getParticipantOnboarding } from "../services/participant.service";
+import { getParticipantNextRoute } from "../utils/participantOnboarding";
 
 function IdentificationPage() {
   const navigate = useNavigate();
@@ -20,9 +22,35 @@ function IdentificationPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!isLoadingSession && hasActiveSession) {
-      navigate("/experiment", { replace: true });
+    let isMounted = true;
+
+    async function redirectActiveParticipant() {
+      if (isLoadingSession || !hasActiveSession) {
+        return;
+      }
+
+      try {
+        const onboarding = await getParticipantOnboarding();
+
+        if (isMounted) {
+          navigate(getParticipantNextRoute(onboarding), { replace: true });
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(
+            error.message || "Não foi possível verificar sua etapa atual.",
+          );
+        }
+      }
     }
+
+    if (!isLoadingSession && hasActiveSession) {
+      redirectActiveParticipant();
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [hasActiveSession, isLoadingSession, navigate]);
 
   async function handleSubmit(event) {
@@ -45,9 +73,10 @@ function IdentificationPage() {
         accessCode: trimmedAccessCode,
       });
       const session = await getAuthenticatedSession();
+      const onboarding = await getParticipantOnboarding();
 
       setParticipant(session.participant);
-      navigate("/experiment");
+      navigate(getParticipantNextRoute(onboarding));
     } catch (error) {
       setError(
         error.message || "E-mail ou codigo de acesso invalido.",
