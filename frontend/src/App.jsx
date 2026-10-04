@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AdminLayout from "./components/AdminLayout";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import ExperimentReadyRoute from "./components/ExperimentReadyRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ParticipantProvider } from "./contexts/ParticipantContext";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
@@ -31,17 +32,17 @@ function App() {
           <Route
             path="/experiment"
             element={
-              <ProtectedRoute>
+              <ExperimentReadyRoute>
                 <ExperimentPage />
-              </ProtectedRoute>
+              </ExperimentReadyRoute>
             }
           />
           <Route
             path="/experiment/task/:taskId"
             element={
-              <ProtectedRoute>
+              <ExperimentReadyRoute>
                 <ExperimentTaskPage />
-              </ProtectedRoute>
+              </ExperimentReadyRoute>
             }
           />
           <Route
