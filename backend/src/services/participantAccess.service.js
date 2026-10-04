@@ -7,6 +7,9 @@ const ACCESS_CODE_LENGTH = 8;
 const ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ACCESS_CODE_SALT_ROUNDS = 12;
 const GROUP_ASSIGNMENT_LOCK_ID = 2026100301;
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+const INVALID_ACCESS_MESSAGE = "E-mail ou codigo de acesso invalido.";
 
 function createServiceError(statusCode, message) {
   const error = new Error(message);
@@ -36,6 +39,10 @@ export function generateAccessCode() {
 
 async function hashAccessCode(accessCode) {
   return bcrypt.hash(accessCode, ACCESS_CODE_SALT_ROUNDS);
+}
+
+function createInvalidAccessError() {
+  return createServiceError(401, INVALID_ACCESS_MESSAGE);
 }
 
 async function markAccessEmailSent(participantId) {
@@ -237,4 +244,109 @@ export async function resendParticipantAccess(participantId) {
     email: participantAccess.email,
     email_sent: emailSent,
   };
+}
+
+export async function authenticateParticipantAccess({ email, access_code }) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!isValidEmail(normalizedEmail) || !access_code) {
+    throw createInvalidAccessError();
+  }
+
+  const client = await pool.connect();
+  let transactionFinished = false;
+
+  try {
+    await client.query("BEGIN");
+
+    const accessResult = await client.query(
+      `
+        SELECT
+          participant_access.participant_id,
+          participant_access.access_code_hash,
+          participant_access.failed_attempts,
+          participant_access.locked_until,
+          participants.code
+        FROM participant_access
+        INNER JOIN participants
+          ON participants.id = participant_access.participant_id
+        WHERE LOWER(participant_access.email) = LOWER($1)
+        FOR UPDATE OF participant_access
+      `,
+      [normalizedEmail],
+    );
+    const access = accessResult.rows[0];
+
+    if (!access) {
+      throw createInvalidAccessError();
+    }
+
+    if (access.locked_until && new Date(access.locked_until) > new Date()) {
+      throw createInvalidAccessError();
+    }
+
+    const isValidAccessCode = await bcrypt.compare(
+      access_code.trim().toUpperCase(),
+      access.access_code_hash,
+    );
+
+    if (!isValidAccessCode) {
+      const nextFailedAttempts = access.failed_attempts + 1;
+      const shouldLock = nextFailedAttempts >= MAX_FAILED_ATTEMPTS;
+
+      await client.query(
+        `
+          UPDATE participant_access
+          SET failed_attempts = $1,
+              locked_until = CASE
+                WHEN $2 THEN CURRENT_TIMESTAMP + ($3 || ' minutes')::INTERVAL
+                ELSE locked_until
+              END,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE participant_id = $4
+        `,
+        [
+          nextFailedAttempts,
+          shouldLock,
+          LOCK_MINUTES,
+          access.participant_id,
+        ],
+      );
+
+      await client.query("COMMIT");
+      transactionFinished = true;
+
+      throw createInvalidAccessError();
+    }
+
+    await client.query(
+      `
+        UPDATE participant_access
+        SET failed_attempts = 0,
+            locked_until = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE participant_id = $1
+      `,
+      [access.participant_id],
+    );
+
+    await client.query("COMMIT");
+    transactionFinished = true;
+
+    return {
+      role: "participant",
+      participant: {
+        id: access.participant_id,
+        code: access.code,
+      },
+    };
+  } catch (error) {
+    if (!transactionFinished) {
+      await client.query("ROLLBACK");
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
 }

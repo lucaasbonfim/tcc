@@ -1,13 +1,27 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
   adminLogin,
   getAuthenticatedSession,
   logout,
+  participantLogin,
 } from "../controllers/auth.controller.js";
 
 const router = Router();
+const participantLoginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  message: {
+    error: "Muitas tentativas de login. Tente novamente em alguns minutos.",
+  },
+});
 
 router.post("/admin/login", adminLogin);
+router.post(
+  "/participant/login",
+  participantLoginRateLimit,
+  participantLogin,
+);
 router.get("/me", getAuthenticatedSession);
 router.post("/logout", logout);
 
