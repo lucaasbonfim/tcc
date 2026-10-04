@@ -10,6 +10,12 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Frontend configurado com `frontend/.env`.
 - [ ] `GEMINI_API_KEY` configurada no backend.
 - [ ] `GEMINI_MODEL` configurado no backend.
+- [ ] `AUTH_SECRET` configurado no backend.
+- [ ] `ADMIN_EMAIL` configurado.
+- [ ] `ADMIN_PASSWORD_HASH` configurado com hash bcrypt.
+- [ ] SMTP configurado no backend.
+- [ ] Envio de e-mail validado.
+- [ ] `FRONTEND_URL` configurado para CORS com cookies.
 - [ ] Backend iniciado sem erro de conexao com o banco.
 - [ ] Frontend iniciado apontando para a API correta.
 - [ ] Rota `GET /api/health` respondendo `{ "status": "ok" }`.
@@ -17,11 +23,15 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Grupos 1, 2 e 3 cadastrados.
 - [ ] Templates `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` versao `2.0` cadastrados.
 - [ ] Colunas `participant_input` e `final_prompt` existentes em `ai_runs`.
-- [ ] Responsavel ciente de que `/admin` nao possui autenticacao.
+- [ ] Admin autenticado em `/admin/login`.
+- [ ] Participantes cadastrados pelo admin usando e-mail.
+- [ ] Grupos balanceados automaticamente entre Grupo 1, Grupo 2 e Grupo 3.
+- [ ] Reenvio de acesso testado.
+- [ ] Login do participante com e-mail e codigo validado.
 
 ## Durante a coleta
 
-- [ ] Participante informado com codigo correto.
+- [ ] Participante informou e-mail e codigo de acesso recebido por e-mail.
 - [ ] Consentimento confirmado pelo participante.
 - [ ] Questionario de perfil preenchido.
 - [ ] Atividades inicializadas somente apos perfil preenchido.
@@ -31,6 +41,7 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Atividade com prompt estruturado permitiu formulario, preview e envio unico.
 - [ ] Apos envio para IA, nenhuma atividade permitiu regeneracao.
 - [ ] Administrador acompanhou progresso em `/admin`.
+- [ ] Participante acessou somente os proprios dados.
 
 ## Depois da coleta
 
@@ -40,4 +51,5 @@ Use este checklist antes, durante e depois da coleta.
 - [ ] Exportacao JSON realizada.
 - [ ] Exportacao CSV realizada.
 - [ ] Exportacao Excel realizada.
+- [ ] Exportacoes nao incluem e-mail nem dados de autenticacao.
 - [ ] Arquivos exportados armazenados em local seguro para analise.

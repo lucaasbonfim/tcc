@@ -56,6 +56,17 @@ npm run dev
 
 ## Fluxo experimental
 
+O administrador acessa `/admin/login`, cadastra o e-mail do participante e o
+backend cria automaticamente:
+
+- codigo experimental pseudonimizado, como `P01`;
+- grupo experimental balanceado entre Grupo 1, Grupo 2 e Grupo 3;
+- codigo secreto de acesso enviado por e-mail.
+
+O participante acessa a aplicacao com e-mail e codigo de acesso. O e-mail e
+usado somente para controle de acesso e envio do codigo. Os dados experimentais
+continuam associados ao codigo `P01`, `P02`, `P03` etc.
+
 Cada participante e associado a um grupo experimental. Ao iniciar o experimento, o backend cria tres atividades na ordem definida para o grupo:
 
 - uma atividade manual;
@@ -76,9 +87,9 @@ o envio, nao ha regeneracao nem edicao da resposta.
 
 ## Area administrativa
 
-A area administrativa fica em `/admin` e permite acompanhar progresso, consultar atividades, visualizar rastreabilidade dos prompts e exportar dados em JSON/CSV/Excel.
+A area administrativa fica em `/admin`, exige autenticacao e permite cadastrar participantes por e-mail, reenviar acesso, acompanhar progresso, consultar atividades, visualizar rastreabilidade dos prompts e exportar dados em JSON/CSV/Excel.
 
-Atencao: `/admin` ainda nao possui autenticacao. Use somente em ambiente controlado.
+As exportacoes academicas nao incluem e-mail, hash de codigo, tentativas de login ou dados de autenticacao.
 
 ## Documentacao operacional
 
