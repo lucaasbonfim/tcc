@@ -1,10 +1,11 @@
-import { NavLink, Outlet } from "react-router-dom";
 import { useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   downloadExperimentCsv,
   downloadExperimentJson,
   downloadExperimentXlsx,
 } from "../services/admin.service";
+import { logoutSession } from "../services/auth.service";
 
 const NAV_ITEMS = [
   { label: "Visao geral", to: "/admin" },
@@ -25,6 +26,7 @@ function downloadBlob(blob, filename) {
 }
 
 function AdminLayout() {
+  const navigate = useNavigate();
   const [exportError, setExportError] = useState("");
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isExportingJson, setIsExportingJson] = useState(false);
@@ -75,6 +77,11 @@ function AdminLayout() {
     }
   }
 
+  async function handleLogout() {
+    await logoutSession();
+    navigate("/admin/login", { replace: true });
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -116,6 +123,13 @@ function AdminLayout() {
                 type="button"
               >
                 {isExportingXlsx ? "Exportando Excel..." : "Exportar Excel"}
+              </button>
+              <button
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                onClick={handleLogout}
+                type="button"
+              >
+                Sair
               </button>
             </div>
           </div>
