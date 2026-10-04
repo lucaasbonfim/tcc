@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 import { useParticipant } from "../contexts/useParticipant";
 import {
   getAuthenticatedSession,
@@ -11,17 +12,18 @@ import {
 
 function IdentificationPage() {
   const navigate = useNavigate();
-  const { hasActiveSession, setParticipant } = useParticipant();
+  const { hasActiveSession, isLoadingSession, setParticipant } =
+    useParticipant();
   const [email, setEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (hasActiveSession) {
+    if (!isLoadingSession && hasActiveSession) {
       navigate("/experiment", { replace: true });
     }
-  }, [hasActiveSession, navigate]);
+  }, [hasActiveSession, isLoadingSession, navigate]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -53,6 +55,14 @@ function IdentificationPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (isLoadingSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-900">
+        <Loading>Verificando sessao...</Loading>
+      </main>
+    );
   }
 
   return (

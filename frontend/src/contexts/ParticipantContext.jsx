@@ -1,49 +1,55 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  getAuthenticatedSession,
+  logoutSession,
+} from "../services/auth.service";
 import { ParticipantContext } from "./participantContextValue";
 
-const STORAGE_KEY = "participant";
+export function ParticipantProvider({ children }) {
+  const [participant, setParticipantState] = useState(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-function getStoredParticipant() {
-  const storedParticipant = sessionStorage.getItem(STORAGE_KEY);
+  useEffect(() => {
+    let isMounted = true;
 
-  if (!storedParticipant) {
-    return null;
-  }
+    async function loadCurrentSession() {
+      try {
+        const session = await getAuthenticatedSession();
 
-  try {
-    const participant = JSON.parse(storedParticipant);
-
-    if (!participant?.id || !participant?.code) {
-      sessionStorage.removeItem(STORAGE_KEY);
-      return null;
+        if (isMounted && session.role === "participant") {
+          setParticipantState(session.participant);
+        }
+      } catch {
+        if (isMounted) {
+          setParticipantState(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingSession(false);
+        }
+      }
     }
 
-    return {
-      id: participant.id,
-      code: participant.code,
-    };
-  } catch {
-    sessionStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
-}
+    loadCurrentSession();
 
-export function ParticipantProvider({ children }) {
-  const [participant, setParticipantState] = useState(getStoredParticipant);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function setParticipant(participantData) {
-    const sessionParticipant = {
+    setParticipantState({
       id: participantData.id,
       code: participantData.code,
-    };
-
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionParticipant));
-    setParticipantState(sessionParticipant);
+    });
   }
 
-  function clearParticipant() {
-    sessionStorage.removeItem(STORAGE_KEY);
-    setParticipantState(null);
+  async function clearParticipant() {
+    try {
+      await logoutSession();
+    } finally {
+      setParticipantState(null);
+    }
   }
 
   const value = useMemo(
@@ -51,9 +57,10 @@ export function ParticipantProvider({ children }) {
       participant,
       setParticipant,
       clearParticipant,
+      isLoadingSession,
       hasActiveSession: Boolean(participant),
     }),
-    [participant],
+    [isLoadingSession, participant],
   );
 
   return (
