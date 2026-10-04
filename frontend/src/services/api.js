@@ -5,6 +5,7 @@ const REQUEST_TIMEOUT_MS = 120000;
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   timeout: REQUEST_TIMEOUT_MS,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
