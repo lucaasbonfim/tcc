@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 import { useParticipant } from "../contexts/useParticipant";
-import { createParticipantProfile } from "../services/participant.service";
+import {
+  createParticipantProfile,
+  getParticipantOnboarding,
+} from "../services/participant.service";
 
 const INITIAL_PROFILE = {
   course_period: "",
@@ -85,9 +89,53 @@ function ProfilePage() {
   const { clearParticipant, participant } = useParticipant();
   const [profile, setProfile] = useState(INITIAL_PROFILE);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isComplete = PROFILE_FIELDS.every((field) => profile[field.name]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function protectProfileStep() {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const onboarding = await getParticipantOnboarding();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!onboarding.consent_confirmed) {
+          navigate("/consent", { replace: true });
+          return;
+        }
+
+        if (onboarding.profile_completed) {
+          navigate("/experiment", { replace: true });
+          return;
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(
+            error.message || "Não foi possível verificar o questionário.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    protectProfileStep();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -147,7 +195,10 @@ function ProfilePage() {
           </Button>
         </Card>
 
-        <Card>
+        {isLoading ? <Loading>Verificando questionário...</Loading> : null}
+
+        {!isLoading ? (
+          <Card>
           <form className="space-y-5" onSubmit={handleSubmit}>
             {PROFILE_FIELDS.map((field) => (
               <div key={field.name}>
@@ -186,7 +237,8 @@ function ProfilePage() {
               {isSubmitting ? "Salvando..." : "Salvar e continuar"}
             </Button>
           </form>
-        </Card>
+          </Card>
+        ) : null}
       </div>
     </main>
   );
