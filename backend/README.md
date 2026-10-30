@@ -1,119 +1,64 @@
-# Backend
+﻿# Backend da plataforma de pesquisa
 
-API do projeto de TCC sobre geracao de casos de teste com IA generativa.
-
-## Tecnologias
-
-- Node.js
-- Express
-- PostgreSQL com `pg`
-- dotenv
-- CORS
-- bcryptjs
-- jsonwebtoken
-- cookie-parser
-- nodemailer
-- express-rate-limit
-- Gemini API via `@google/genai`
-
-## Instalacao
-
-```bash
-npm install
-```
-
-## Configuracao
-
-Crie o arquivo `.env` a partir do exemplo:
+Express e PostgreSQL com autenticação administrativa reaproveitada. Instalação e variáveis: [README principal](../README.md). Execute os comandos dentro de `backend`.
 
 ```powershell
-Copy-Item .env.example .env
-```
-
-Variaveis esperadas:
-
-```env
-PORT=3000
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=tcc_test_generation
-DB_USER=postgres
-DB_PASSWORD=
-DB_SSL=false
-GEMINI_API_KEY=
-GEMINI_MODEL=
-AUTH_SECRET=
-ADMIN_EMAIL=
-ADMIN_PASSWORD_HASH=
-SMTP_HOST=
-SMTP_PORT=
-SMTP_SECURE=
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM=
-FRONTEND_URL=http://localhost:5173
-```
-
-Use `DB_SSL=true` para bancos PostgreSQL remotos que exigem SSL. Quando `DB_SSL` nao for informado, o backend desativa SSL para `localhost`/`127.0.0.1` e ativa SSL para outros hosts.
-
-Antes de iniciar, execute os scripts SQL da pasta `../database` no PostgreSQL, na ordem numerica.
-
-## Desenvolvimento
-
-```bash
-npm run dev
-```
-
-## Producao local
-
-```bash
+npm ci
+npm run migrate
 npm start
+# Outro terminal:
+npm run worker
 ```
 
-A API fica disponivel em `http://localhost:3000/api`.
+`npm run dev` usa nodemon para a API; o worker é um processo separado e deve ser reiniciado após alterações no seu código. O diretório de artefatos e o banco precisam ser os mesmos nos dois processos.
 
-## Rotas principais
+## API ativa
 
-- `GET /api/health`
-- `GET /api/use-cases`
-- `POST /api/auth/admin/login`
-- `POST /api/auth/participant/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `POST /api/admin/participants`
-- `POST /api/admin/participants/:id/resend-access`
-- `GET /api/participants/:id/experiment-tasks/next`
-- `PATCH /api/experiment-tasks/:id/start`
-- `POST /api/experiment-tasks/:id/prompt/preview`
-- `POST /api/experiment-tasks/:id/generate`
-- `PATCH /api/experiment-tasks/:id/complete`
-- `GET /api/admin/export/json`
-- `GET /api/admin/export/csv`
-- `GET /api/admin/export/xlsx`
+Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`. Login usa cookie HTTP-only `tcc_session`; não há token no corpo. Todas as rotas `/research` exigem administrador, inclusive leitura/download/exportação. Escritas verificam a origem de `FRONTEND_URL`. O sistema é de um pesquisador/administrador, sem contas múltiplas.
 
-## Controle de acesso
+| Método | Caminho | Uso |
+| --- | --- | --- |
+| GET | `/health` | Liveness da API |
+| POST | `/auth/admin/login` | `{email,password}` |
+| GET | `/auth/me` | Sessão administrativa |
+| POST | `/auth/logout` | Encerrar sessão |
+| GET | `/research/capabilities` | Disponibilidade real das etapas |
+| GET | `/research/summary` | Contagens globais reais do dashboard |
+| GET/POST | `/research/projects` | Listar/cadastrar projeto |
+| GET/PUT | `/research/projects/:projectId` | Consultar/editar e resolver nova versão |
+| POST | `/research/projects/:projectId/documents` | Corpo binário PDF/TXT/MD |
+| GET | `/research/projects/:projectId/documents/:documentId` | Extração por página e metadados |
+| GET | `/research/projects/:projectId/documents/:documentId/download` | Arquivo original privado |
+| POST | `/research/projects/:projectId/versions/:versionId/inspect` | Inspeção declarativa, corpo `{}` |
+| POST | `/research/projects/:projectId/runs` | Enfileirar, resposta 202 |
+| GET | `/research/runs` | Até 500 execuções mais recentes |
+| GET | `/research/runs/:runId` | Snapshot, etapas, saídas validadas e histórico |
+| POST | `/research/runs/:runId/reviews/:kind/:itemId` | Revisar requisito (`requirements`) ou caso (`tests`) |
+| POST | `/research/runs/:runId/approve/:agent` | Aprovar etapa `requirements` ou `tests` |
+| POST | `/research/runs/:runId/retry` | Repetir etapa falha, máximo três tentativas |
+| POST | `/research/runs/:runId/cancel` | Cancelar sem apagar histórico |
+| GET | `/research/runs/:runId/attempts/:attemptId/:type` | Entrada (`input`) ou saída (`output`) preservada |
+| GET | `/research/runs/:runId/export/:format` | JSON ou CSV por execução |
 
-O cadastro de participantes e feito somente por administrador autenticado. O
-admin informa o e-mail, e o backend gera o codigo experimental `PXX`, escolhe um
-grupo balanceado, gera o codigo secreto de acesso, armazena apenas o hash e
-envia o codigo por e-mail.
+Cadastro/edição envia `name`, `repository_url`, `requested_ref` e campos opcionais `description`, `technical_notes`, `complementary_text`. A referência vazia usa a branch padrão. Edição cria nova versão de código resolvida; não altera versões antigas.
 
-O participante entra com e-mail e codigo de acesso. A sessao fica em cookie
-HTTP-only assinado por `AUTH_SECRET`; o JWT nao e retornado no corpo da API.
+Upload: `Content-Type: application/pdf` (ou `text/plain`/`text/markdown`) e `X-File-Name: encodeURIComponent(nome)`. Não é multipart. Até 10 MiB, 200 páginas e 200 mil caracteres por documento. Até 20 versões e 100 MiB por projeto. PDF sem texto recebe aviso; não há OCR. Download valida vínculo e hash. Os dados ficam fora do diretório público.
 
-O e-mail fica restrito a `participant_access` e a telas administrativas de
-controle. Exportacoes experimentais usam o codigo pseudonimizado do participante
-e nao incluem dados de autenticacao.
+Criação de execução: `{code_version_id,document_ids}` opcional; omissão seleciona código mais recentemente resolvido e a última versão de cada nome de documento. Inclui texto complementar. Não há truncamento automático: mais de 100 mil caracteres de fonte gera 422. Uma execução ativa por projeto.
 
-## Fluxo de IA
+Revisão: `{decision: 'approved'|'rejected', justification, revision, content?}`. Código é imutável, conteúdo é validado, `revision` deve coincidir com a versão corrente. Alteração concorrente retorna 409. Aprovação de etapa, repetição e cancelamento exigem `{justification}`. Todos os itens precisam de decisão e pelo menos um aprovado para aprovar a etapa. Requisitos aprovados ficam congelados após autorizar o agente 2.
 
-Os modos `SIMPLE_PROMPT` e `STRUCTURED_PROMPT` recebem `participant_input`.
-O backend monta o prompt final usando o template ativo, adiciona o caso de uso e
-salva em `ai_runs`:
+Estados e contratos: [arquitetura implementada](../docs/ARQUITETURA_PESQUISA.md). O quarto agente não faz inferência sem evidências e não há endpoint para habilitar execução externa nesta versão. Casos textuais não são scripts.
 
-- `participant_input`
-- `final_prompt`
-- versao do template
-- modelo
-- tempo de resposta
-- resposta bruta da IA
+## Operação e falhas
+
+- Worker consulta a cada 2 s; lease de 180 s e timeout de inferência de 95 s. Interrupções exigem repetição explícita, preservando tentativas.
+- Sem credenciais/modelo configurados, uma nova execução não é criada. Falhas do provedor são registradas sem cabeçalhos/segredos; respostas inválidas ficam disponíveis para auditoria.
+- Banco remoto usa TLS com certificado verificado. Conexões têm prazo de 10 s. Para configuração de CA privada, adapte explicitamente a configuração de confiança; não desabilite verificação silenciosamente.
+- A API verifica a existência do schema no início e solicita `npm run migrate` quando necessário. Health é liveness, não comprovação de disponibilidade do modelo/worker.
+- `ARTIFACTS_DIR` padrão: `backend/artifacts`. Use caminho absoluto em implantação. Backup precisa incluir banco e arquivos; não existem coleta automática de órfãos ou quota global de disco.
+- Rotas antigas de participantes, grupos e atividades estão desmontadas; módulos e tabelas históricos não são excluídos.
+
+## Validação
+
+`npm test` não chama o Gemini. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` é separado e consome API real; não grava resultados de pesquisa. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt.
