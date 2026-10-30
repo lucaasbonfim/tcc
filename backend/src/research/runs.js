@@ -67,7 +67,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
             await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,message)
               VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [randomUUID(),id,definition.agent,definition.position,
               definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',definition.version,definition.instruction,
-              enabled ? null : definition.agent === 'execution' ? 'Executor isolado não provisionado. Nenhum código externo será executado.' : 'Avaliação indisponível: não há evidências independentes de execução.']);
+              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, executor dedicado validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.']);
           }
           await createParts(db,id,documents,store);
           return get(id, db);
