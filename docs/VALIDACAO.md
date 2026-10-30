@@ -99,3 +99,9 @@
 - Ajustadas as referências nos READMEs, arquitetura e diagnóstico. Os registros anteriores deste documento descrevem a situação antes dessa limpeza.
 - Mantida a migração `database/migrations/009_research_foundation.sql`, sem renomear ou alterar seu conteúdo/checksum. Nenhuma tabela ou dado de banco foi excluído.
 - Validação: nenhuma referência restante aos arquivos removidos; `git diff --check` aprovado; suíte backend com 14 testes aprovados e três integrações ignoradas por ausência de `TEST_DATABASE_URL`, sem chamadas ao Gemini.
+
+## Continuação — inspeção técnica v2
+
+- Árvore GitHub no SHA, até 24 arquivos/240 KiB/30 KiB por arquivo/profundidade 8; integridade de blobs Git e SHA-256, módulos internos Node/Maven, símbolos JS via AST e candidatos Java com alertas de Swing/SQL.
+- Omissões e árvore truncada explícitas. Testes existentes identificados separadamente. Inspeções preservadas em artefatos privados e migração aditiva 010; somente metadados no banco.
+- Acorn adicionado para análise estática de JavaScript, sem executar fontes. `npm audit`: zero vulnerabilidades. PostgreSQL isolado e suíte: 24 testes aprovados.

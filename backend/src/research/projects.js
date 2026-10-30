@@ -89,8 +89,16 @@ export function createProjectService({ pool, store, resolveCode = resolveReposit
       const version = (await pool.query('SELECT * FROM research.code_versions WHERE project_id=$1 AND id=$2',[projectId,versionId])).rows[0];
       assert(version,'Versão não encontrada neste projeto.',404);
       const inspection = await inspectCodeVersion(version);
-      await pool.query('UPDATE research.code_versions SET inspection=$2 WHERE id=$1',[versionId,inspection]);
-      return inspection;
+      const artifact=await store.put(inspection);
+      const id=randomUUID();
+      const summary={...inspection,inspection_id:id,files:inspection.files.map(({content,...metadata})=>metadata)};
+      try {
+        await transaction(pool,async db=>{
+          await db.query('INSERT INTO research.inspections(id,project_id,code_version_id,artifact,summary) VALUES($1,$2,$3,$4,$5)',[id,projectId,versionId,artifact,JSON.stringify(summary)]);
+          await db.query('UPDATE research.code_versions SET inspection=$2 WHERE id=$1',[versionId,JSON.stringify(summary)]);
+        });
+      } catch(error){await store.remove(artifact);throw error;}
+      return summary;
     },
   };
 }
