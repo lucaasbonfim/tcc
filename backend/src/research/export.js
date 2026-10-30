@@ -23,6 +23,8 @@ export function exportCsv(data) {
   for(const result of data.test_results || [])add('test_result',result.id,'',result.status,[result.automated_test_id,result.test_case_id,result.evidence_id],result);
   for(const finding of data.findings || [])add('finding',finding.id,'',finding.review_status,[finding.requirement_id,finding.test_case_id,finding.automated_test_id,finding.test_result_id],finding);
   for(const part of data.requirement_parts || [])add('requirement_part',part.id,String(part.sequence),part.status,[],part);
+  for(const part of data.test_parts || [])add('test_part',part.id,String(part.sequence),part.status,part.requirement_codes,part);
+  if(data.test_coverage)add('test_coverage',data.id,'','',[],data.test_coverage);
   if(data.consolidation_data)add('requirement_consolidation',data.id,'','completed',[],data.consolidation_data);
   return '\uFEFF' + [header,...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
 }

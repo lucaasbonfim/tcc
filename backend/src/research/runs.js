@@ -7,6 +7,7 @@ import { createAutomationService } from './automation.js';
 import {createExecutionService} from './execution.js';
 import {createParts,continuationParts} from './requirement-parts.js';
 import {preservedOutput} from './citations.js';
+import {createTestParts,testCoverage} from './test-parts.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -97,6 +98,12 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       }
       const consolidation=run.consolidation ? await store.json(run.consolidation) : null;
       if(consolidation)agentOutputs.requirements=consolidation.output;
+      const testParts=(await pool.query('SELECT * FROM research.test_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows;
+      if(testParts.length) {
+        const warnings=[];
+        for(const part of testParts.filter(part=>part.status==='completed' && part.output))warnings.push(...preservedOutput(await store.json(part.output)).warnings);
+        agentOutputs.tests={test_cases:tests.rows.map(row=>row.content),warnings:[...new Set(warnings)]};
+      }
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
         automated_tests:await createAutomationService({pool,store}).list(id),
@@ -105,6 +112,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         requirement_parts:(await pool.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows,
+        test_parts:testParts,test_coverage:testCoverage(requirements.rows,tests.rows),
         continuations:(await pool.query('SELECT id,status,created_at FROM research.runs WHERE resumed_from_run_id=$1 ORDER BY created_at DESC LIMIT 10',[id])).rows,
         consolidation_data:consolidation};
     },
@@ -172,13 +180,40 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const counts = (await db.query(`SELECT count(*) FILTER(WHERE review_status='pending')::int AS pending,
           count(*) FILTER(WHERE review_status='approved')::int AS approved FROM research.${table} WHERE run_id=$1`,[runId])).rows[0];
         assert(counts.pending === 0 && counts.approved > 0,'Revise todos os itens e aprove pelo menos um antes de continuar.',409);
+        if(agent==='tests') {
+          const requirements=(await db.query('SELECT code,content,review_status FROM research.requirements WHERE run_id=$1',[runId])).rows;
+          const cases=(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1',[runId])).rows;
+          const coverage=testCoverage(requirements,cases);
+          assert(!coverage.missing_approved.length,`${coverage.missing_approved.length} requisito(s) sem caso aprovado. Complete os cenários antes de continuar.`,409);
+        }
         await db.query("UPDATE research.stages SET status='completed' WHERE id=$1",[stage.id]);
         if (agent === 'requirements') {
+          await createTestParts(db,run,store);
           await db.query("UPDATE research.stages SET status='pending' WHERE run_id=$1 AND agent='tests' AND status='blocked'",[runId]);
           await db.query("UPDATE research.runs SET status='pending' WHERE id=$1",[runId]);
         } else await db.query("UPDATE research.runs SET status='completed',finished_at=now() WHERE id=$1",[runId]);
         await review(db,runId,stage.id,'stage',stage.id,'approved',justification,{status:'awaiting_review'},{status:'completed',...(input.approve_pending ? {approval_mode:'bulk'} : {})});
         return get(runId, db);
+      });
+    },
+    async completeTests(runId,input) {
+      const justification=text(input.justification,'Justificativa',5000,true);
+      return transaction(pool,async db=>{
+        const run=await get(runId,db,true);
+        assert(['awaiting_review','completed','failed'].includes(run.status),'Aguarde a geração atual terminar antes de completar os cenários.',409);
+        await db.query('SELECT id FROM research.projects WHERE id=$1 FOR UPDATE',[run.project_id]);
+        assert(!(await db.query("SELECT id FROM research.runs WHERE project_id=$1 AND id<>$2 AND status IN ('pending','running','awaiting_review')",[run.project_id,runId])).rowCount,'Projeto possui outra execução ativa.',409);
+        const stages=(await db.query('SELECT * FROM research.stages WHERE run_id=$1 FOR UPDATE',[runId])).rows;
+        assert(stages.find(stage=>stage.agent==='requirements')?.status==='completed','Conclua a revisão de requisitos primeiro.',409);
+        const stage=stages.find(stage=>stage.agent==='tests');
+        assert(stage && ['awaiting_review','completed','failed'].includes(stage.status),'Etapa de casos não permite complementação.',409);
+        assert(!stages.some(stage=>stage.agent==='automation') && !(await db.query('SELECT id FROM research.execution_jobs WHERE run_id=$1',[runId])).rowCount,'Automação já iniciada. Preserve esta análise e crie outra execução para alterar os cenários.',409);
+        const planned=await createTestParts(db,run,store,{missingOnly:true});
+        await db.query("UPDATE research.test_parts SET status='cancelled',error=COALESCE(error,'Substituído por complementação explícita dos requisitos sem cenário.') WHERE run_id=$1 AND sequence<=(SELECT COALESCE(max(sequence),0)-$2 FROM research.test_parts WHERE run_id=$1) AND status IN ('pending','failed')",[runId,planned.parts]);
+        await db.query("UPDATE research.stages SET status='pending',message='Complementando requisitos sem casos; respostas anteriores preservadas.',lease_token=NULL,lease_until=NULL WHERE id=$1",[stage.id]);
+        await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
+        await review(db,runId,stage.id,'stage',stage.id,'retry',justification,{status:stage.status},{status:'pending',mode:'complete-unlinked',...planned});
+        return {...await get(runId,db),...planned};
       });
     },
     async resume(runId,input) {
@@ -240,6 +275,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         await db.query("UPDATE research.stages SET status='cancelled',lease_token=NULL,lease_until=NULL WHERE run_id=$1 AND status IN ('blocked','pending','running','awaiting_review','failed')",[runId]);
         await db.query("UPDATE research.execution_jobs SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running')",[runId]);
         await db.query("UPDATE research.requirement_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
+        await db.query("UPDATE research.test_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         if (stage) await review(db,runId,stage.id,'run',runId,'cancelled',justification,{status:run.status},{status:'cancelled'});
         return get(runId, db);
       });
@@ -259,6 +295,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         attempt.output_data = attempt.output ? await store.json(attempt.output) : null;
       }
       for(const job of data.execution_jobs)job.bundle_data=await store.json(job.bundle);
+      for(const part of data.test_parts){part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;}
       for(const part of data.requirement_parts) {
         part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;
         if(part.reused_from_part_id) {

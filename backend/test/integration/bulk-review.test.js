@@ -20,7 +20,7 @@ test('aprovação em lote preserva correções/rejeições, é atômica e avanç
     const services=scenarioServices(pool,store,{generate:async request=>{
       const response=await base.generate(request),output=JSON.parse(response.raw);
       if(output.requirements)output.requirements=Array.from({length:4},(_,i)=>({...output.requirements[0],code:`RF-00${i+1}`,title:`Requisito ${i+1}`}));
-      else output.test_cases=Array.from({length:3},(_,i)=>({...output.test_cases[0],code:`CT-00${i+1}`,title:`Caso ${i+1}`}));
+      else output.test_cases=request.input.requirements.map((requirement,i)=>({...output.test_cases[0],code:`CT-00${i+1}`,title:`Caso ${i+1}`,requirement_codes:[requirement.code]}));
       return {...response,raw:JSON.stringify(output)};
     }});
     const {projects,runs,processor}=services;
@@ -46,7 +46,7 @@ test('aprovação em lote preserva correções/rejeições, é atômica e avanç
     assert.equal(detail.reviews.filter(r=>r.entity_type==='requirement' && r.decision==='approved').length,3);
     assert.equal(detail.reviews.find(r=>r.entity_type==='stage').after_value.approval_mode,'bulk');
     await processor.processOne();detail=await runs.detail(run.id);const [caseRow,rejectedCase]=detail.test_cases;
-    await runs.reviewItem(run.id,'tests',caseRow.id,{decision:'edited',revision:0,justification:'Corrigir caso sem aprovar.',content:{...caseRow.content,title:'Caso corrigido',requirement_codes:['RF-003']}});
+    await runs.reviewItem(run.id,'tests',caseRow.id,{decision:'edited',revision:0,justification:'Corrigir caso sem aprovar.',content:{...caseRow.content,title:'Caso corrigido',requirement_codes:['RF-001','RF-003']}});
     await runs.reviewItem(run.id,'tests',rejectedCase.id,{decision:'rejected',revision:0,justification:'Caso excluído.'});
     detail=await runs.detail(run.id);await runs.approveStage(run.id,'tests',{...bulk,items:revisions(detail.test_cases)});
     const exported=await runs.export(run.id);assert.equal(exported.status,'completed');assert.equal(exported.test_cases[0].content.title,'Caso corrigido');assert.deepEqual(exported.test_cases.map(r=>r.review_status),['approved','rejected','approved']);
