@@ -70,7 +70,7 @@ export async function authenticateAdmin(input = {}) {
     throw error;
   }
 
-  if (!normalizedEmail || typeof password !== 'string' || !password || password.length > 1024 || normalizedEmail !== adminEmail) {
+  if (!normalizedEmail || typeof password !== 'string' || !password || Buffer.byteLength(password,'utf8') > 72 || normalizedEmail !== adminEmail) {
     throw createAuthError("E-mail ou senha invalidos.");
   }
 
