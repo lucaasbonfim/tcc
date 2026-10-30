@@ -153,3 +153,5 @@
 
 - Timeout/cancelamento preservam stdout/stderr parciais e assinalam que comandos/eventos internos podem não ter sido recuperados. Falha de limpeza agora interrompe também a drenagem de trabalhos já enfileirados.
 - Teste de regressão com duas tarefas comprova que a segunda não inicia após falha de limpeza da primeira; serviço recusa novas autorizações. Seis testes do executor aprovados, sem Docker real.
+
+- Revisão adicional: probe exige que o usuário dos testes não consiga escrever em `/project`; Java exige JDK/JUnit funcionais e checksum do jar igual à política/build. Captura Docker preserva fronteiras UTF-8 dos logs. Probes reais continuam pendentes da VM dedicada.

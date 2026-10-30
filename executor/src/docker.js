@@ -17,14 +17,14 @@ export function docker(args,{input,timeout=10000,signal,maxBytes=LIMITS.output_b
   return new Promise((resolve,reject)=>{
     // Only the service process can use Docker. No secrets are passed to this child.
     const child=spawn('docker',args,{stdio:['pipe','pipe','pipe'],windowsHide:true,env:{PATH:process.env.PATH,HOME:process.env.HOME,XDG_RUNTIME_DIR:process.env.XDG_RUNTIME_DIR,DOCKER_HOST:process.env.DOCKER_HOST}});
-    let stdout='',stderr='',bytes=0,ended=false;
+    const stdout=[],stderr=[];let bytes=0,ended=false;
     const abort=()=>{child.kill('SIGKILL');};
     signal?.addEventListener('abort',abort,{once:true});
     const timer=setTimeout(abort,timeout);
-    function collect(which,chunk){bytes+=chunk.length;if(bytes>maxBytes){abort();return;}if(which==='stdout')stdout+=chunk;else stderr+=chunk;}
+    function collect(which,chunk){bytes+=chunk.length;if(bytes>maxBytes){abort();return;}(which==='stdout' ? stdout : stderr).push(Buffer.from(chunk));}
     child.stdout.on('data',chunk=>collect('stdout',chunk));child.stderr.on('data',chunk=>collect('stderr',chunk));
     child.on('error',error=>{if(!ended){ended=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);reject(error);}});
-    child.on('close',(code,termination)=>{if(!ended){ended=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);resolve({code,stdout,stderr,terminated:Boolean(termination || signal?.aborted || bytes>maxBytes)});}});
+    child.on('close',(code,termination)=>{if(!ended){ended=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);resolve({code,stdout:Buffer.concat(stdout).toString('utf8'),stderr:Buffer.concat(stderr).toString('utf8'),terminated:Boolean(termination || signal?.aborted || bytes>maxBytes)});}});
     child.stdin.on('error',()=>{});child.stdin.end(input);
     if(signal?.aborted)abort();
   });

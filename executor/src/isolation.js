@@ -30,7 +30,7 @@ export async function validateIsolation(policy,{runDocker=docker,virtualization}
       ensure(report.checks && Object.keys(report.checks).length>=12 && Object.values(report.checks).every(v=>v===true),'Isolation controls not verified');
       if(adapter==='java-junit/v1') {
         // Image has the exact same isolation probe; compilation/JUnit availability is verified again by each actual job.
-        ensure(policy.java_junit_provisioned===true,'JUnit image provisioning not acknowledged');
+        ensure(policy.java_junit_provisioned===true && /^[a-f0-9]{64}$/.test(policy.junit_sha256 || '') && report.junit_sha256===policy.junit_sha256 && report.javac_version && report.junit_version,'JUnit/JDK image and trusted checksum not verified');
       }
       images[adapter]={reference:image,image_id:found.stdout.trim(),probe:report};
     } finally {ensure((await runDocker(['rm','-f',name])).code===0,'Probe cleanup failed');}

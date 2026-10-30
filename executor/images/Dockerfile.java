@@ -11,6 +11,8 @@ COPY executor/runner/ /opt/research/
 COPY shared/execution-protocol.js /opt/research/protocol.mjs
 # Operator supplies a JUnit console standalone jar verified against a trusted checksum.
 COPY executor/vendor/junit-platform-console-standalone.jar /opt/research/junit.jar
+ARG JUNIT_SHA256
+RUN printf '%s  /opt/research/junit.jar\n' "$JUNIT_SHA256" | sha256sum -c -
 USER 1000:1000
 WORKDIR /project
 ENTRYPOINT ["/usr/local/bin/node", "/opt/research/run.mjs"]
