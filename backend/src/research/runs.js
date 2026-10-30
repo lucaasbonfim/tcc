@@ -8,6 +8,7 @@ import {createExecutionService} from './execution.js';
 import {createParts,continuationParts} from './requirement-parts.js';
 import {preservedOutput} from './citations.js';
 import {createTestParts,testCoverage} from './test-parts.js';
+import {automationCoverage} from './automation-parts.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -99,6 +100,14 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       const consolidation=run.consolidation ? await store.json(run.consolidation) : null;
       if(consolidation)agentOutputs.requirements=consolidation.output;
       const testParts=(await pool.query('SELECT * FROM research.test_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows;
+      const automationParts=(await pool.query('SELECT * FROM research.automation_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows;
+      const automatedTests=await createAutomationService({pool,store}).list(id);
+      const automationStage=stages.rows.find(stage=>stage.agent==='automation');
+      const automationSummary=automationCoverage(automationStage?.context?.case_ids || [],automationParts,automatedTests);
+      if(automationParts.length) {
+        const warnings=[];for(const part of automationParts.filter(part=>part.status==='completed' && part.output))warnings.push(...preservedOutput(await store.json(part.output)).warnings);
+        agentOutputs.automation={artifacts:automatedTests.map(row=>({...row.content,files:row.files_data})),unsupported_cases:automationSummary.unsupported.map(({test_case_id,reason})=>({test_case_id,reason})),warnings:[...new Set(warnings)]};
+      }
       if(testParts.length) {
         const warnings=[];
         for(const part of testParts.filter(part=>part.status==='completed' && part.output))warnings.push(...preservedOutput(await store.json(part.output)).warnings);
@@ -106,7 +115,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       }
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
-        automated_tests:await createAutomationService({pool,store}).list(id),
+        automated_tests:automatedTests,automation_parts:automationParts,automation_coverage:automationSummary,
         execution_jobs:await createExecutionService({pool,store}).list(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
@@ -276,6 +285,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         await db.query("UPDATE research.execution_jobs SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running')",[runId]);
         await db.query("UPDATE research.requirement_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.test_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
+        await db.query("UPDATE research.automation_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         if (stage) await review(db,runId,stage.id,'run',runId,'cancelled',justification,{status:run.status},{status:'cancelled'});
         return get(runId, db);
       });
@@ -296,6 +306,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       }
       for(const job of data.execution_jobs)job.bundle_data=await store.json(job.bundle);
       for(const part of data.test_parts){part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;}
+      for(const part of data.automation_parts){part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;}
       for(const part of data.requirement_parts) {
         part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;
         if(part.reused_from_part_id) {

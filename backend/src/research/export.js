@@ -25,6 +25,8 @@ export function exportCsv(data) {
   for(const part of data.requirement_parts || [])add('requirement_part',part.id,String(part.sequence),part.status,[],part);
   for(const part of data.test_parts || [])add('test_part',part.id,String(part.sequence),part.status,part.requirement_codes,part);
   if(data.test_coverage)add('test_coverage',data.id,'','',[],data.test_coverage);
+  for(const part of data.automation_parts || [])add('automation_part',part.id,String(part.sequence),part.status,part.case_ids,part);
+  if(data.automation_coverage)add('automation_coverage',data.id,'','',[],data.automation_coverage);
   if(data.consolidation_data)add('requirement_consolidation',data.id,'','completed',[],data.consolidation_data);
   return '\uFEFF' + [header,...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
 }

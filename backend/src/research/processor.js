@@ -22,7 +22,9 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           (s.attempt_count<3 OR (s.agent='requirements' AND EXISTS(SELECT 1 FROM research.requirement_parts p WHERE p.run_id=r.id AND p.status='pending')
             AND NOT EXISTS(SELECT 1 FROM research.requirement_parts p WHERE p.run_id=r.id AND p.status='failed'))
             OR (s.agent='tests' AND EXISTS(SELECT 1 FROM research.test_parts p WHERE p.run_id=r.id AND p.status='pending' AND p.attempt_count<3)
-            AND NOT EXISTS(SELECT 1 FROM research.test_parts p WHERE p.run_id=r.id AND p.status='failed'))))
+            AND NOT EXISTS(SELECT 1 FROM research.test_parts p WHERE p.run_id=r.id AND p.status='failed'))
+            OR (s.agent='automation' AND EXISTS(SELECT 1 FROM research.automation_parts p WHERE p.run_id=r.id AND p.status='pending' AND p.attempt_count<3)
+            AND NOT EXISTS(SELECT 1 FROM research.automation_parts p WHERE p.run_id=r.id AND p.status='failed'))))
         ORDER BY r.created_at FOR UPDATE SKIP LOCKED LIMIT 1`)).rows[0];
       if (!run) return null;
       const stage = (await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND status='pending' ORDER BY position LIMIT 1 FOR UPDATE",[run.id])).rows[0];
@@ -30,15 +32,17 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       const attemptId = randomUUID();
       const part=stage.agent==='requirements' ? (await db.query("SELECT * FROM research.requirement_parts WHERE run_id=$1 AND status IN ('pending','failed') ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
       const testPart=stage.agent==='tests' ? (await db.query("SELECT * FROM research.test_parts WHERE run_id=$1 AND status IN ('pending','failed') AND attempt_count<3 ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
-      const checkpoint=part || testPart;
+      const automationPart=stage.agent==='automation' ? (await db.query("SELECT * FROM research.automation_parts WHERE run_id=$1 AND status IN ('pending','failed') AND attempt_count<3 ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
+      const checkpoint=part || testPart || automationPart;
       const increment=!checkpoint || stage.attempt_count===0 || checkpoint.status==='failed' ? 1 : 0;
       await db.query("UPDATE research.stages SET status='running',attempt_count=attempt_count+$3,lease_token=$2,lease_until=now()+interval '180 seconds',message=NULL WHERE id=$1",[stage.id,token,increment]);
       if(part)await db.query("UPDATE research.requirement_parts SET status='running',attempt_count=attempt_count+1,error=NULL WHERE id=$1",[part.id]);
       if(testPart)await db.query("UPDATE research.test_parts SET status='running',attempt_count=attempt_count+1,error=NULL WHERE id=$1",[testPart.id]);
+      if(automationPart)await db.query("UPDATE research.automation_parts SET status='running',attempt_count=attempt_count+1,error=NULL WHERE id=$1",[automationPart.id]);
       await db.query("UPDATE research.runs SET status='running' WHERE id=$1",[run.id]);
       const number=(await db.query('SELECT COALESCE(max(number),0)+1 AS n FROM research.attempts WHERE stage_id=$1',[stage.id])).rows[0].n;
-      await db.query("INSERT INTO research.attempts(id,stage_id,number,status,requirement_part_id,test_part_id) VALUES($1,$2,$3,'running',$4,$5)",[attemptId,stage.id,number,part?.id || null,testPart?.id || null]);
-      return {run,stage,token,attemptId,part,testPart};
+      await db.query("INSERT INTO research.attempts(id,stage_id,number,status,requirement_part_id,test_part_id,automation_part_id) VALUES($1,$2,$3,'running',$4,$5,$6)",[attemptId,stage.id,number,part?.id || null,testPart?.id || null,automationPart?.id || null]);
+      return {run,stage,token,attemptId,part,testPart,automationPart};
     });
   }
   async function finish(job, { inputRef, outputRef, metadata, output, error, elapsed }) {
@@ -78,7 +82,16 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           }
         }
       }
-      if (!error && !partial && !job.testPart) {
+      if(job.automationPart) {
+        const dispositions=error ? [] : await automation.persist(db,job,output);
+        await db.query('UPDATE research.automation_parts SET status=$2,output=$3,error=$4,dispositions=$5 WHERE id=$1',[job.automationPart.id,error ? 'failed' : 'completed',outputRef,error,JSON.stringify(dispositions)]);
+        if(!error) {
+          const parts=(await db.query('SELECT status,dispositions FROM research.automation_parts WHERE run_id=$1',[job.run.id])).rows;
+          partial=parts.some(part=>part.status!=='completed');
+          if(!partial){const addressed=parts.flatMap(part=>part.dispositions.map(item=>item.test_case_id));assert(addressed.length===job.stage.context.case_ids.length && new Set(addressed).size===addressed.length && job.stage.context.case_ids.every(id=>addressed.includes(id)),'Existem casos sem script ou justificativa na consolidação.',422);}
+        }
+      }
+      if (!error && !partial && !job.testPart && !job.automationPart) {
         if(job.stage.agent==='evaluation')await evaluation.persist(db,job,output);
         else if(job.stage.agent==='execution')await execution.persist(db,job,output);
         else if(job.stage.agent==='automation') await automation.persist(db,job,output);
@@ -96,10 +109,10 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       if(error && job.stage.agent==='execution')await db.query("UPDATE research.execution_jobs SET status='failed',error=$2,finished_at=now() WHERE id=$1",[job.stage.context.job_id,error]);
       await db.query(`UPDATE research.attempts SET status=$2,input=$3,output=$4,provider_metadata=$5,error=$6,finished_at=now(),duration_ms=$7 WHERE id=$1`,
         [job.attemptId,error ? 'failed' : 'completed',inputRef,outputRef,metadata,error,elapsed]);
-      const unsupported=job.stage.agent==='automation' && !error && output.artifacts.length===0;
+      const unsupported=job.stage.agent==='automation' && !error && !partial && !(await db.query('SELECT id FROM research.automated_tests WHERE run_id=$1 LIMIT 1',[job.run.id])).rowCount;
       const executed=job.stage.agent==='execution' && !error;
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
-        [job.stage.id,error ? 'failed' : partial ? 'pending' : executed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (partial ? `Parte ${(job.part || job.testPart).sequence} concluída; checkpoint preservado.` : executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
+        [job.stage.id,error ? 'failed' : partial ? 'pending' : executed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (partial ? `Parte ${(job.part || job.testPart || job.automationPart).sequence} concluída; checkpoint preservado.` : executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
       await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : partial ? 'pending' : unsupported || executed ? 'completed' : 'awaiting_review']);
       if(executed)await evaluation.queue(db,job.run.id);
     });
@@ -120,6 +133,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           await db.query("UPDATE research.execution_jobs SET status='failed',error='Worker interrompido; consulte o executor antes de repetir.',finished_at=now() WHERE run_id=$1 AND status='running'",[run.id]);
           await db.query("UPDATE research.requirement_parts SET status='failed',error='Worker interrompido; parte requer repetição.' WHERE run_id=$1 AND status='running'",[run.id]);
           await db.query("UPDATE research.test_parts SET status='failed',error='Worker interrompido; lote requer repetição.' WHERE run_id=$1 AND status='running'",[run.id]);
+          await db.query("UPDATE research.automation_parts SET status='failed',error='Worker interrompido; lote requer repetição.' WHERE run_id=$1 AND status='running'",[run.id]);
         }
         return expired.length;
       });
@@ -132,7 +146,8 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       try {
         const snapshot = await store.json(job.run.snapshot);
         let input;
-        if(job.testPart)input=await store.json(job.testPart.input);
+        if(job.automationPart)input=await store.json(job.automationPart.input);
+        else if(job.testPart)input=await store.json(job.testPart.input);
         else if(job.part)input={project_name:snapshot.project.name,...await store.json(job.part.input)};
         else if(job.stage.agent==='evaluation')input=await evaluation.inputFor(job.run.id);
         else if(job.stage.agent==='execution')input=await execution.prepare(job);
