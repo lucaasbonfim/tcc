@@ -5,7 +5,7 @@ import { assert, uuid } from './errors.js';
 import { exportCsv } from './export.js';
 import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 
-export function createResearchRouter({ projects, store, runs }) {
+export function createResearchRouter({ projects, store, runs, automation }) {
   const router = Router();
   router.use(requireAdmin);
   router.use(trustedOrigin);
@@ -49,6 +49,10 @@ export function createResearchRouter({ projects, store, runs }) {
   router.post('/projects/:projectId/runs', imports, async (req,res) => res.status(202).json({data:await runs.create(req.params.projectId,req.body)}));
   router.get('/runs', handler(() => runs.list()));
   router.get('/runs/:runId', handler(req => runs.detail(req.params.runId)));
+  router.post('/runs/:runId/automation',imports,async(req,res)=>res.status(202).json({data:await automation.start(req.params.runId,req.body)}));
+  router.get('/runs/:runId/automated-tests',handler(req=>automation.list(req.params.runId)));
+  router.post('/runs/:runId/automated-tests/:itemId/review',handler(req=>automation.review(req.params.runId,req.params.itemId,req.body)));
+  router.post('/runs/:runId/automation/approve',handler(req=>automation.approve(req.params.runId,req.body)));
   router.post('/runs/:runId/reviews/:kind/:itemId', handler(req => runs.reviewItem(req.params.runId,req.params.kind,req.params.itemId,req.body)));
   router.post('/runs/:runId/approve/:agent', handler(req => runs.approveStage(req.params.runId,req.params.agent,req.body)));
   router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));

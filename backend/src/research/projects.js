@@ -4,7 +4,7 @@ import { resolveRepository } from './github.js';
 import { extractDocument } from './documents.js';
 import { inspectCodeVersion } from './adapters.js';
 
-export function createProjectService({ pool, store, resolveCode = resolveRepository, extract = extractDocument }) {
+export function createProjectService({ pool, store, resolveCode = resolveRepository, extract = extractDocument, inspectCode=inspectCodeVersion }) {
   async function get(id, db = pool, lock = false) {
     const row = (await db.query(`SELECT * FROM research.projects WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [id])).rows[0];
     assert(row, 'Projeto não encontrado.', 404);
@@ -88,7 +88,7 @@ export function createProjectService({ pool, store, resolveCode = resolveReposit
     async inspect(projectId, versionId) {
       const version = (await pool.query('SELECT * FROM research.code_versions WHERE project_id=$1 AND id=$2',[projectId,versionId])).rows[0];
       assert(version,'Versão não encontrada neste projeto.',404);
-      const inspection = await inspectCodeVersion(version);
+      const inspection = await inspectCode(version);
       const artifact=await store.put(inspection);
       const id=randomUUID();
       const summary={...inspection,inspection_id:id,files:inspection.files.map(({content,...metadata})=>metadata)};

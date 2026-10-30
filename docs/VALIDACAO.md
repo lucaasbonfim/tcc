@@ -105,3 +105,10 @@
 - Árvore GitHub no SHA, até 24 arquivos/240 KiB/30 KiB por arquivo/profundidade 8; integridade de blobs Git e SHA-256, módulos internos Node/Maven, símbolos JS via AST e candidatos Java com alertas de Swing/SQL.
 - Omissões e árvore truncada explícitas. Testes existentes identificados separadamente. Inspeções preservadas em artefatos privados e migração aditiva 010; somente metadados no banco.
 - Acorn adicionado para análise estática de JavaScript, sem executar fontes. `npm audit`: zero vulnerabilidades. PostgreSQL isolado e suíte: 24 testes aprovados.
+
+## Continuação — scripts do agente 2
+
+- Migração 011 adiciona subetapa `automation`, scripts versionados, vínculo com caso/execução/tentativa e revisão humana com arquivos antes/depois preservados em artefatos.
+- Geração usa requisitos/casos aprovados e fechamento técnico selecionado, sem mudar fontes. Contrato confere SHA, esperado, referências, símbolos e caminhos reservados; JS validado por AST e Java limitado a JDK/JUnit/fechamento local.
+- Casos não automatizáveis precisam de justificativa; não são omitidos. Scripts não são executados durante geração, validação ou revisão.
+- Testes específicos: quatro aprovações, incluindo persistência real, edição auditada, revisão obsoleta e bloqueio de aprovação antecipada. Suíte usa concorrência de arquivos 1, pois workers de teste compartilham a fila PostgreSQL; concorrência de claims continua exercitada explicitamente.
