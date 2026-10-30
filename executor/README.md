@@ -4,13 +4,13 @@ Implementação independente da API: Node HTTP(S), sem `pg`, Gemini, `.env` do b
 
 ## Estado da validação
 
-Os testes do serviço injetam o transporte Docker e não executam código externo. O ambiente de desenvolvimento não possui daemon Docker/VM dedicada disponível. Portanto imagens, probes e execução do piloto **ainda precisam de validação na VM**. A implementação permanece fechada se qualquer pré-condição falhar. Não basta configurar uma variável para declarar o executor disponível.
+Os testes padrão injetam Docker e não executam código externo. Após ligar o Docker Desktop, a imagem Node foi construída e o runtime passou em 14 controles e dez cenários sintéticos reais, incluindo falha, erro, dependência, permissões, timeout e cancelamento. Isso valida o runner tecnicamente, sem constituir piloto de pesquisa. Docker Desktop compartilhado, sem rootless e com driver `cgroupfs`, continua fora da política do serviço. **A implantação dedicada, Java e o piloto público ainda precisam de validação.** Não basta configurar uma variável para declarar o executor disponível.
 
 ## Implantação dedicada
 
 1. Provisionar VM Linux descartável/dedicada, sem segredos ou credenciais do banco principal, com rede administrativa restrita e TLS. Use Node LTS suportado (22.13+).
 2. Instalar Docker rootless com seccomp e cgroups v2/systemd; delegar CPU, memória e pids. Os limites rootless podem ser ignorados sem delegação adequada, por isso o probe lê os controladores reais dentro do contêiner ([documentação Docker](https://docs.docker.com/engine/security/rootless/tips/)).
-3. Preparar imagens por meio dos Dockerfiles em `images`, com contexto na raiz deste repositório. `NODE_BASE`/`JAVA_BASE` devem ser referências oficiais fixadas por digest, conferidas pelo operador. Nada faz pull automático durante um trabalho.
+3. Preparar imagens por meio dos Dockerfiles em `images`, com contexto na raiz deste repositório. `.dockerignore` permite somente runners, protocolo, Dockerfiles e jar JUnit provisionado; não envia `.env`, banco, artefatos ou dependências ao build. `NODE_BASE`/`JAVA_BASE` devem ser referências oficiais fixadas por digest, conferidas pelo operador. Nada faz pull automático durante um trabalho.
 4. Para Java, fornecer `executor/vendor/junit-platform-console-standalone.jar` obtido de fonte oficial e verificado por checksum. Passe esse hash em `JUNIT_SHA256` no build e `junit_sha256` na política. O probe verifica `javac`, versão do Console JUnit e hash do jar na imagem. O jar não é versionado. A imagem reúne Node (runner confiável), JDK e JUnit; o primeiro adaptador compila apenas classes selecionadas/JDK, sem plugins/downloads Maven.
 5. Precarregar imagens na VM e usar seus IDs `sha256:...` em `policy.local.json`, a partir de `policy.example.json`. Identificar a VM/deployment, e declarar JUnit provisionado apenas após validar compilação e execução do piloto.
 6. Configurar um token aleatório de pelo menos 32 caracteres por variável `EXECUTOR_TOKEN` ou secret manager da VM. Não colocá-lo na política, argumentos, repositório ou contêiner. Configurar `EXECUTOR_POLICY_FILE`, diretório privado `EXECUTOR_JOURNAL_DIR`, certificados `EXECUTOR_TLS_CERT`/`EXECUTOR_TLS_KEY` e bind administrativo.
@@ -29,9 +29,9 @@ O boot verifica VM via `systemd-detect-virt --vm`, Docker rootless/seccomp/cgrou
 
 - Comandos construídos por adaptador, vetores sem shell. O bundle não define comando, imagem ou limites.
 - Um contêiner por UUID, sem privilégios/mounts do host/socket, usuário 1000, capacidades removidas, root read-only, rede `none`, CPU 1, memória/swap 256 MiB, 64 processos e prazo externo de 60 s.
-- `/work` tmpfs 64 MiB, `/tmp` 16 MiB, `/project` 2 MiB. Fontes/testes são copiados pelo serviço para `/project`, com dono root/permissões 0444 e diretórios sem escrita pelo usuário dos testes. O runner confere hashes e permissões antes de começar. O tmpfs é descartado na remoção do contêiner.
+- `/work` tmpfs 64 MiB, `/tmp` 16 MiB, `/project` 2 MiB. Inicializador fixo `install.mjs`, sem executar fontes, recebe JSON limitado, confere o contrato e grava arquivos root/0444 e diretórios 0555. Somente essa preparação usa UID 0, com capacidades removidas e raiz read-only; testes/runner continuam UID 1000. Não usa `docker cp` (recusado pelo daemon com root read-only), tar, shell ou mounts do host. O runner recebe o mesmo bundle por linha JSON, confere hashes/permissões e só então carrega testes. O tmpfs é descartado na remoção.
 - Fontes originais pertencem ao SHA segundo árvore GitHub consultada pelo executor. Não há clone/build/install no host, alteração do repositório do usuário ou acesso a arquivos arbitrários.
-- Node executa somente arquivos gerados explícitos usando `node:test` e reporter confiável; stdout de testes é evento de log, não resultado de teste. A suíte existente não é descoberta automaticamente.
+- Node usa `node:test`, entrada/reporter confiáveis e somente o arquivo gerado selecionado em `RESEARCH_TEST_FILE`, preservado também em `commands.test_file`. A entrada transforma erros de importação em eventos estruturados; stderr não é usado para deduzir dependência. Sem teste registrado, o resultado é inconclusivo. Stdout dos testes é log, não resultado; a suíte antiga não é descoberta.
 - Java usa `javac -proc:none` e JUnit Console headless para classes geradas explícitas; não abre Swing nem inicia banco. O resultado inicial é por classe gerada/caso; não há cobertura por método ou automação de GUI.
 - Limite de entrada 1 MiB, saída 2 MiB, até oito trabalhos pendentes e 128 registros. Journals têm teto derivado de quantidade/tamanho (aproximadamente 384 MiB); arquivar comprovados antes de renovar a quota. Sem exclusão automática de evidências.
 - `finally` remove o contêiner inclusive após timeout/cancelamento. Falha de limpeza bloqueia novas execuções. Na recuperação, trabalhos interrompidos são limpos e registrados como infraestrutura, sem repetição automática.
@@ -43,3 +43,17 @@ Headers: `Authorization: Bearer TOKEN`. Rotas: `GET /v1/health`, `POST /v1/jobs`
 ## Testes
 
 `npm test` usa apenas fontes sintéticas e execução Docker injetada, sem iniciar contêineres nem rodar scripts de projetos. Valida restrições, hashes, autenticação, idempotência, indisponibilidade e limpeza. Esses testes **não comprovam isolamento nem constituem evidência da pesquisa**. O piloto real só deve ocorrer depois dos probes e da revisão operacional na VM.
+
+### Diagnóstico técnico com Docker real
+
+Após construir a imagem Node com o comando acima, a partir da raiz do projeto em PowerShell:
+
+```powershell
+$env:DOCKER_HOST = docker context inspect --format '{{.Endpoints.docker.Host}}'
+$env:EXECUTOR_SMOKE_IMAGE = docker image inspect research-node:v1 --format '{{.Id}}'
+$env:EXECUTOR_SMOKE_REPORT = Join-Path (Get-Location).Path '.local/executor-runtime-check/runtime-smoke.json'
+cd executor
+npm run smoke:runtime
+```
+
+Esse comando usa exclusivamente a fixture de soma da plataforma e controles conhecidos, sem GitHub, Gemini, banco ou servidor executor. Exercita 14 controles e dez cenários: passagem, asserção incorreta, erro no teste, dependência ausente, fontes protegidas, log que não vira resultado, skip, nenhum teste, timeout e cancelamento. Os dois últimos interrompem o cliente após 1,5 s para testar limpeza, sem esperar o prazo de produção de 60 s. Cada contêiner precisa ser removido. O relatório marca `production_executor_validated=false`; não altera política, configuração ou `ready` do serviço e não habilita execução de código externo no Docker Desktop.

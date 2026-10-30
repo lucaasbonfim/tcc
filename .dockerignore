@@ -1,0 +1,11 @@
+**
+!executor/
+!executor/runner/
+!executor/runner/**
+!executor/images/
+!executor/images/Dockerfile.node
+!executor/images/Dockerfile.java
+!executor/vendor/
+!executor/vendor/junit-platform-console-standalone.jar
+!shared/
+!shared/execution-protocol.js
