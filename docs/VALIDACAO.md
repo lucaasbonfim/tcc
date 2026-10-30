@@ -148,3 +148,8 @@
 - Execução consulta capacidade real do serviço e bloqueia o botão sem recibo válido. Resultados, comandos, ambiente, stdout/stderr e relatórios são consultáveis. Avaliações exibem a cadeia requisito/caso/script/resultado e decisões humanas independentes.
 - Partes de documentos exibem checkpoints, offsets e erros. Relatórios incluem toda a cadeia persistida.
 - Build e lint aprovados. Playwright/Chromium: fluxo de cadastro até revisão da avaliação, incluindo inspeção/geração/aprovação de scripts, bloqueio inicial do executor, evidências e exportação conferida; modo móvel sem overflow. Resultado: um teste aprovado, sem créditos Gemini e somente fixtures em banco isolado. A rota que habilita o executor fictício existe exclusivamente no servidor E2E, nunca na aplicação real.
+
+## Continuação — revisão do executor
+
+- Timeout/cancelamento preservam stdout/stderr parciais e assinalam que comandos/eventos internos podem não ter sido recuperados. Falha de limpeza agora interrompe também a drenagem de trabalhos já enfileirados.
+- Teste de regressão com duas tarefas comprova que a segunda não inicia após falha de limpeza da primeira; serviço recusa novas autorizações. Seis testes do executor aprovados, sem Docker real.

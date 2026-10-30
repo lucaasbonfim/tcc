@@ -35,7 +35,7 @@ export function createExecutionService({token,status,policy,root,execute=execute
       limitations:['Nenhum resultado de infraestrutura constitui prova de defeito funcional.']};
   }
   async function drain() {
-    if(active || closed)return;
+    if(active || closed || !status.ready || Date.now()-Date.parse(status.validated_at)>=3600000)return;
     const job=[...jobs.values()].find(j=>j.status==='pending');if(!job)return;
     active=true;job.status='running';job.controller=new AbortController();
     const started=new Date().toISOString(),image=status.images[job.bundle.adapter];
@@ -53,7 +53,12 @@ export function createExecutionService({token,status,policy,root,execute=execute
           commands:report.commands,tests:report.tests,stdout:report.stdout,stderr:report.stderr,framework_reports:report.framework_reports,
           limitations:['Resultados limitados aos testes gerados selecionados; não comprovam cobertura integral.','Asserções dependem da revisão humana do esperado e do código.']};
       }
-      else job.result=unavailable(job.bundle,outcome.status,'Execução interrompida pelo limite ou cancelamento.',environment,started);
+      else {
+        job.result=unavailable(job.bundle,outcome.status,'Execução interrompida pelo limite ou cancelamento.',environment,started);
+        job.result.stdout=(outcome.stdout || '').slice(0,150000);
+        job.result.stderr=(outcome.stderr || job.result.stderr).slice(0,150000);
+        job.result.limitations.push('Runner interrompido: comandos/eventos internos podem não ter sido recuperados; ausência de eventos não comprova início de cada teste.');
+      }
       validateExecutionResult(job.result,job.bundle,job.hash);
     } catch(error) {
       if(error.message?.includes('cleanup')){status.ready=false;status.reason='Cleanup failure; operator intervention required';}

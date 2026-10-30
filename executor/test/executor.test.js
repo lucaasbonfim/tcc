@@ -56,3 +56,23 @@ test('serviço autenticado: indisponibilidade, trabalho idempotente e evidência
     assert.equal(calls,1);validateExecutionResult(record.result,bundle,sha256(bundle));
   }finally{await service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(root,{recursive:true,force:true});}
 });
+
+test('falha de limpeza bloqueia trabalhos já enfileirados',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'tcc-executor-stop-')),token='test-token-for-executor-only-32-bytes';
+  const status={ready:true,validated_at:new Date().toISOString(),deployment_id:'fixture-only',images:{'node-test/v2':{reference:'sha256:'+'b'.repeat(64),image_id:'sha256:'+'b'.repeat(64)}}};
+  let release,calls=0;
+  const service=createExecutionService({token,status,policy:{},root,verify:async()=>{},execute:async()=>{calls++;await new Promise(resolve=>{release=resolve;});throw new Error('Container cleanup failed');}});
+  const server=createServer((req,res)=>service.handle(req,res));server.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+  const base=`http://127.0.0.1:${server.address().port}`,headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
+  const first=executionFixture(),second=executionFixture();
+  const send=bundle=>fetch(base+'/v1/jobs',{method:'POST',headers,body:JSON.stringify({bundle,request_sha256:sha256(bundle)})});
+  try {
+    assert.equal((await send(first)).status,202);
+    for(let i=0;!release && i<50;i++)await new Promise(r=>setTimeout(r,5));
+    assert.equal((await send(second)).status,202);release();
+    for(let i=0;status.ready && i<50;i++)await new Promise(r=>setTimeout(r,5));
+    assert.equal(status.ready,false);assert.equal(calls,1);
+    assert.equal((await (await fetch(base+`/v1/jobs/${second.job_id}`,{headers})).json()).status,'pending');
+    assert.equal((await send(executionFixture())).status,503);
+  }finally{await service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(root,{recursive:true,force:true});}
+});
