@@ -11,6 +11,7 @@
     "migrate": "node src/research/migrate.js",
     "worker": "node src/research/worker.js",
     "smoke:gemini": "node scripts/smoke-gemini.js",
+    "smoke:automation": "node scripts/smoke-automation.js",
     "test": "node --test --test-concurrency=1 test",
     "test:integration": "node --test --test-concurrency=1 test/integration"
   },
