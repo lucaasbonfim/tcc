@@ -112,3 +112,10 @@
 - Geração usa requisitos/casos aprovados e fechamento técnico selecionado, sem mudar fontes. Contrato confere SHA, esperado, referências, símbolos e caminhos reservados; JS validado por AST e Java limitado a JDK/JUnit/fechamento local.
 - Casos não automatizáveis precisam de justificativa; não são omitidos. Scripts não são executados durante geração, validação ou revisão.
 - Testes específicos: quatro aprovações, incluindo persistência real, edição auditada, revisão obsoleta e bloqueio de aprovação antecipada. Suíte usa concorrência de arquivos 1, pois workers de teste compartilham a fila PostgreSQL; concorrência de claims continua exercitada explicitamente.
+
+## Continuação — contrato e serviço executor
+
+- Serviço separado sem dependências do banco/modelo, autenticação, recibo de isolamento, imagens imutáveis, verificação Git independente, comandos fixos Node/JDK/JUnit e journals limitados/idempotentes.
+- Recursos/rede/UID/seccomp/cgroups verificados por probe confiável. Entradas copiadas para tmpfs com permissões sem escrita para testes; sem bind mounts/socket. Timeout/cancelamento passam por remoção do contêiner; falha de limpeza bloqueia serviço.
+- `executor/npm test`: cinco testes aprovados usando Docker injetado; sintaxe do runner/servidor validada. Nenhum repositório ou teste gerado foi executado no host.
+- Limitação: imagens/probe/piloto real não puderam ser validados no ambiente sem VM/daemon. A disponibilidade real continua bloqueada; detalhes de provisionamento em `executor/README.md`.

@@ -1,0 +1,6 @@
+policy.local.json
+journal/
+vendor/*.jar
+.env
+*.key
+*.pem
