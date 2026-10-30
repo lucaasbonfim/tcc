@@ -78,7 +78,12 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         pool.query('SELECT * FROM research.test_requirements WHERE run_id=$1',[id]),
         pool.query('SELECT * FROM research.reviews WHERE run_id=$1 ORDER BY created_at',[id]),
       ]);
-      return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,
+      const agentOutputs = {};
+      for (const attempt of attempts.rows.filter(attempt => attempt.status==='completed' && attempt.output)) {
+        const agent = stages.rows.find(stage => stage.id===attempt.stage_id)?.agent;
+        if (agent) agentOutputs[agent] = JSON.parse((await store.json(attempt.output)).raw);
+      }
+      return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows};
     },
     async reviewItem(runId, kind, id, input) {

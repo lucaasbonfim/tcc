@@ -1,78 +1,43 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import AdminLayout from "./components/AdminLayout";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import ResearchLayout from "./components/ResearchLayout";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
-import ExperimentReadyRoute from "./components/ExperimentReadyRoute";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { ParticipantProvider } from "./contexts/ParticipantContext";
-import AdminOverviewPage from "./pages/AdminOverviewPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
-import AdminParticipantDetailsPage from "./pages/AdminParticipantDetailsPage";
-import AdminParticipantsPage from "./pages/AdminParticipantsPage";
-import AdminTasksPage from "./pages/AdminTasksPage";
-import ConsentPage from "./pages/ConsentPage";
-import ExperimentPage from "./pages/ExperimentPage";
-import ExperimentTaskPage from "./pages/ExperimentTaskPage";
-import IdentificationPage from "./pages/IdentificationPage";
-import ProfilePage from "./pages/ProfilePage";
+import ResearchDashboardPage from './pages/ResearchDashboardPage';
+import ResearchProjectsPage from './pages/ResearchProjectsPage';
+import ResearchProjectFormPage from './pages/ResearchProjectFormPage';
+import ResearchProjectPage from './pages/ResearchProjectPage';
+import ResearchRunsPage from './pages/ResearchRunsPage';
+import ResearchRunPage from './pages/ResearchRunPage';
 
 function App() {
   return (
-    <ParticipantProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<IdentificationPage />} />
-          <Route
-            path="/consent"
-            element={
-              <ProtectedRoute>
-                <ConsentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/experiment"
-            element={
-              <ExperimentReadyRoute>
-                <ExperimentPage />
-              </ExperimentReadyRoute>
-            }
-          />
-          <Route
-            path="/experiment/task/:taskId"
-            element={
-              <ExperimentReadyRoute>
-                <ExperimentTaskPage />
-              </ExperimentReadyRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route
             path="/admin"
             element={
               <AdminProtectedRoute>
-                <AdminLayout />
+                <ResearchLayout />
               </AdminProtectedRoute>
             }
           >
-            <Route index element={<AdminOverviewPage />} />
-            <Route path="participants" element={<AdminParticipantsPage />} />
-            <Route
-              path="participants/:id"
-              element={<AdminParticipantDetailsPage />}
-            />
-            <Route path="tasks" element={<AdminTasksPage />} />
+            <Route index element={<ResearchDashboardPage />} />
+            <Route path="projects" element={<ResearchProjectsPage />} />
+            <Route path="projects/new" element={<ResearchProjectFormPage />} />
+            <Route path="projects/:projectId" element={<ResearchProjectPage />} />
+            <Route path="projects/:projectId/edit" element={<ResearchProjectFormPage />} />
+            <Route path="requirements" element={<ResearchRunsPage view="requirements" />} />
+            <Route path="test-cases" element={<ResearchRunsPage view="tests" />} />
+            <Route path="runs" element={<ResearchRunsPage />} />
+            <Route path="runs/:runId" element={<ResearchRunPage />} />
+            <Route path="analysis" element={<ResearchRunsPage view="analysis" />} />
+            <Route path="reports" element={<ResearchRunsPage view="reports" />} />
           </Route>
+          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </BrowserRouter>
-    </ParticipantProvider>
   );
 }
 

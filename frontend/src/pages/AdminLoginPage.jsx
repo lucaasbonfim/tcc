@@ -82,10 +82,10 @@ function AdminLoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-900">
       <Card className="w-full max-w-md p-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-teal-700">
-          Area administrativa
+          Requisita · Laboratório multiagente
         </p>
         <h1 className="text-3xl font-semibold leading-tight">
-          Acesso administrativo
+          Acesso do pesquisador
         </h1>
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
