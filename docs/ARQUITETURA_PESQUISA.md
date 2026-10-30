@@ -1,6 +1,6 @@
 # Arquitetura implementada
 
-Esta documentação descreve a primeira base funcional, em 30/10/2026. As rotas ativas estão em `backend/src/research/routes.js`; o domínio não depende das tabelas de participantes. Código e SQL anteriores permanecem preservados para consulta histórica, mas não fazem parte do fluxo ativo.
+Esta documentação descreve a primeira base funcional, em 30/10/2026. As rotas ativas estão em `backend/src/research/routes.js`; o domínio não depende das tabelas de participantes. Módulos antigos de código permanecem fora do fluxo ativo. Documentos e scripts SQL exclusivos do experimento anterior foram removidos e podem ser consultados no histórico do Git.
 
 ## Componentes e comunicação
 
@@ -187,7 +187,7 @@ O adaptador **não é um runner**. Não há imagem Docker, sandbox provisionada,
 ## Persistência, operação e limitações
 
 - Banco e artefatos devem ter backup consistente. Backend e worker precisam do mesmo diretório absoluto de artefatos e das mesmas credenciais de banco/modelo. Nenhum diretório de artefatos deve ser servido como estático.
-- As migrações novas são transacionais, bloqueadas por advisory lock e verificadas por checksum. Nunca reaplicar automaticamente 001–008 em ambientes existentes. Novo banco usa somente `npm run migrate`.
+- As migrações são transacionais, bloqueadas por advisory lock e verificadas por checksum. Bancos novos e existentes usam somente `npm run migrate`, que aplica os arquivos em `database/migrations`. A numeração de migrações já aplicadas é preservada.
 - HTTPS entre navegador/API é necessário em produção. Cookies administrativos HTTP-only duram oito horas; modo de produção usa `Secure` e `SameSite=None`. Origem esperada é validada nas escritas. Clientes sem header Origin são admitidos, desde que autenticados.
 - Há um administrador por configuração, sem RBAC multiusuário ou identidades distintas para revisores. Um worker processa uma etapa por vez. Não há paginação de projetos; listagem global limita execuções a 500 mais recentes, com histórico completo disponível por projeto. Os indicadores do dashboard são agregados diretamente sobre todo o banco, independentemente desse limite de listagem.
 - O armazenamento limita arquivos e documentos por projeto, mas ainda não há quota global de disco ou política automatizada de retenção. Falha de disco/banco pode deixar artefatos órfãos; não os apague sem conferir as referências e backups.

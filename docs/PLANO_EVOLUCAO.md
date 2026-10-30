@@ -2,9 +2,11 @@
 
 ## Diagnóstico do código em 30/10/2026
 
+Esta seção registra o estado anterior à refatoração. A implementação atual está descrita em `ARQUITETURA_PESQUISA.md`.
+
 O frontend monta `ParticipantProvider`, identificação, consentimento e perfil antes das atividades. O painel administrativo exporta dados de participantes. O backend monta rotas de participantes, grupos, casos de uso e atividades; `simplePromptGeneration.service.js` mantém uma transação PostgreSQL aberta durante a chamada remota ao Gemini. A resposta é texto livre, sem contrato de requisitos ou casos rastreáveis. Não há worker, upload de documentos, suíte automatizada ou controle versionado de aplicação das migrações.
 
-As tabelas 001–008 representam exclusivamente o experimento anterior. Algumas seeds alteram templates existentes. Elas serão preservadas como histórico, sem reaplicação automática. A nova instalação não precisará de participantes nem dessas seeds.
+Os scripts SQL 001–008 representavam exclusivamente o experimento anterior. Algumas seeds alteravam templates existentes. Após a refatoração, esses arquivos foram removidos a pedido do pesquisador; o histórico permanece no Git. As tabelas existentes foram preservadas no banco, e a instalação atual não depende desses scripts.
 
 Reaproveitamento: Express, `pg`, autenticação administrativa por cookie HTTP-only/JWT/bcrypt, rate limit, configuração `@google/genai`, cliente Axios, React Router, Tailwind e componentes `Card`, `Button`, `Loading`, `ErrorMessage`. Os módulos antigos ficam preservados no código e no banco, mas deixam de ser montados nas rotas ativas. Isso evita perda de dados e mantém o histórico Git consultável.
 

@@ -8,7 +8,7 @@ npm run migrate
 
 O runner aplica somente arquivos em `database/migrations`, sob transação e advisory lock. Registra nome, checksum SHA-256 (normalizando CRLF/LF) e data em `research.migrations`. Reexecutar não reaplica migrações; alterar um arquivo já aplicado provoca erro. Acrescente novas migrações para evoluir ambientes existentes.
 
-Os arquivos **001–008 na raiz são históricos**, representam o antigo experimento e não são necessários para um banco novo. Não os altere nem reaplique automaticamente. Nenhuma tabela antiga é apagada ou migrada para requisitos artificialmente; dados de participantes não são dados da nova pesquisa.
+Os scripts do experimento anterior foram removidos do repositório e permanecem consultáveis no histórico do Git. A numeração da migração atual foi mantida para preservar os registros e checksums de ambientes já inicializados. Nenhuma tabela existente é apagada ou convertida pela remoção desses arquivos.
 
 As entidades efetivamente criadas, FKs e diagrama estão em [Arquitetura](../docs/ARQUITETURA_PESQUISA.md). Documentos e respostas grandes ficam em armazenamento privado de artefatos; suas referências e hashes ficam no PostgreSQL. Backup somente do banco não preserva os PDFs/extrações/entradas/saídas.
 

@@ -92,3 +92,10 @@
 
 - Dashboard usa contagens agregadas de todo o banco, sem confundir o limite de 500 itens do histórico global com o total de execuções.
 - Agregação validada na integração PostgreSQL; backend com 22 testes aprovados; frontend build/lint aprovados.
+
+## Limpeza da documentação e SQL legados
+
+- A pedido do pesquisador, removidos os dois roteiros exclusivos do experimento com participantes e os oito scripts SQL antigos da raiz de `database`.
+- Ajustadas as referências nos READMEs, arquitetura e diagnóstico. Os registros anteriores deste documento descrevem a situação antes dessa limpeza.
+- Mantida a migração `database/migrations/009_research_foundation.sql`, sem renomear ou alterar seu conteúdo/checksum. Nenhuma tabela ou dado de banco foi excluído.
+- Validação: nenhuma referência restante aos arquivos removidos; `git diff --check` aprovado; suíte backend com 14 testes aprovados e três integrações ignoradas por ausência de `TEST_DATABASE_URL`, sem chamadas ao Gemini.
