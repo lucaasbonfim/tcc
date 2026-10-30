@@ -155,3 +155,9 @@
 - Teste de regressão com duas tarefas comprova que a segunda não inicia após falha de limpeza da primeira; serviço recusa novas autorizações. Seis testes do executor aprovados, sem Docker real.
 
 - Revisão adicional: probe exige que o usuário dos testes não consiga escrever em `/project`; Java exige JDK/JUnit funcionais e checksum do jar igual à política/build. Captura Docker preserva fronteiras UTF-8 dos logs. Probes reais continuam pendentes da VM dedicada.
+
+## Continuação — geração real no piloto escolhido
+
+- `npm run smoke:automation`: fonte pública real `jonschlinkert/is-number`, SHA `98e8ff1da1a89f93d1397a24d7413ed15421c139`, oráculo técnico sintético. Gemini gerou um script que passou no contrato/AST, sem casos omitidos ou avisos.
+- Provedor informou 1900 tokens de entrada, 484 de saída, 2384 totais; custo nulo por ausência de informação. Nenhum código gerado foi executado/compilado nem houve gravação de resultados experimentais.
+- Piloto/procedimentos/controles documentados em `PILOTO_EXECUCAO.md`. Execução real permanece pendente da VM; testes com fixtures não satisfazem esse critério.
