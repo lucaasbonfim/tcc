@@ -1,5 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 import {
   adminLogin,
   getAuthenticatedSession,
@@ -7,6 +8,7 @@ import {
 } from "../controllers/auth.controller.js";
 
 const router = Router();
+router.use(trustedOrigin);
 const adminLoginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
