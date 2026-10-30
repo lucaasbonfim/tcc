@@ -82,3 +82,8 @@
 - Migração **aditiva** aplicada ao banco configurado somente após validação em PostgreSQL separado. Antes: schema `research` ausente e dez tabelas públicas. Depois: schema disponível, dez tabelas públicas preservadas e zero projetos/execuções da pesquisa.
 - Smoke da aplicação real: health 200, projetos autenticados 200, sem sessão 401, rota antiga 404; inicialização do worker confirmada. Nenhum `.env`, senha ou chave foi alterado ou incluído nos commits.
 - Pendências reais: executor isolado, geração de scripts compatíveis, coleta de evidências de testes e avaliação/revisão de divergências; OCR; métricas de qualidade com referência humana; quota/retencão global de artefatos e autenticação multiusuário. Nenhuma dessas funcionalidades é apresentada como operacional.
+
+## Configuração administrativa
+
+- Helper de configuração recebe senha somente por stdin, gera bcrypt e rejeita entrada acima de 72 bytes UTF-8; login também aplica esse limite para evitar truncamento silencioso do bcrypt.
+- Validação manual com subprocesso: hash gerado confere com a senha sintética e entrada acima do limite é recusada. Suíte backend: 22 aprovações.
