@@ -17,5 +17,10 @@ export function exportCsv(data) {
   for (const item of data.test_cases) add('test_case',item.id,item.code,item.review_status,item.content.requirement_codes,item);
   for (const link of data.traceability) add('traceability',link.test_case_id,'','',[link.requirement_id],link);
   for (const review of data.reviews) add('review',review.id,'',review.decision,[review.entity_id],review);
+  for(const script of data.automated_tests || [])add('automated_test',script.id,'',script.review_status,[script.test_case_id],script);
+  for(const job of data.execution_jobs || [])add('execution_job',job.id,'',job.status,[],job);
+  for(const evidence of data.evidence || [])add('evidence',evidence.id,'',evidence.origin,[evidence.job_id],evidence);
+  for(const result of data.test_results || [])add('test_result',result.id,'',result.status,[result.automated_test_id,result.test_case_id,result.evidence_id],result);
+  for(const finding of data.findings || [])add('finding',finding.id,'',finding.review_status,[finding.requirement_id,finding.test_case_id,finding.automated_test_id,finding.test_result_id],finding);
   return '\uFEFF' + [header,...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
 }

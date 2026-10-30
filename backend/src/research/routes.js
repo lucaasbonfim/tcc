@@ -5,7 +5,7 @@ import { assert, uuid } from './errors.js';
 import { exportCsv } from './export.js';
 import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 
-export function createResearchRouter({ projects, store, runs, automation,execution }) {
+export function createResearchRouter({ projects, store, runs, automation,execution,evaluation }) {
   const router = Router();
   router.use(requireAdmin);
   router.use(trustedOrigin);
@@ -21,12 +21,12 @@ export function createResearchRouter({ projects, store, runs, automation,executi
     }
     next();
   });
-  router.get('/capabilities',handler(async() => ({
+  router.get('/capabilities',handler(async() => {const executor=execution ? await execution.capabilities() : {ready:false,reason:'Executor não configurado.'};return {
     requirements:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),requires_worker:true},
     tests:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),artifact_types:['textual','automated'],requires_review:true,adapters:['node-test/v2','java-junit/v1']},
-    execution:execution ? await execution.capabilities() : {ready:false,reason:'Executor não configurado.'},
-    evaluation:{enabled:false,reason:'Depende de evidências independentes de execução, indisponíveis nesta versão.'},
-  })));
+    execution:executor,
+    evaluation:{implemented:true,enabled:executor.ready,requires_independent_evidence:true,reason:'Análise condicionada a evidências recebidas do executor; conclusões exigem revisão humana.'},
+  };}));
   router.get('/projects', handler(() => projects.list()));
   router.get('/summary',handler(() => runs.summary()));
   router.post('/projects', imports, async (req, res) => res.status(201).json({ data: await projects.create(req.body) }));
@@ -54,6 +54,9 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.post('/runs/:runId/automated-tests/:itemId/review',handler(req=>automation.review(req.params.runId,req.params.itemId,req.body)));
   router.post('/runs/:runId/automation/approve',handler(req=>automation.approve(req.params.runId,req.body)));
   router.post('/runs/:runId/execution',imports,async(req,res)=>res.status(202).json({data:await execution.authorize(req.params.runId,req.body)}));
+  router.post('/runs/:runId/evaluation',imports,async(req,res)=>res.status(202).json({data:await evaluation.start(req.params.runId,req.body)}));
+  router.post('/runs/:runId/findings/:itemId/review',handler(req=>evaluation.review(req.params.runId,req.params.itemId,req.body)));
+  router.post('/runs/:runId/evaluation/approve',handler(req=>evaluation.approve(req.params.runId,req.body)));
   router.post('/runs/:runId/reviews/:kind/:itemId', handler(req => runs.reviewItem(req.params.runId,req.params.kind,req.params.itemId,req.body)));
   router.post('/runs/:runId/approve/:agent', handler(req => runs.approveStage(req.params.runId,req.params.agent,req.body)));
   router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));

@@ -11,6 +11,7 @@ import {scenarioServices,textualScenario} from '../../test-support/research-scen
 import {createExecutionService} from '../../src/research/execution.js';
 import {createProcessor} from '../../src/research/processor.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
+import {createEvaluationService} from '../../src/research/evaluation.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 test('automação exige revisão textual, preserva scripts e audita edição/aprovação', {skip:!url},async()=>{
@@ -51,5 +52,19 @@ test('automação exige revisão textual, preserva scripts e audita edição/apr
     assert.equal(finished.test_results[0].automated_test_id,script.id);
     assert.equal(finished.evidence[0].origin,'executor');
     assert.equal(finished.requirements[0].review_status,'approved');
+    assert.equal(finished.status,'pending');
+    const evaluation=createEvaluationService({pool,store});
+    await createProcessor({pool,store,generate:services.generate,executorClient}).processOne();
+    const analyzed=await services.runs.detail(run.id);
+    assert.equal(analyzed.findings.length,1);
+    assert.equal(analyzed.findings[0].content.classification,'possible_functional_divergence');
+    await assert.rejects(evaluation.approve(run.id,{justification:'Antes da revisão.'}),/Revise todas/);
+    const finding=analyzed.findings[0];
+    await evaluation.review(run.id,finding.id,{revision:0,decision:'confirmed',classification:'test_problem',justification:'Reclassificado pelo pesquisador na fixture.'});
+    await evaluation.approve(run.id,{justification:'Revisão humana concluída.'});
+    const reviewed=await services.runs.export(run.id);
+    assert.equal(reviewed.findings[0].content.classification,'possible_functional_divergence');
+    assert.equal(reviewed.findings[0].human_classification,'test_problem');
+    assert.equal(reviewed.status,'completed');
   }finally{await pool.end();await rm(directory,{recursive:true,force:true});}
 });

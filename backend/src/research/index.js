@@ -5,8 +5,9 @@ import { createResearchRouter } from './routes.js';
 import { createRunService } from './runs.js';
 import { createAutomationService } from './automation.js';
 import {createExecutionService} from './execution.js';
+import {createEvaluationService} from './evaluation.js';
 
 const store = createArtifactStore();
 const projects = createProjectService({ pool, store });
 const runs = createRunService({ pool,store });
-export default createResearchRouter({ projects, store, runs, automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store}) });
+export default createResearchRouter({ projects, store, runs, automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store}),evaluation:createEvaluationService({pool,store}) });
