@@ -1,22 +1,12 @@
 import { Router } from "express";
-import adminRoutes from "./admin.routes.js";
 import authRoutes from "./auth.routes.js";
-import experimentGroupRoutes from "./experimentGroup.routes.js";
-import experimentTaskRoutes from "./experimentTask.routes.js";
 import healthRoutes from "./health.routes.js";
-import participantRoutes from "./participant.routes.js";
-import participantSelfRoutes from "./participantSelf.routes.js";
-import useCaseRoutes from "./useCase.routes.js";
+import researchRoutes from "../research/index.js";
 
 const router = Router();
 
-router.use("/admin", adminRoutes);
 router.use("/auth", authRoutes);
-router.use("/experiment-groups", experimentGroupRoutes);
-router.use("/experiment-tasks", experimentTaskRoutes);
 router.use("/health", healthRoutes);
-router.use("/participant", participantSelfRoutes);
-router.use("/participants", participantRoutes);
-router.use("/use-cases", useCaseRoutes);
+router.use("/research", researchRoutes);
 
 export default router;
