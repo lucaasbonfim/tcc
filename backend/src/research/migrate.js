@@ -5,6 +5,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import pool from '../config/database.js';
 import { transaction } from './errors.js';
 
+export async function assertMigrations(database = pool) {
+  const directory = new URL('../../../database/migrations/', import.meta.url);
+  const files = (await readdir(directory)).filter(name => /^\d+.*\.sql$/.test(name)).sort();
+  const relation = (await database.query("SELECT to_regclass('research.migrations') AS relation")).rows[0].relation;
+  if (!relation) throw new Error('Schema de pesquisa ausente. Execute npm run migrate antes de iniciar.');
+  const applied = new Map((await database.query('SELECT name,checksum FROM research.migrations')).rows.map(row => [row.name, row.checksum]));
+  for (const name of files) {
+    if (!applied.has(name)) throw new Error(`Migração pendente: ${name}. Execute npm run migrate antes de iniciar.`);
+    const sql = await readFile(new URL(name, directory), 'utf8');
+    const checksum = createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex');
+    if (applied.get(name) !== checksum) throw new Error(`Migração já aplicada foi modificada: ${name}`);
+  }
+}
+
 export async function migrate(database = pool) {
   const directory = new URL('../../../database/migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(name => /^\d+.*\.sql$/.test(name)).sort();
