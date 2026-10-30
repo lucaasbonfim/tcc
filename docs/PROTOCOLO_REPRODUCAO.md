@@ -20,7 +20,7 @@
 9. Exporte JSON v2/CSV e guarde os originais. JSON inclui snapshots, instruções, entradas/saídas, partes/consolidação, arquivos dos scripts, bundle, evidências, ambiente e revisões. Baixe PDFs originais separadamente e confira hashes.
 10. Repita com **nova execução** para outras condições. Edições no projeto/documentos não mudam snapshots anteriores. Para branch movida, salve outra versão de código e selecione-a explicitamente.
 
-Etapas com falha admitem repetição justificada, até três sessões. Partes já concluídas não são repetidas; cada chamada continua auditável. Ao atingir o limite ou mudar condições/documentos, crie outra execução. Jobs remotos usam UUID/hash idempotentes; interrupções não autorizam repetição silenciosa do experimento.
+Etapas com falha admitem repetição justificada, até três sessões. Partes já concluídas não são repetidas; cada chamada continua auditável. Para requisitos falhos com checkpoints, use **Continuar a partir dos checkpoints**, informe a justificativa e guarde os IDs de ambas as análises. A continuação mantém os documentos/SHA/modelo/parâmetros originais, valida e reutiliza partes prontas, registra suas instruções e redivide somente o restante. O histórico anterior permanece intacto; a exportação inclui as tentativas reaproveitadas separadamente. Para mudar condições/documentos, crie uma execução independente. Jobs remotos usam UUID/hash idempotentes; interrupções não autorizam repetição silenciosa do experimento.
 
 ## Dados efetivamente disponíveis
 

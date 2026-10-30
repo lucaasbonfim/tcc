@@ -130,7 +130,9 @@ Para continuar: na aba **Scripts**, inspecione fontes do mesmo SHA, escolha mód
 
 Uma nova análise cria outra execução. Edições no projeto/documentos não alteram snapshots anteriores. Confira o estado de cada agente: uma execução pode estar concluída somente no fluxo textual ou de scripts, sem testes executados. Após autorização, os agentes 3/4 registram seus estados e evidências reais separadamente.
 
-Documentos acima de 24 mil caracteres são divididos em partes com sobreposição/checkpoints. O limite de seleção passou de 100 mil para 4,1 milhões de caracteres, até 512 partes/2000 requisitos e 12 MiB por artefato. Upload/extração por documento conservam seus limites; páginas vazias/diagramas exigem conferência. Duplicidades/contradições sinalizadas não são resolvidas semanticamente sem revisão.
+Seleções acima de 24 mil caracteres ou 40 páginas são divididas em partes: segmentos de até 6000 caracteres, orçamento de 8000 e sobreposição de 600. O modelo referencia IDs de trechos; o servidor recupera as citações literais do documento. O limite de seleção é de 4,1 milhões de caracteres, até 512 partes/2000 requisitos e 12 MiB por artefato. Upload/extração por documento conservam seus limites; páginas vazias/diagramas exigem conferência. Duplicidades/contradições sinalizadas precisam de revisão humana.
+
+Se a análise de requisitos falhar com partes já concluídas, **Continuar a partir dos checkpoints** cria uma análise vinculada, mantendo documentos/SHA originais e reaproveitando os checkpoints válidos sem novas chamadas. Apenas as partes restantes são redivididas e processadas. A análise anterior, suas tentativas e erros permanecem consultáveis pelos links entre as análises.
 
 ## Serviço executor (implantação separada)
 

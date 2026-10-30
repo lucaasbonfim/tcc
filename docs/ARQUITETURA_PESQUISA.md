@@ -52,7 +52,7 @@ Instruções, versões e contratos estão em `agents.js`, `automation-contract.j
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–014 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–015 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 ```mermaid
 erDiagram
@@ -112,9 +112,13 @@ Dockerfile/runner Node foram exercitados com fixtures e no piloto público `is-n
 
 Upload: PDF/TXT/MD, até 10 MiB e 200 mil caracteres extraídos por documento, PDF até 200 páginas; vinte versões/100 MiB de arquivos por projeto. Parser com até dois processos simultâneos, heap 128 MiB e prazo 15 s. Não há OCR ou interpretação de diagramas; páginas sem/pouco texto recebem avisos.
 
-Seleções até 24 mil caracteres usam uma chamada de análise. Acima disso são planejadas partes por página/trechos, com no máximo 12 mil caracteres por segmento, orçamento de 16 mil e sobreposição de 600. Documento, página e offsets UTF-16 são preservados. Páginas vazias continuam registradas; parte inteiramente vazia recebe alerta determinístico identificado, sem chamada ou tokens inventados.
+Seleções até 24 mil caracteres e 40 páginas usam uma chamada de análise. Acima de qualquer desses limites são planejadas partes por página/trechos, com no máximo 6000 caracteres por segmento, orçamento de 8000, até 40 fragmentos por grupo e sobreposição de 600. Documento, página e offsets UTF-16 são preservados. Páginas vazias continuam registradas; parte inteiramente vazia recebe alerta determinístico identificado, sem chamada ou tokens inventados.
+
+O agente 1 v1.1 recebe `source_catalog`: trechos literais contíguos de até 650 caracteres, IDs e offsets. A resposta referencia IDs; o servidor recupera documento/página/citação e valida contra a entrada preservada. `raw` permanece intacto; `validated_output` e `citation_method` guardam a resolução determinística. Não se aceitam citações aproximadas ou reescritas. Presença literal não garante interpretação correta: a revisão humana permanece necessária.
 
 Cada parte é um claim independente e tem sua entrada, saída e metadados na tentativa correspondente. Checkpoints concluídos não são repetidos após erro/interrupção. Há até três sessões de tentativa da etapa e até três tentativas por parte; número de chamadas não é o contador de retomadas. O contador sequencial de `attempts` pode ultrapassar três nesse processamento.
+
+Após falha com checkpoints válidos, a continuação justificada cria outra execução ligada por `runs.resumed_from_run_id`. Mantém snapshot, documentos, SHA, modelo e parâmetros originais; a nova etapa registra suas instruções atuais. Checkpoints validados reutilizam artefatos e `requirement_parts.reused_from_part_id`; apenas partes restantes são redivididas. A execução anterior e o limite de três sessões permanecem preservados. Links no painel permitem consultar ambas. O JSON exporta também entradas/saídas/metadados das tentativas reaproveitadas, separadas das novas chamadas e seus custos.
 
 Consolidação preserva respostas originais, une somente conteúdo idêntico, combina fontes dentro do limite contratual e cria mapeamento de códigos locais/globais. Descrições iguais com conteúdo complementar diferente geram candidatos a duplicação; negações lexicais opostas geram alerta de possível contradição. Isso não é uma consolidação semântica universal: referências distantes, ambiguidades e redundâncias precisam de revisão humana.
 

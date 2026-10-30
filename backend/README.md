@@ -38,6 +38,7 @@ Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`
 | POST | `/research/runs/:runId/reviews/:kind/:itemId` | Revisar requisito (`requirements`) ou caso (`tests`) |
 | POST | `/research/runs/:runId/approve/:agent` | Aprovar etapa `requirements` ou `tests` |
 | POST | `/research/runs/:runId/retry` | Repetir etapa falha, máximo três tentativas |
+| POST | `/research/runs/:runId/resume` | Continuar requisitos falhos com checkpoints, nova execução vinculada, resposta 202 |
 | POST | `/research/runs/:runId/cancel` | Cancelar sem apagar histórico |
 | POST | `/research/runs/:runId/automation` | Gerar scripts com inspeção/módulo/alvos/casos aprovados |
 | GET | `/research/runs/:runId/automated-tests` | Scripts e arquivos versionados |
@@ -54,7 +55,11 @@ Cadastro/edição envia `name`, `repository_url`, `requested_ref` e campos opcio
 
 Upload: `Content-Type: application/pdf` (ou `text/plain`/`text/markdown`) e `X-File-Name: encodeURIComponent(nome)`. Não é multipart. Até 10 MiB, 200 páginas e 200 mil caracteres por documento. Até 20 versões e 100 MiB por projeto. PDF sem texto recebe aviso; não há OCR. Download valida vínculo e hash. Os dados ficam fora do diretório público.
 
-Criação de execução: `{code_version_id,document_ids}` opcional; omissão seleciona código mais recentemente resolvido e a última versão de cada nome de documento. Inclui texto complementar. Mais de 24 mil caracteres cria partes/checkpoints; até 4,1 milhões selecionados, 512 partes, 2000 requisitos e 12 MiB por artefato, sem truncamento silencioso. Uma execução ativa por projeto.
+Criação de execução: `{code_version_id,document_ids}` opcional; omissão seleciona código mais recentemente resolvido e a última versão de cada nome de documento. Inclui texto complementar. Mais de 24 mil caracteres ou 40 páginas cria partes/checkpoints; segmentos de até 6000 caracteres, orçamento de 8000 mais sobreposição de 600 e até 40 fragmentos por grupo. Até 4,1 milhões selecionados, 512 partes, 2000 requisitos e 12 MiB por artefato, sem truncamento silencioso. Uma execução ativa por projeto.
+
+Continuação: `{justification}` em `/resume`, somente para requisitos falhos com partes concluídas e restantes. Cria `resumed_from_run_id`, preservando snapshot/SHA/documentos/modelo/parâmetros originais e registrando as instruções atuais na nova etapa. Valida os checkpoints antes de reutilizar referências (`reused_from_part_id`); redivide apenas o restante. Não altera contadores/histórico anteriores nem repete chamadas concluídas. Exportação JSON inclui entradas/saídas e tentativas dos checkpoints reaproveitados, sem contá-las como novas chamadas.
+
+Agente 1 v1.1: a entrada preservada contém `source_catalog` com IDs, documento/página, offsets UTF-16 e trechos literais. O modelo retorna somente `source_id`; o servidor resolve as fontes e valida o contrato canônico. Artefatos preservam `raw` intacto e, quando validado, `validated_output`/`citation_method`. IDs inexistentes são rejeitados; nenhuma citação é corrigida por aproximação. `MAX_TOKENS` é registrado explicitamente como resposta incompleta.
 
 Revisão: `{decision: 'approved'|'rejected', justification, revision, content?}`. Código é imutável, conteúdo é validado, `revision` deve coincidir com a versão corrente. Alteração concorrente retorna 409. Aprovação de etapa, repetição e cancelamento exigem `{justification}`. Todos os itens precisam de decisão e pelo menos um aprovado para aprovar a etapa. Requisitos aprovados ficam congelados após autorizar o agente 2.
 

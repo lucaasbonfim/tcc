@@ -16,6 +16,7 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 012 | Trabalhos do executor, evidências e resultados individuais |
 | 013 | Análises do agente 4 e decisão humana separada |
 | 014 | Partes/checkpoints de requisitos e consolidação |
+| 015 | Continuação de execuções e origem dos checkpoints reaproveitados |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
 

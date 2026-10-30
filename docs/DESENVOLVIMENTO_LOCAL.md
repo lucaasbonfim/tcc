@@ -48,5 +48,7 @@ Recibo, evidências e exportações registram `isolation_profile=docker-desktop-
 - **Banco/migração:** confira `backend/.env`, disponibilidade PostgreSQL e execute `npm --prefix backend run migrate`.
 - **Validação expirada:** o recibo dura uma hora. Reinicie o comando para executar os probes novamente.
 - **Gemini indisponível:** o executor não usa Gemini; a geração/avaliação ainda exige chave/modelo válidos no backend.
+- **Requisitos falharam com partes concluídas:** use **Continuar a partir dos checkpoints**, com justificativa. A nova análise preserva documentos/SHA e reaproveita as partes válidas; links permitem consultar o histórico anterior. Não precisa reenviar o PDF. Atualize API/worker e aplique a migração 015 antes de usar essa função.
+- **Citação reescrita ou resposta incompleta:** versões atuais do agente 1 usam IDs de trechos literais e entradas menores; `MAX_TOKENS` aparece explicitamente no histórico. Respostas inválidas anteriores permanecem preservadas. Revise os requisitos resultantes antes de autorizar os casos de teste.
 
 Para preparar apenas a imagem/configuração, use `npm run executor:setup`. Para iniciar somente o serviço, use `npm run executor:local`. O fluxo usual usa somente `npm run dev:local`.
