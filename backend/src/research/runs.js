@@ -97,7 +97,8 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         automated_tests:await createAutomationService({pool,store}).list(id),
         execution_jobs:await createExecutionService({pool,store}).list(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
-        evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows};
+        evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
+        findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows};
     },
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
@@ -192,7 +193,12 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         attempt.input_data = attempt.input ? await store.json(attempt.input) : null;
         attempt.output_data = attempt.output ? await store.json(attempt.output) : null;
       }
-      return { export_format_version:1,exported_at:new Date().toISOString(),...data };
+      for(const job of data.execution_jobs)job.bundle_data=await store.json(job.bundle);
+      for(const review of data.reviews.filter(r=>r.entity_type==='automated_test')) {
+        if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
+        if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);
+      }
+      return { export_format_version:2,exported_at:new Date().toISOString(),...data };
     },
   };
   return service;

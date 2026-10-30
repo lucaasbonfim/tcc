@@ -31,6 +31,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         await db.query(`INSERT INTO research.execution_jobs(id,run_id,stage_id,status,adapter,bundle,request_sha256,executor_receipt)
           VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`,[id,runId,stage.id,bundle.adapter,bundleRef,hash,JSON.stringify(receipt)]);
         await db.query("UPDATE research.stages SET status='pending',instruction_version='2.0.0',instruction=$2,context=$3,message='Execução autorizada, aguardando worker.' WHERE id=$1",[stage.id,EXECUTION_INSTRUCTION,{job_id:id}]);
+        await db.query("UPDATE research.stages SET status='blocked',message='Aguardando evidências independentes de execução.' WHERE run_id=$1 AND agent='evaluation' AND status='not_supported'",[runId]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'stage',$3,'approved',$4,$5,$6,'admin')`,[randomUUID(),runId,stage.id,justification,{status:stage.status},{job_id:id,bundle_sha256:hash,policy_sha256:receipt.policy_sha256,image:receipt.images[bundle.adapter].image_id}]);

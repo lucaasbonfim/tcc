@@ -4,10 +4,13 @@ import { transaction } from './errors.js';
 import { createAutomationService } from './automation.js';
 import { validateAutomation } from './automation-contract.js';
 import {createExecutionService} from './execution.js';
+import {createEvaluationService} from './evaluation.js';
+import {validateEvaluation} from './evaluation-contract.js';
 
 export function createProcessor({ pool, store, generate, executorClient }) {
   const automation=createAutomationService({pool,store});
   const execution=createExecutionService({pool,store,client:executorClient});
+  const evaluation=createEvaluationService({pool,store});
   async function claim() {
     return transaction(pool, async db => {
       const run = (await db.query(`SELECT r.* FROM research.runs r WHERE r.status='pending'
@@ -34,7 +37,8 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         return;
       }
       if (!error) {
-        if(job.stage.agent==='execution')await execution.persist(db,job,output);
+        if(job.stage.agent==='evaluation')await evaluation.persist(db,job,output);
+        else if(job.stage.agent==='execution')await execution.persist(db,job,output);
         else if(job.stage.agent==='automation') await automation.persist(db,job,output);
         else {
         const items = job.stage.agent === 'requirements' ? output.requirements : output.test_cases;
@@ -55,6 +59,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
         [job.stage.id,error ? 'failed' : executed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
       await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : unsupported || executed ? 'completed' : 'awaiting_review']);
+      if(executed)await evaluation.queue(db,job.run.id);
     });
   }
   return {
@@ -83,12 +88,13 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       try {
         const snapshot = await store.json(job.run.snapshot);
         let input;
-        if(job.stage.agent==='execution')input=await execution.prepare(job);
+        if(job.stage.agent==='evaluation')input=await evaluation.inputFor(job.run.id);
+        else if(job.stage.agent==='execution')input=await execution.prepare(job);
         else if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
         else if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
           requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
-        const definition = job.stage.agent==='automation' ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
+        const definition = ['automation','evaluation'].includes(job.stage.agent) ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
         const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction,
           instruction_version:job.stage.instruction_version,schema:definition.schema,input };
         inputRef = await store.put(request);
@@ -109,6 +115,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           outputRef = await store.put({raw:result.raw});
           output = JSON.parse(result.raw);
           if(job.stage.agent==='automation')validateAutomation(output,input);
+          else if(job.stage.agent==='evaluation')validateEvaluation(output,input);
           else if(job.stage.agent!=='execution')validateOutput(job.stage.agent,output,input);
         } finally { clearTimeout(timer);clearInterval(monitor); }
       } catch (cause) {

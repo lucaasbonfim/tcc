@@ -126,3 +126,10 @@
 - Migração 012 guarda trabalhos, evidências de origem executor e resultados individuais, incluindo falha de teste/compilação/infraestrutura, timeout, cancelamento e inconclusivo. Transporte/recibo inválido não produz evidência.
 - Worker determinístico integra o serviço, monitora cancelamento/lease e não executa projeto no host. Trabalho remoto é idempotente; repetição de transporte usa mesmo UUID/hash.
 - Suíte backend ampliada: 30 testes aprovados; integração específica confere bloqueio sem VM, autorização, rejeição de duplicação e rastreabilidade de resultado/evidência com executor injetado. Fixtures não são resultados reais da pesquisa.
+
+## Continuação — avaliação do agente 4
+
+- Migração 013 persiste avaliações vinculadas a requisito/caso/script/resultado. Agent 4 enfileirado somente após evidência independente; entrada inclui scripts, fontes, esperado, observações e ambiente.
+- Contrato rejeita observações/citações inventadas, IDs alheios, omissões e classificações incompatíveis com estados técnicos. Infraestrutura/compilação/timeout não autorizam inferir divergência funcional; observação truncada exige inconclusivo.
+- Decisão humana com justificativa/revisão fica separada do conteúdo original do modelo. Todos os findings precisam de revisão para concluir; rejeitar uma classificação não a confirma implicitamente.
+- Testes específicos: três aprovações com PostgreSQL, cobrindo referências, matriz conservadora e reclassificação humana sem sobrescrever a proposta automática. JSON/CSV v2 incluem scripts, bundles, resultados, evidências, findings e versões humanas dos arquivos.

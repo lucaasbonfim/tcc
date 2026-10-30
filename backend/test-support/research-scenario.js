@@ -11,7 +11,13 @@ export function scenarioServices(pool,store,options={}) {
   const runs=createRunService({pool,store,configuration:()=>({model:'platform-fixture-only',parameters:{temperature:0.2,maxOutputTokens:8192}}),...options});
   const generate=async request=>{
     let output;
-    if(request.input.scope) {
+    if(request.input.results) {
+      output={findings:request.input.results.flatMap(result=>request.input.test_cases.find(t=>t.id===result.test_case_id).content.requirement_codes.map(code=>({
+        test_result_id:result.id,requirement_code:code,test_case_id:result.test_case_id,automated_test_id:result.automated_test_id,
+        classification:result.status==='failed' ? 'possible_functional_divergence' : result.status==='passed' ? 'compatible' : 'inconclusive',
+        expected_behavior:request.input.test_cases.find(t=>t.id===result.test_case_id).content.expected_result,observed_behavior:result.observed_excerpt,
+        evidence_quote:result.observed_excerpt,justification:'Classificação sintética da fixture para testar persistência; não é conclusão da pesquisa.',limitations:['Fixture técnica.']}))),warnings:[]};
+    } else if(request.input.scope) {
       const row=request.input.test_cases[0];
       output={artifacts:[{test_case_id:row.id,requirement_codes:['RF-001'],adapter:'node-test/v2',commit_sha:'a'.repeat(40),
         files:[{path:generatedPath(row.id,'node-test/v2').path,code:"import test from 'node:test';import assert from 'node:assert/strict';import {sum} from '../src/calc.js';test('soma',()=>{assert.equal(sum(2,3),5);});"}],
