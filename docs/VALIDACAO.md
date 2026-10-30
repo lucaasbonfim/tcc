@@ -72,3 +72,13 @@
 - Limite de dois parsers PDF simultâneos por processo, além de memória/prazo/tamanho. TLS PostgreSQL passa a verificar certificado; conexão configurada validada por `SELECT 1`, sem migração ou escrita.
 - Falhas de tipo no login viram rejeição de autenticação. Respostas tardias após cancelamento preservam metadados e duração, sem criar resultados ou reabrir execução.
 - API, contratos e integração PostgreSQL: 22 testes aprovados. Scripts históricos continuam intactos.
+
+## Validação final da primeira base
+
+- `npm run smoke:gemini`: dois agentes reais, um requisito e dois casos válidos a partir de texto sintético. Gemini reportou 527 e 914 tokens totais, respectivamente; custo não informado. Sem gravação no banco da pesquisa.
+- Integração GitHub real: repositório público do projeto e referência `main` resolvidos para SHA de 40 caracteres; nenhum clone/comando do projeto executado.
+- Playwright/Chromium: cadastro, upload/consulta TXT, correção de título com revisão, aprovação dos dois agentes, exportação JSON conferindo rastreabilidade e antes/depois; viewport 390 px sem overflow e sem erros JavaScript. Capturas desktop/móvel inspecionadas. A primeira ampliação do teste usou um seletor de label incompatível com textarea preenchido; corrigido para papel/nome acessível e suíte reaprovada.
+- `npm run lint` sem avisos e `npm run build` aprovados. Auditorias backend e frontend: zero vulnerabilidades após atualizações compatíveis.
+- Migração **aditiva** aplicada ao banco configurado somente após validação em PostgreSQL separado. Antes: schema `research` ausente e dez tabelas públicas. Depois: schema disponível, dez tabelas públicas preservadas e zero projetos/execuções da pesquisa.
+- Smoke da aplicação real: health 200, projetos autenticados 200, sem sessão 401, rota antiga 404; inicialização do worker confirmada. Nenhum `.env`, senha ou chave foi alterado ou incluído nos commits.
+- Pendências reais: executor isolado, geração de scripts compatíveis, coleta de evidências de testes e avaliação/revisão de divergências; OCR; métricas de qualidade com referência humana; quota/retencão global de artefatos e autenticação multiusuário. Nenhuma dessas funcionalidades é apresentada como operacional.
