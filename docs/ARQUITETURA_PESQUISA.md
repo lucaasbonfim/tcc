@@ -2,7 +2,7 @@
 
 Estado implementado em 30/10/2026. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Situação operacional:** análise de requisitos, casos textuais e geração de scripts são utilizáveis com Gemini. Integração dos agentes 3 e 4 e serviço executor estão implementados, mas execução real, imagens e piloto ainda não foram validados por falta de VM dedicada/daemon apropriado neste ambiente. Sem recibo válido do serviço, a autorização permanece bloqueada. Fixtures da suíte não são evidências da pesquisa.
+**Situação operacional:** análise de requisitos, casos textuais e geração de scripts são utilizáveis com Gemini. A imagem/runner Node passaram por diagnóstico Docker real com 14 controles e dez cenários sintéticos. Integração dos agentes 3 e 4 está implementada, mas implantação dedicada, Java e piloto público continuam pendentes. Docker Desktop disponível é compartilhado, sem rootless e com driver `cgroupfs`, fora da política do serviço. Sem recibo válido, a autorização permanece bloqueada. Fixtures não são evidências da pesquisa.
 
 ## Componentes
 
@@ -106,7 +106,7 @@ O pesquisador escolhe até oito alvos e vinte casos aprovados. O fechamento incl
 | `node-test/v2` | JavaScript ESM/CJS, exports existentes, fontes relativas/builtins permitidos e `node:test` | Sem npm install/scripts npm, TypeScript/build/transpilação ou serviços; arquivos gerados explícitos, sem descobrir testes antigos |
 | `java-junit/v1` | Classes selecionadas com JDK/dependências locais e JUnit provisionado na imagem | Maven é inspecionado; plugins/downloads Maven não são executados. `javac -proc:none` e Console JUnit headless, sem Swing/banco. Resultado inicial por classe gerada/caso |
 
-Os Dockerfiles/runners existem, mas as imagens e o piloto real precisam de validação no ambiente dedicado. Nenhum adaptador é anunciado operacional apenas por ser reconhecido na inspeção. A geração real Gemini de um script Node sobre código público foi validada; não houve execução desse script neste ambiente.
+Dockerfile/runner Node foram exercitados em contêineres reais com fixtures controladas; imagem Java e piloto público precisam de validação no ambiente dedicado. Nenhum adaptador é anunciado operacional apenas por ser reconhecido na inspeção. A geração real Gemini de um script Node sobre código público foi validada; esse script não foi executado neste ambiente.
 
 ## Documentos extensos e consolidação
 
@@ -148,7 +148,7 @@ Etapas falhas admitem repetição justificada, até três sessões, preservando 
 
 O executor exige VM Linux dedicada, Docker rootless/seccomp/cgroups v2-systemd, token administrativo, TLS e imagens imutáveis pré-carregadas. Probe confiável verifica UID/capacidades/no-new-privileges, root read-only, proibição de escrita no projeto, limites efetivos, rede e ausência de socket/segredos. JDK/JUnit têm versão e hash conferidos. A API confere identidade/deployment, hash da política, validade do recibo e ID da imagem; mudança exige autorização compatível.
 
-Cada contêiner: CPU 1, memória/swap 256 MiB, 64 processos, prazo externo 60 s, rede none, sem bind mounts ou Docker socket. Tmpfs de trabalho 64 MiB, temporário 16 MiB e projeto 2 MiB. Fontes/testes são root-owned/0444 e não graváveis pelo usuário 1000 dos testes. Código do projeto não pode substituir o runner/reporter confiável. A suíte antiga não é descoberta automaticamente.
+Cada contêiner: CPU 1, memória/swap 256 MiB, 64 processos, prazo externo 60 s, rede none, sem bind mounts ou Docker socket. Tmpfs de trabalho 64 MiB, temporário 16 MiB e projeto 2 MiB. Inicializador confiável de comando fixo recebe JSON validado, grava somente no tmpfs e sela arquivos root/0444 e diretórios 0555 antes de enviar a entrada ao runner. Essa preparação usa UID 0 sem capacidades; testes/runner usam UID 1000 e raiz read-only. Não utiliza `docker cp`, recusado pelo daemon nessa configuração. Código do projeto não pode substituir runner/reporter. Entrada Node confiável importa somente o arquivo gerado selecionado e transforma erros de importação em eventos estruturados; `commands.test_file` preserva seu caminho. Sem teste registrado, resultado inconclusivo. A suíte antiga não é descoberta.
 
 O serviço verifica fontes contra a árvore GitHub do SHA, aceita bundle até 1 MiB/relatório até 2 MiB, uma execução de cada vez, oito pendentes e 128 journals. UUID/hash são idempotentes. Contêineres são removidos em finally; falha de limpeza bloqueia também a fila pendente. Recuperação limpa trabalhos interrompidos e não os reexecuta automaticamente. Timeout preserva logs parciais e informa eventos/comandos não recuperados. Detalhes operacionais: `executor/README.md`.
 

@@ -13,7 +13,7 @@ O segundo candidato, Vai&Volta, foi inspecionado no SHA `9afa820038de42c134c8c69
 1. Provisionar a VM e imagens conforme `executor/README.md`; comprovar probes de CPU/memória/pids/rede/permissões e limpeza. Fixar política/deployment/imagens na API e worker. Saúde precisa retornar `ready=true` com o mesmo hash de política.
 2. Cadastrar o projeto Node com o SHA acima, importar os requisitos sintéticos e processar/revisar requisitos e casos textuais.
 3. Na aba Scripts, inspecionar o mesmo SHA, selecionar raiz e `index.js`. Gerar scripts, conferir import/API/asserções e esperado; revisar cada arquivo e concluir a etapa.
-4. Na aba Execução, conferir identidade/política do executor e autorizar com justificativa. Registrar UUID do trabalho e verificar que os caminhos executados pertencem a `__research_generated__`, não à suíte antiga.
+4. Na aba Execução, conferir identidade/política do executor e autorizar com justificativa. Registrar UUID do trabalho e verificar que `commands.test_file` aponta ao arquivo em `__research_generated__`, carregado pela entrada confiável Node; a suíte antiga não é descoberta.
 5. Conferir ambiente imutável, comandos, limites, saída, relatórios e resultados individuais. Conferir que fontes originais continuam com seus hashes e que o contêiner foi removido.
 6. Examinar a classificação do agente 4, vinculada a resultado/script/caso/requisito; confirmar, rejeitar ou marcar inconclusiva, justificando. Concluir e exportar JSON/CSV v2.
 7. Para repetir, criar outra execução com as mesmas versões dos documentos e do código. Não editar a implementação analisada para satisfazer asserções.
@@ -33,4 +33,6 @@ Não apresentar as fixtures dos testes unitários/E2E como esses controles reais
 
 ## Estado atual
 
-Geração real sobre fonte pública validada. Persistência, estados e interface do fluxo completo validados com fixtures separadas. **Execução do piloto real, imagens e isolamento ainda pendentes**, pois o ambiente de desenvolvimento não disponibiliza VM dedicada/daemon validado. Esta fase ainda não cumpre o critério de execução real de ponta a ponta do pedido; a implementação mantém o bloqueio correto até essa validação.
+Geração real sobre fonte pública validada. Persistência, estados e interface do fluxo completo validados com fixtures separadas. Com Docker Desktop ligado, imagem/runner Node passaram em 14 controles reais e dez cenários técnicos, incluindo falha, erro, dependência, proteção de fontes, timeout/cancelamento e limpeza. Isso não é execução do projeto público nem evidência experimental.
+
+**Piloto real, implantação dedicada e Java ainda pendentes.** O Docker Desktop compartilhado usa `cgroupfs` e não é rootless; o serviço recusa esse ambiente pela política atual. Nenhum recibo de saúde foi falsificado nem houve alteração para contornar o bloqueio. Esta fase ainda não cumpre o critério de execução real de ponta a ponta com repositório público.
