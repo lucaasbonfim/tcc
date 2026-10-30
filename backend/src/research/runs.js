@@ -299,7 +299,14 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     },
     async export(runId) {
       const data = await service.detail(runId);
-      for (const stage of data.stages) stage.instruction = (await pool.query('SELECT instruction FROM research.stages WHERE id=$1',[stage.id])).rows[0].instruction;
+      for (const stage of data.stages) {
+        stage.instruction = (await pool.query('SELECT instruction FROM research.stages WHERE id=$1',[stage.id])).rows[0].instruction;
+        if(stage.agent==='automation') {
+          stage.scope_data=[];for(const ref of stage.context.scopes || [stage.context.scope])stage.scope_data.push(await store.json(ref));
+          const inspection=(await pool.query('SELECT artifact FROM research.inspections WHERE id=$1',[stage.context.inspection_id])).rows[0];
+          if(inspection)stage.inspection_data=await store.json(inspection.artifact);
+        }
+      }
       for (const attempt of data.attempts) {
         attempt.input_data = attempt.input ? await store.json(attempt.input) : null;
         attempt.output_data = attempt.output ? await store.json(attempt.output) : null;
