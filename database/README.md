@@ -18,6 +18,7 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 014 | Partes/checkpoints de requisitos e consolidação |
 | 015 | Continuação de execuções e origem dos checkpoints reaproveitados |
 | 016 | Decisão de edição separada da aprovação, preservando antes/depois |
+| 017 | Lotes/checkpoints de casos, códigos dos requisitos, mapeamentos e vínculo às tentativas |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
 
