@@ -38,7 +38,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
   await page.getByRole('button',{name:'Scripts',exact:true}).click();
   await page.getByRole('button',{name:'Inspecionar fontes deste commit'}).click();
-  await page.getByLabel('src/projects.js',{exact:true}).check();
+  await expect(page.getByText('Módulo inteiro selecionado.',{exact:false})).toBeVisible();
   await page.getByRole('textbox',{name:'Justificativa do escopo e da geração'}).fill('Escopo de fonte conhecido da fixture.');
   await page.getByRole('button',{name:'Gerar scripts de todos os cenários aprovados'}).click();
   await expect(page.getByRole('heading',{name:'Script node-test/v2 · versão 1'})).toBeVisible({timeout:20000});
@@ -106,7 +106,7 @@ test('todos os 104 cenários são selecionados e gerados em lotes, com aprovaç�
   await page.getByText('Escolher cenários (104 de 104)',{exact:true}).click();await page.getByRole('button',{name:'Limpar seleção',exact:true}).click();
   await expect(page.getByRole('button',{name:'Gerar scripts dos 0 cenários selecionados'})).toBeDisabled();
   await page.getByRole('button',{name:'Selecionar todos os cenários',exact:true}).click();
-  await page.getByLabel('src/projects.js',{exact:true}).check();await page.getByLabel('Justificativa do escopo e da geração').fill('Todos os 104 cenários da fixture, sem execução de código.');
+  await expect(page.getByText('Módulo inteiro selecionado.',{exact:false})).toBeVisible();await page.getByLabel('Justificativa do escopo e da geração').fill('Todos os 104 cenários da fixture, sem execução de código.');
   await page.getByRole('button',{name:'Gerar scripts de todos os cenários aprovados'}).click();
   await expect(page.getByText('52/52 lotes de scripts concluídos',{exact:true})).toBeVisible({timeout:30000});
   await expect(page.locator('.review-item')).toHaveCount(104);
