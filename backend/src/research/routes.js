@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { requireAdmin } from '../middlewares/auth.js';
 import { assert, uuid } from './errors.js';
 
-export function createResearchRouter({ projects, store }) {
+export function createResearchRouter({ projects, store, runs }) {
   const router = Router();
   router.use(requireAdmin);
   router.use((request, _response, next) => {
@@ -19,6 +19,7 @@ export function createResearchRouter({ projects, store }) {
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });
   router.param('projectId', (_request, _response, next, value) => { uuid(value); next(); });
   router.param('documentId', (_request, _response, next, value) => { uuid(value); next(); });
+  for (const name of ['runId','itemId','attemptId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
   router.get('/projects', handler(() => projects.list()));
   router.post('/projects', imports, async (req, res) => res.status(201).json({ data: await projects.create(req.body) }));
   router.get('/projects/:projectId', handler(req => projects.detail(req.params.projectId)));
@@ -36,5 +37,13 @@ export function createResearchRouter({ projects, store }) {
     res.set('Content-Type', doc.media_type).set('X-Content-Type-Options','nosniff');
     res.attachment(doc.name).send(await store.read(doc.artifact));
   });
+  router.post('/projects/:projectId/runs', imports, async (req,res) => res.status(202).json({data:await runs.create(req.params.projectId,req.body)}));
+  router.get('/runs', handler(() => runs.list()));
+  router.get('/runs/:runId', handler(req => runs.detail(req.params.runId)));
+  router.post('/runs/:runId/reviews/:kind/:itemId', handler(req => runs.reviewItem(req.params.runId,req.params.kind,req.params.itemId,req.body)));
+  router.post('/runs/:runId/approve/:agent', handler(req => runs.approveStage(req.params.runId,req.params.agent,req.body)));
+  router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));
+  router.post('/runs/:runId/cancel', handler(req => runs.cancel(req.params.runId,req.body)));
+  router.get('/runs/:runId/attempts/:attemptId/:type', handler(req => runs.artifact(req.params.runId,req.params.attemptId,req.params.type)));
   return router;
 }
