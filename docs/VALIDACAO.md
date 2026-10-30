@@ -59,3 +59,9 @@
 
 - Dashboard com contagens consultadas do banco, cadastro/edição com resolução de SHA, seleção de documentos/versões, upload, consulta de páginas extraídas e histórico por projeto.
 - Build/lint aprovados. Fluxos de cadastro/importação exercitados no Chromium contra API e PostgreSQL isolados.
+
+## Navegação, revisão e histórico
+
+- Fluxo ativo substituído pelo painel de pesquisa, sem provider/onboarding ou menus do experimento anterior. Autenticação administrativa preservada.
+- Páginas de requisitos, casos, execuções, análise e relatórios; correções em campos estruturados, justificativa e aprovação por item/etapa; entradas/saídas brutas, alertas, tokens e revisões consultáveis.
+- Backend apresenta alertas das saídas validadas para consulta. Build/lint e testes de integração continuam aprovados.

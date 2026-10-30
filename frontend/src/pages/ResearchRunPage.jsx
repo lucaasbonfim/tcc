@@ -1,0 +1,53 @@
+import { useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useResearch } from '../hooks/useResearch';
+import { research } from '../services/research.service';
+import { AGENT_LABELS, date, shortId } from '../utils/research';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import Loading from '../components/Loading';
+import ErrorMessage from '../components/ErrorMessage';
+import ResearchStatus from '../components/ResearchStatus';
+import ResearchReviewItem from '../components/ResearchReviewItem';
+
+const tabs = [['requirements','Requisitos'],['tests','Casos de teste'],['evidence','Execução'],['analysis','Análise'],['history','Histórico e configuração']];
+function clean(content) {return Object.fromEntries(Object.entries(content).map(([key,value]) => [key,Array.isArray(value) && value.every(item => typeof item==='string') ? value.map(item => item.trim()).filter(Boolean) : value]));}
+
+export default function ResearchRunPage() {
+  const {runId} = useParams();
+  const {data:run,error,loading,reload} = useResearch(`/runs/${runId}`,true);
+  const [params,setParams] = useSearchParams();
+  const tab = params.get('view') || 'requirements';
+  const [busy,setBusy] = useState(false);
+  const [actionError,setActionError] = useState('');
+  const [justification,setJustification] = useState('');
+  const [artifact,setArtifact] = useState(null);
+  async function action(work,refresh=true) {setBusy(true);setActionError('');try{await work();if(refresh)reload();}catch(cause){setActionError(cause.message);}finally{setBusy(false);}}
+  if (loading && !run) return <Loading>Carregando execução...</Loading>;
+  if (!run) return <ErrorMessage>{error}</ErrorMessage>;
+  const project = run.snapshot_data.project;
+  const reviewing = run.stages.find(stage => stage.status==='awaiting_review');
+  const items = tab==='requirements' ? run.requirements : run.test_cases;
+  const editable = run.status==='awaiting_review' && reviewing?.agent===tab;
+  const canApprove = editable && items.length>0 && items.every(item => item.review_status!=='pending') && items.some(item => item.review_status==='approved');
+  return <div className="page-stack"><div className="page-heading"><div><Link className="back-link" to={`/admin/projects/${run.project_id}`}>← {project.name}</Link><p className="eyebrow mt-3">EXECUÇÃO {shortId(run.id)}</p><h1>Análise do projeto</h1><p>{project.name} · {date(run.created_at)}</p></div><div className="heading-actions"><ResearchStatus status={run.status}/><Button variant="secondary" onClick={reload}>Atualizar</Button></div></div>
+    <ErrorMessage>{error || actionError}</ErrorMessage>
+    <div className="commit-row"><span>{run.snapshot_data.code_version.requested_ref}</span><code>{run.snapshot_data.code_version.commit_sha}</code><span>{run.model}</span></div>
+    <div className="agent-grid">{run.stages.map(stage => <div className={`agent-card agent-${stage.status}`} key={stage.id}><span className="eyebrow">AGENTE {stage.position}</span><h2>{AGENT_LABELS[stage.agent]}</h2><ResearchStatus status={stage.status}/><p>{stage.message || (stage.status==='blocked' ? 'Depende da aprovação da etapa anterior.' : stage.status==='pending' ? 'Aguardando processamento pelo worker.' : 'Consulte os resultados e registros abaixo.')}</p><small>Instrução v{stage.instruction_version} · {stage.attempt_count}/3 tentativas</small></div>)}</div>
+    {run.status==='pending' && <p className="notice">Execução enfileirada. O processamento requer o worker ativo; esta página consulta o estado a cada quatro segundos.</p>}
+    <nav className="result-tabs" aria-label="Resultados da execução">{tabs.map(([value,label]) => <button key={value} className={tab===value ? 'selected' : ''} onClick={() => setParams({view:value})}>{label}</button>)}</nav>
+    {['requirements','tests'].includes(tab) && <Card><div className="section-heading"><div><h2>{tab==='requirements' ? 'Requisitos identificados' : 'Casos de teste textuais'}</h2><p>{items.length} itens · {items.filter(item => item.review_status==='pending').length} aguardando revisão</p></div><span className="eyebrow">RASTREABILIDADE PRESERVADA</span></div>
+      {(run.agent_outputs?.[tab]?.alerts || run.agent_outputs?.[tab]?.warnings || []).map((warning,index) => <div className="notice compact" key={index}>{typeof warning==='string' ? warning : <><strong>{warning.kind}</strong><p>{warning.description}</p>{warning.sources?.map((source,i) => <small key={i}>{source.document_id} · p. {source.page} · {source.quote}</small>)}</>}</div>)}
+      {!items.length ? <div className="empty-state"><strong>{tab==='requirements' ? 'Nenhum requisito disponível nesta execução.' : 'Nenhum caso de teste disponível nesta execução.'}</strong><p>{tab==='tests' ? 'A geração depende da revisão e aprovação dos requisitos e do processamento do segundo agente.' : 'Aguarde o processamento ou consulte o erro registrado no histórico.'}</p></div> : items.map(row => <ResearchReviewItem key={`${row.id}-${row.revision}`} row={row} kind={tab} documents={run.snapshot_data.documents} editable={editable} busy={busy} onReview={(decision,content,reason) => action(() => research.post(`/runs/${runId}/reviews/${tab}/${row.id}`,{decision,content:clean(content),justification:reason,revision:row.revision}))}/>)}
+      {editable && <div className="stage-approval"><h3>{tab==='requirements' ? 'Autorizar geração de casos de teste' : 'Concluir revisão dos casos textuais'}</h3><p>Todos os itens precisam de uma decisão, com pelo menos um aprovado. Itens rejeitados permanecem no histórico.</p><label>Justificativa da aprovação da etapa<textarea rows={2} maxLength={5000} value={justification} onChange={event => setJustification(event.target.value)}/></label><Button className="mt-3" disabled={busy || !canApprove || !justification.trim()} onClick={() => action(async () => {await research.post(`/runs/${runId}/approve/${tab}`,{justification});setJustification('');if(tab==='requirements')setParams({view:'tests'});})}>{tab==='requirements' ? 'Aprovar etapa e gerar testes →' : 'Concluir etapa de geração textual'}</Button></div>}
+    </Card>}
+    {tab==='evidence' && <Card><h2>Execução de testes não suportada</h2><p className="mt-3">{run.stages[2].message}</p><p className="muted mt-3">Casos gerados são textuais, sem scripts executáveis. Nenhum comando, teste iniciado, aprovado ou reprovado é apresentado nesta execução. Configure e valide um executor isolado antes de ampliar esta funcionalidade.</p></Card>}
+    {tab==='analysis' && <Card><h2>Avaliação indisponível</h2><p className="mt-3">{run.stages[3].message}</p><p className="muted mt-3">A saída de outro agente não constitui evidência de um defeito. Não há divergências funcionais ou decisões de validação de divergências nesta versão.</p></Card>}
+    {tab==='history' && <><Card><div className="section-heading"><h2>Configuração preservada</h2><div className="inline-actions">{['json','csv'].map(format => <Button key={format} variant="secondary" disabled={busy} onClick={() => action(() => research.download(`/runs/${runId}/export/${format}`,`research-${runId}.${format}`),false)}>Exportar {format.toUpperCase()}</Button>)}</div></div><dl className="metadata-list"><dt>Execução</dt><dd><code>{run.id}</code></dd><dt>Modelo solicitado</dt><dd>{run.model}</dd><dt>Parâmetros</dt><dd><code>{JSON.stringify(run.parameters)}</code></dd><dt>Início / fim</dt><dd>{date(run.created_at)} / {date(run.finished_at)}</dd><dt>Documentos</dt><dd>{run.snapshot_data.documents.map(doc => <p key={doc.id}>{doc.name} · v{String(doc.version)} {doc.sha256 && <code>{shortId(doc.sha256)}</code>}</p>)}</dd><dt>Tokens e custos</dt><dd>Somente valores informados pelo provedor, por tentativa. Custo não informado permanece nulo.</dd></dl></Card>
+      <Card><div className="section-heading"><h2>Tentativas dos agentes</h2></div>{!run.attempts.length ? <p className="muted">Nenhuma tentativa iniciada pelo worker.</p> : run.attempts.map(attempt => <div className="attempt-row" key={attempt.id}><div><h3>{AGENT_LABELS[run.stages.find(stage => stage.id===attempt.stage_id)?.agent]} · tentativa {attempt.number}</h3><ResearchStatus status={attempt.status}/><p className="muted">{date(attempt.started_at)} · {attempt.duration_ms !== null ? `${attempt.duration_ms} ms` : 'Duração não disponível'}</p>{attempt.error && <ErrorMessage>{attempt.error}</ErrorMessage>}<details><summary>Metadados do provedor</summary><pre className="code-panel">{JSON.stringify(attempt.provider_metadata,null,2)}</pre></details></div><div className="inline-actions">{['input','output'].filter(type => attempt[type]).map(type => <button className="text-button" disabled={busy} key={type} onClick={() => action(async () => setArtifact({title:type==='input' ? 'Entrada preservada' : 'Saída bruta preservada',data:await research.get(`/runs/${runId}/attempts/${attempt.id}/${type}`)}),false)}>{type==='input' ? 'Ver entrada' : 'Ver saída'}</button>)}</div></div>)}</Card>
+      <Card><h2>Decisões humanas</h2>{!run.reviews.length ? <p className="muted mt-3">Nenhuma revisão registrada.</p> : run.reviews.map(review => <details key={review.id} className="review-history"><summary>{date(review.created_at)} · {review.entity_type} · {review.decision}</summary><p>{review.justification}</p><p className="muted">Responsável: {review.actor}</p><pre className="code-panel">{JSON.stringify({antes:review.before_value,depois:review.after_value},null,2)}</pre></details>)}</Card>
+    </>}
+    {artifact && <Card><div className="section-heading"><h2>{artifact.title}</h2><button className="text-button" onClick={() => setArtifact(null)}>Fechar</button></div><pre className="code-panel">{JSON.stringify(artifact.data,null,2)}</pre></Card>}
+    {['pending','running','awaiting_review','failed'].includes(run.status) && <Card><h2>Controle da execução</h2><div className="research-form mt-3"><label>Justificativa da ação<textarea rows={2} maxLength={5000} value={justification} onChange={event => setJustification(event.target.value)}/></label><div className="inline-actions">{run.status==='failed' && <Button disabled={busy || !justification.trim() || !run.stages.some(stage => stage.status==='failed' && stage.attempt_count<3)} onClick={() => action(() => research.post(`/runs/${runId}/retry`,{justification}))}>Repetir etapa com falha</Button>}<Button variant="secondary" disabled={busy || !justification.trim()} onClick={() => action(() => research.post(`/runs/${runId}/cancel`,{justification}))}>Cancelar execução</Button></div><small className="muted">Cancelamento preserva o histórico. Uma chamada já enviada pode terminar no provedor, mas não reabre a execução.</small></div></Card>}
+  </div>;
+}
