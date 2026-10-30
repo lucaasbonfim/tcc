@@ -52,7 +52,7 @@ Instruções, versões e contratos estão em `agents.js`, `automation-contract.j
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–017 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–018 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 ```mermaid
 erDiagram
@@ -71,6 +71,8 @@ erDiagram
   runs ||--o{ test_cases : gera
   runs ||--o{ test_parts : planeja
   test_parts ||--o{ attempts : processa
+  runs ||--o{ automation_parts : planeja_scripts
+  automation_parts ||--o{ attempts : gera_scripts
   test_cases ||--|{ test_requirements : rastreia
   requirements ||--o{ test_requirements : fundamenta
   test_cases ||--o{ automated_tests : automatiza
@@ -99,7 +101,9 @@ A inspeção lê árvore no SHA e blobs regulares, verificando hash Git e SHA-25
 
 São identificados manifestos e módulos internos, fontes, testes existentes, imports, exports JS e candidatos Java. Manifestos mais próximos delimitam módulos; manifestos ancestrais são preservados para manter semântica CJS/ESM. Símbolos Java usam inspeção lexical conservadora, sem carregar classes. Swing, SQL e dependências externas são sinais de restrição, não autorização para iniciar serviços.
 
-O pesquisador escolhe até oito alvos e vinte casos aprovados. O fechamento inclui até doze fontes locais, dezesseis fontes/manifestos e sessenta mil caracteres de contexto técnico. Dependências não inspecionadas/não provisionadas são recusadas. Entradas do gateway continuam limitadas a 180 mil caracteres, sem truncamento silencioso.
+O pesquisador escolhe até oito alvos e pode gerar scripts para todos os casos aprovados, até o teto de 6000 casos da análise. A seleção padrão inclui todos; subconjunto é opcional. Geração v1.1 usa lotes de até dois casos, orçamento de 16 mil caracteres para casos/requisitos e somente requisitos pertinentes. `automation_parts` fixa entrada, casos, estado, saída e decisões gerado/impossível; tentativas têm FK para o lote. Cada caso deve ser contemplado exatamente uma vez. O painel/exportação consolida todos os lotes, preservando falhas, checkpoints e impossibilidades. Não se limita a seleção ao tamanho de uma resposta do modelo.
+
+O fechamento inclui até doze fontes locais, dezesseis fontes/manifestos e sessenta mil caracteres de contexto técnico. Dependências não inspecionadas/não provisionadas são recusadas. Entradas do gateway continuam limitadas a 180 mil caracteres; o planejador recusa contexto individual acima de 170 mil para reservar metadados, sem truncamento silencioso. A geração em lotes não altera o limite do protocolo atual de execução: vinte scripts por bundle, até 1 MiB e prazo de 60 s. Geração, revisão e execução possuem estados/autorização próprios.
 
 ## Adaptadores disponíveis no código
 

@@ -17,6 +17,8 @@ A aba Casos apresenta requisitos com cenários vinculados, matriz por código, c
 
 A aba Scripts reúne inspeção de módulos/fontes no SHA, seleção de alvos/casos e revisão do código gerado pelo agente 2. Aprovar scripts não autoriza executá-los. Execução verifica disponibilidade real do serviço e exige justificativa; sem perfil validado, o botão permanece bloqueado. O perfil local aparece como **Docker Desktop · desenvolvimento local**, inclusive nos resultados preservados. Logs, comandos, ambiente e resultados ficam consultáveis. Análise conecta requisito/caso/script/resultado, preservando proposta automática e decisão humana separadas. Documentos extensos exibem partes e checkpoints. Para subir toda a aplicação localmente, use `npm run dev:local` na raiz.
 
+Scripts seleciona todos os cenários aprovados por padrão, sem limite de vinte na seleção. Há controles para selecionar todos/limpar ou escolher um subconjunto. A geração percorre lotes pequenos e mostra progresso, scripts gerados, impossibilidades justificadas e casos ainda faltantes. Código fica recolhido por script; **Salvar correção do script** preserva versão sem aprovar. **Aprovar todos os scripts e continuar** conclui a revisão em uma operação, preservando rejeitados; rascunhos não salvos bloqueiam esse botão. A execução mantém autorização e limites próprios.
+
 ## Testes no navegador
 
 ```powershell
