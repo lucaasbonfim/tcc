@@ -21,6 +21,16 @@ export function createAutomationService({pool,store}) {
   }
   return {
     inputFor,
+    async partInput(part) {
+      const input=await store.json(part.input);
+      const finished=new Set(part.dispositions.filter(item=>item.status!=='deferred').map(item=>item.test_case_id));
+      const cases=input.test_cases.filter(row=>!finished.has(row.id)),ids=new Set(cases.map(row=>row.id));
+      assert(cases.length,'Lote não possui casos pendentes; confira os checkpoints.',422);
+      const codes=new Set(cases.flatMap(row=>row.content.requirement_codes));
+      return {...input,test_cases:cases,requirements:input.requirements.filter(row=>codes.has(row.code)),
+        generated_paths:input.generated_paths.filter(row=>ids.has(row.test_case_id)),
+        ...(part.error ? {previous_generation_error:part.error} : {})};
+    },
     async start(runId,input) {
       uuid(input.inspection_id);
       const justification=text(input.justification,'Justificativa',5000,true);

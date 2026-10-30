@@ -135,3 +135,20 @@ export function validateAutomation(output,input) {
   output.artifacts.forEach(a=>validateAutomationArtifact(a,input));
   return output;
 }
+
+// A resposta bruta continua preservada. Somente artefatos individualmente válidos
+// podem ser salvos; um erro em outro caso não deve apagar esse checkpoint.
+export function partitionAutomation(output,input) {
+  validateShape(output,AUTOMATION_SCHEMA);
+  const ids=[...output.artifacts.map(a=>a.test_case_id),...output.unsupported_cases.map(a=>a.test_case_id)];
+  assert(ids.length===input.test_cases.length && new Set(ids).size===ids.length && ids.every(id=>input.test_cases.some(t=>t.id===id)),
+    'Cada caso selecionado deve ter exatamente um script ou justificativa de impossibilidade.',422);
+  const artifacts=[],errors=[];
+  for(const artifact of output.artifacts) {
+    try{validateAutomationArtifact(artifact,input);artifacts.push(artifact);}
+    catch(error){if(error.statusCode!==422)throw error;errors.push({test_case_id:artifact.test_case_id,reason:error.message});}
+  }
+  return {output:{...output,artifacts},errors};
+}
+
+export const AUTOMATION_COVERAGE_GUARD='Copie expected_result literalmente do caso aprovado. Preserve TODOS os passos e o resultado esperado; não substitua N:N por associação singular, nem persistência em banco por getters/setters em memória. Um teste parcial não satisfaz o cenário completo: registre unsupported_cases quando o escopo não permitir verificar o comportamento exigido. Não invente ausência no repositório a partir de ausência no escopo. Caso previous_generation_error esteja presente, corrija especificamente o erro sem alterar os casos aprovados.';
