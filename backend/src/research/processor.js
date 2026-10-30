@@ -5,7 +5,7 @@ import { createAutomationService } from './automation.js';
 import { validateAutomation } from './automation-contract.js';
 import {createExecutionService} from './execution.js';
 import {createEvaluationService} from './evaluation.js';
-import {validateEvaluation} from './evaluation-contract.js';
+import {validateEvaluation,evaluationRequestSchema} from './evaluation-contract.js';
 import {PART_SCHEMA,validatePart,consolidateParts} from './requirement-parts.js';
 
 export function createProcessor({ pool, store, generate, executorClient }) {
@@ -120,7 +120,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
         const definition = job.part ? {schema:PART_SCHEMA} : ['automation','evaluation'].includes(job.stage.agent) ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
         const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction,
-          instruction_version:job.stage.instruction_version,schema:definition.schema,input };
+          instruction_version:job.stage.instruction_version,schema:job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema,input };
         inputRef = await store.put(request);
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
