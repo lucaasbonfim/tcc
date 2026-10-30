@@ -5,6 +5,7 @@ import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
 import { assert, text, transaction, uuid } from './errors.js';
 import { createAutomationService } from './automation.js';
 import {createExecutionService} from './execution.js';
+import {createParts} from './requirement-parts.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -54,7 +55,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           pages:[{page:1,text:project.complementary_text}],warnings:[] });
         const length = documents.reduce((sum,doc) => sum + doc.pages.reduce((n,p) => n + p.text.length,0),0);
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
-        assert(length <= 100000, 'Seleção excede 100 mil caracteres. Escolha menos documentos ou versões menores.', 422);
+        assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
         const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS });
         try {
           const id = randomUUID();
@@ -68,6 +69,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
               definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',definition.version,definition.instruction,
               enabled ? null : definition.agent === 'execution' ? 'Executor isolado não provisionado. Nenhum código externo será executado.' : 'Avaliação indisponível: não há evidências independentes de execução.']);
           }
+          await createParts(db,id,documents,store);
           return get(id, db);
         } catch (error) { await store.remove(snapshot); throw error; }
       });
@@ -92,13 +94,17 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const agent = stages.rows.find(stage => stage.id===attempt.stage_id)?.agent;
         if (agent) agentOutputs[agent] = JSON.parse((await store.json(attempt.output)).raw);
       }
+      const consolidation=run.consolidation ? await store.json(run.consolidation) : null;
+      if(consolidation)agentOutputs.requirements=consolidation.output;
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
         automated_tests:await createAutomationService({pool,store}).list(id),
         execution_jobs:await createExecutionService({pool,store}).list(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
-        findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows};
+        findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows,
+        requirement_parts:(await pool.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows,
+        consolidation_data:consolidation};
     },
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
@@ -175,6 +181,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           WHERE status='running' AND stage_id IN (SELECT id FROM research.stages WHERE run_id=$1)`,[runId]);
         await db.query("UPDATE research.stages SET status='cancelled',lease_token=NULL,lease_until=NULL WHERE run_id=$1 AND status IN ('blocked','pending','running','awaiting_review','failed')",[runId]);
         await db.query("UPDATE research.execution_jobs SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running')",[runId]);
+        await db.query("UPDATE research.requirement_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         if (stage) await review(db,runId,stage.id,'run',runId,'cancelled',justification,{status:run.status},{status:'cancelled'});
         return get(runId, db);
       });
