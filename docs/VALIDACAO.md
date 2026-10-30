@@ -133,3 +133,11 @@
 - Contrato rejeita observações/citações inventadas, IDs alheios, omissões e classificações incompatíveis com estados técnicos. Infraestrutura/compilação/timeout não autorizam inferir divergência funcional; observação truncada exige inconclusivo.
 - Decisão humana com justificativa/revisão fica separada do conteúdo original do modelo. Todos os findings precisam de revisão para concluir; rejeitar uma classificação não a confirma implicitamente.
 - Testes específicos: três aprovações com PostgreSQL, cobrindo referências, matriz conservadora e reclassificação humana sem sobrescrever a proposta automática. JSON/CSV v2 incluem scripts, bundles, resultados, evidências, findings e versões humanas dos arquivos.
+
+## Continuação — documentos extensos
+
+- Migração 014 persiste partes e vínculo com cada chamada. Seleções acima de 24 mil caracteres usam segmentos de até 12 mil, orçamento de 16 mil por entrada e sobreposição de 600 caracteres, preservando documento/página/offsets e páginas vazias.
+- Um claim processa uma parte; checkpoints concluídos sobrevivem à retomada. Até três sessões de tentativa da etapa, sem confundir quantidade de partes com limite de repetição. Cada chamada tem entrada/saída/metadados próprios.
+- Consolidação determinística mescla somente conteúdo idêntico, preserva fontes e mapeia códigos locais para globais. Possíveis duplicidades com diferenças e contradições lexicais são alertas para revisão, não conclusões semânticas.
+- Limite anterior de 100 mil removido: seleção até 4,1 milhões de caracteres, 512 partes, 2000 requisitos consolidados e teto de artefato de 12 MiB; limites de upload/extração por documento continuam explícitos.
+- Três testes específicos aprovados: cobertura integral dos offsets/páginas, duplicidades/contradições e documento acima de 100 mil com falha/retomada sem repetir a primeira parte. Sem consumo Gemini.

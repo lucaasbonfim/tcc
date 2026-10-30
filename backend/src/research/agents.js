@@ -55,7 +55,7 @@ export function validateShape(value, schema, path = 'resultado') {
 }
 
 const normalize = value => value.replace(/\s+/g,' ').trim();
-function validateSources(sources, documents) {
+export function validateSources(sources, documents) {
   for (const source of sources) {
     const doc = documents.find(doc => doc.id === source.document_id);
     const page = doc?.pages.find(page => page.page === source.page);
