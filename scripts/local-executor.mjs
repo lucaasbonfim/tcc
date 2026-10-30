@@ -10,6 +10,28 @@ const exec=promisify(execFile);
 export const root=fileURLToPath(new URL('../',import.meta.url));
 const directory=join(root,'.local','executor-dev');
 const nodeBase='node@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914';
+export async function provisionJava({docker=runDocker,fetchImpl=fetch}={}) {
+  const lock=JSON.parse(await readFile(join(root,'executor/images/java-lock.json'),'utf8'));
+  const vendor=join(root,'executor/vendor'),jar=join(vendor,'junit-platform-console-standalone.jar');
+  let bytes;
+  try{bytes=await readFile(jar);}catch(error){if(error.code!=='ENOENT')throw error;}
+  if(!bytes || sha256(bytes)!==lock.junit_sha256) {
+    console.log('Baixando JUnit do Maven Central e verificando SHA-256...');
+    const response=await fetchImpl(lock.junit_url,{redirect:'error',signal:AbortSignal.timeout(30000)});
+    if(!response.ok)throw new Error('Download do JUnit indisponível. Nenhuma imagem Java foi habilitada.');
+    const chunks=[];let size=0;
+    for await(const chunk of response.body){size+=chunk.length;if(size>8*1024*1024)throw new Error('JUnit excede o tamanho permitido.');chunks.push(chunk);}
+    bytes=Buffer.concat(chunks);
+    if(sha256(bytes)!==lock.junit_sha256)throw new Error('Checksum do JUnit divergente. Nenhuma imagem Java foi habilitada.');
+    await mkdir(vendor,{recursive:true});await writeFile(jar,bytes);
+  }
+  try{await docker(['image','inspect',lock.java_base]);}catch{await docker(['pull',lock.java_base]);}
+  console.log('Preparando imagem Java/JUnit do executor local...');
+  await docker(['build','--network=none','--build-arg',`NODE_BASE=${nodeBase}`,'--build-arg',`JAVA_BASE=${lock.java_base}`,
+    '--build-arg',`JUNIT_SHA256=${lock.junit_sha256}`,'-f','executor/images/Dockerfile.java','-t','tcc-executor-java:local-dev','.']);
+  const image=await docker(['image','inspect','tcc-executor-java:local-dev','--format','{{.Id}}']);
+  return {image,junit_sha256:lock.junit_sha256};
+}
 export function systemEnvironment() {
   const keys=new Set(['PATH','SYSTEMROOT','WINDIR','USERPROFILE','HOME','DOCKER_CONFIG','DOCKER_HOST','DOCKER_CONTEXT','XDG_RUNTIME_DIR','TEMP','TMP','APPDATA','LOCALAPPDATA','COMSPEC']);
   return Object.fromEntries(Object.entries(process.env).filter(([key])=>keys.has(key.toUpperCase())));
@@ -33,9 +55,11 @@ export async function setupLocalExecutor() {
   try{await runDocker(['image','inspect',nodeBase]);}catch{await runDocker(['pull',nodeBase]);}
   await runDocker(['build','--network=none','--build-arg',`NODE_BASE=${nodeBase}`,'-f','executor/images/Dockerfile.node','-t','tcc-executor-node:local-dev','.']);
   const image=await runDocker(['image','inspect','tcc-executor-node:local-dev','--format','{{.Id}}']);
+  const java=await provisionJava();
   let previous;
   try{previous=await readLocalConfiguration();}catch(error){if(error.code!=='ENOENT')throw error;}
-  const policy={mode:'docker-desktop-dev',dedicated_vm:false,deployment_id:previous?.policy.deployment_id || `desktop-dev-${randomUUID()}`,images:{'node-test/v2':image}};
+  const policy={mode:'docker-desktop-dev',dedicated_vm:false,deployment_id:previous?.policy.deployment_id || `desktop-dev-${randomUUID()}`,
+    images:{'node-test/v2':image,'java-junit/v1':java.image},java_junit_provisioned:true,junit_sha256:java.junit_sha256};
   const config={token:previous?.token || randomBytes(48).toString('hex'),docker_host:endpoint,policy};
   await mkdir(directory,{recursive:true,mode:0o700});
   await writeFile(join(directory,'policy.json'),JSON.stringify(policy,null,2),{mode:0o600});
