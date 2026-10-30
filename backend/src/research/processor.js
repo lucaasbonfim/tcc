@@ -24,8 +24,8 @@ export function createProcessor({ pool, store, generate }) {
       const current = (await db.query('SELECT status,lease_token FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
       if (current.status !== 'running' || current.lease_token !== job.token) {
         // Preserve a resposta tardia para auditoria, sem reabrir a execução cancelada/interrompida.
-        await db.query(`UPDATE research.attempts SET input=COALESCE(input,$2),output=COALESCE(output,$3),provider_metadata=COALESCE(provider_metadata,$4)
-          WHERE id=$1`,[job.attemptId,inputRef,outputRef,metadata]);
+        await db.query(`UPDATE research.attempts SET input=COALESCE(input,$2),output=COALESCE(output,$3),provider_metadata=COALESCE(provider_metadata,$4),duration_ms=COALESCE(duration_ms,$5)
+          WHERE id=$1`,[job.attemptId,inputRef,outputRef,metadata,elapsed]);
         return;
       }
       if (!error) {

@@ -65,3 +65,10 @@
 - Fluxo ativo substituído pelo painel de pesquisa, sem provider/onboarding ou menus do experimento anterior. Autenticação administrativa preservada.
 - Páginas de requisitos, casos, execuções, análise e relatórios; correções em campos estruturados, justificativa e aprovação por item/etapa; entradas/saídas brutas, alertas, tokens e revisões consultáveis.
 - Backend apresenta alertas das saídas validadas para consulta. Build/lint e testes de integração continuam aprovados.
+
+## Revisão de segurança
+
+- Proteção de origem aplicada também ao login/logout; sessões antigas de participantes deixam de consultar tabelas do experimento anterior.
+- Limite de dois parsers PDF simultâneos por processo, além de memória/prazo/tamanho. TLS PostgreSQL passa a verificar certificado; conexão configurada validada por `SELECT 1`, sem migração ou escrita.
+- Falhas de tipo no login viram rejeição de autenticação. Respostas tardias após cancelamento preservam metadados e duração, sem criar resultados ou reabrir execução.
+- API, contratos e integração PostgreSQL: 22 testes aprovados. Scripts históricos continuam intactos.

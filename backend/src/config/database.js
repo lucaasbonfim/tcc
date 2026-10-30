@@ -4,7 +4,7 @@ const { Pool } = pg;
 
 function getSslConfig() {
   if (process.env.DB_SSL === "true") {
-    return { rejectUnauthorized: false };
+    return { rejectUnauthorized: true };
   }
 
   if (process.env.DB_SSL === "false") {
@@ -13,7 +13,7 @@ function getSslConfig() {
 
   return ["localhost", "127.0.0.1"].includes(process.env.DB_HOST)
     ? false
-    : { rejectUnauthorized: false };
+    : { rejectUnauthorized: true };
 }
 
 const pool = new Pool({
@@ -23,6 +23,8 @@ const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   ssl: getSslConfig(),
+  connectionTimeoutMillis: 10000,
+  max: 10,
 });
 
 export default pool;

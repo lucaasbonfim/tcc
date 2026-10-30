@@ -3,18 +3,12 @@ import rateLimit from 'express-rate-limit';
 import { requireAdmin } from '../middlewares/auth.js';
 import { assert, uuid } from './errors.js';
 import { exportCsv } from './export.js';
+import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 
 export function createResearchRouter({ projects, store, runs }) {
   const router = Router();
   router.use(requireAdmin);
-  router.use((request, _response, next) => {
-    if (!['GET','HEAD','OPTIONS'].includes(request.method)) {
-      const origin = request.get('origin');
-      const expected = process.env.FRONTEND_URL || 'http://localhost:5173';
-      assert((!origin || origin === expected) && request.get('sec-fetch-site') !== 'cross-site', 'Origem não autorizada.', 403);
-    }
-    next();
-  });
+  router.use(trustedOrigin);
   router.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, message: { error: 'Limite de requisições atingido. Tente mais tarde.' } }));
   const imports = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, message: { error: 'Limite de importações atingido. Tente mais tarde.' } });
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });

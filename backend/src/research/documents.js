@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assert, fail, text } from './errors.js';
+let activePdfParsers = 0;
 
 export async function extractDocument(buffer, filename, mediaType) {
   assert(Buffer.isBuffer(buffer) && buffer.length > 0 && buffer.length <= 10485760, 'Documento vazio ou maior que 10 MiB.', 413);
@@ -11,7 +12,9 @@ export async function extractDocument(buffer, filename, mediaType) {
   const warnings = [];
   if (extension === 'pdf') {
     assert(mediaType === 'application/pdf' && buffer.subarray(0,5).toString() === '%PDF-', 'PDF inválido ou tipo incompatível.');
-    pages = await new Promise((resolve, reject) => {
+    assert(activePdfParsers < 2, 'Extração ocupada. Aguarde e tente novamente.',503);
+    activePdfParsers++;
+    try { pages = await new Promise((resolve, reject) => {
       const child = execFile(process.execPath, ['--max-old-space-size=128', fileURLToPath(new URL('./pdf-parser.js', import.meta.url))],
         { timeout: 15000, maxBuffer: 1200000, windowsHide: true,
           env: { SystemRoot: process.env.SystemRoot, PATH: '' } }, (error, stdout) => {
@@ -21,7 +24,7 @@ export async function extractDocument(buffer, filename, mediaType) {
         });
       child.stdin.on('error', () => {});
       child.stdin.end(buffer);
-    });
+    }); } finally { activePdfParsers--; }
     warnings.push('Somente camada textual extraída. Diagramas, imagens e ordem de leitura precisam de conferência humana; OCR não disponível.');
     const empty = pages.filter(page => page.text.trim().length < 20).map(page => page.page);
     if (empty.length) warnings.push(`Páginas com pouco ou nenhum texto: ${empty.join(', ')}. Extração possivelmente incompleta.`);

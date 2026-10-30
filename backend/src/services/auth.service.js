@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { findParticipantById } from "./participant.service.js";
 
 export const SESSION_COOKIE_NAME = "tcc_session";
 
@@ -59,10 +58,11 @@ export function getSessionFromRequest(request) {
   return verifySessionToken(token);
 }
 
-export async function authenticateAdmin({ email, password }) {
+export async function authenticateAdmin(input = {}) {
+  const {email,password} = input;
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-  const normalizedEmail = email?.trim().toLowerCase();
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
   if (!adminEmail || !adminPasswordHash) {
     const error = new Error("Credenciais administrativas nao configuradas.");
@@ -70,7 +70,7 @@ export async function authenticateAdmin({ email, password }) {
     throw error;
   }
 
-  if (!normalizedEmail || !password || normalizedEmail !== adminEmail) {
+  if (!normalizedEmail || typeof password !== 'string' || !password || password.length > 1024 || normalizedEmail !== adminEmail) {
     throw createAuthError("E-mail ou senha invalidos.");
   }
 
@@ -91,22 +91,6 @@ export async function getCurrentSession(request) {
   if (session.role === "admin") {
     return {
       role: "admin",
-    };
-  }
-
-  if (session.role === "participant" && session.participantId) {
-    const participant = await findParticipantById(session.participantId);
-
-    if (!participant) {
-      throw createAuthError();
-    }
-
-    return {
-      role: "participant",
-      participant: {
-        id: participant.id,
-        code: participant.code,
-      },
     };
   }
 
