@@ -14,8 +14,14 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: '256kb', inflate: false }));
+app.use((_request, response, next) => {
+  response.set('X-Content-Type-Options', 'nosniff');
+  response.set('Cache-Control', 'no-store');
+  next();
+});
 app.use("/api", routes);
+app.use((_request, response) => response.status(404).json({ error: 'Rota não encontrada.' }));
 app.use(errorHandler);
 
 export default app;
