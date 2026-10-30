@@ -16,7 +16,7 @@ A aplicação existente foi evoluída mantendo React/Vite/Tailwind/Router, Expre
 - Processamento incremental de documentos extensos com checkpoints, referências por página e consolidação auditável.
 - Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 
-**A execução real depende de uma VM dedicada com isolamento validado.** O serviço, runners e integração estão implementados, mas as imagens e o piloto real ainda não puderam ser validados neste ambiente. Sem recibo válido do executor, a autorização permanece bloqueada; o agente 4 não produz análises sem evidências independentes. Testes da plataforma com fixtures não são resultados da pesquisa.
+**A execução de projetos externos depende de uma VM dedicada com isolamento validado.** A imagem/runner Node passaram por diagnóstico real no Docker Desktop, com 14 controles e dez cenários sintéticos. A implantação dedicada, Java e o piloto com repositório público ainda estão pendentes. Sem recibo válido do executor, a autorização permanece bloqueada; o agente 4 não produz análises sem evidências independentes. Fixtures técnicas não são resultados da pesquisa.
 
 ## Requisitos de desenvolvimento
 
@@ -175,7 +175,7 @@ npm run smoke:gemini
 npm run smoke:automation
 ```
 
-O segundo comando inspeciona fonte pública e valida geração real de um script Node com oráculo técnico sintético, **sem executar código nem gravar resultados experimentais**. Testes do serviço executor, também sem Docker/projetos externos, ficam em `executor`: `npm test`.
+O segundo comando inspeciona fonte pública e valida geração real de um script Node com oráculo técnico sintético, **sem executar código nem gravar resultados experimentais**. Testes padrão do serviço executor, sem Docker/projetos externos, ficam em `executor`: `npm test`. O diagnóstico opcional `npm run smoke:runtime` executa somente fixtures conhecidas em Docker real, conforme [instruções do executor](executor/README.md), sem liberar o serviço para projetos externos.
 
 ## Documentação
 
