@@ -52,7 +52,7 @@ Instruções, versões e contratos estão em `agents.js`, `automation-contract.j
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–016 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–017 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 ```mermaid
 erDiagram
@@ -69,6 +69,8 @@ erDiagram
   requirement_parts ||--o{ attempts : processa
   runs ||--o{ requirements : identifica
   runs ||--o{ test_cases : gera
+  runs ||--o{ test_parts : planeja
+  test_parts ||--o{ attempts : processa
   test_cases ||--|{ test_requirements : rastreia
   requirements ||--o{ test_requirements : fundamenta
   test_cases ||--o{ automated_tests : automatiza
@@ -125,6 +127,10 @@ Consolidação preserva respostas originais, une somente conteúdo idêntico, co
 Limites globais explícitos: 4,1 milhões de caracteres selecionados, 512 partes, 2000 requisitos consolidados e 12 MiB por artefato. O processamento não envia o documento inteiro fora do orçamento nem descarta páginas para caber no contexto.
 
 ## Coordenação e revisão
+
+O agente 2 textual v1.1 planeja lotes com até quatro requisitos, orçamento de dez mil caracteres serializados e até 2000 lotes por execução. Requisito indivisível maior fica sozinho, limitado a 120 mil caracteres; não há truncamento silencioso. A entrada contém conteúdo integral dos requisitos e identidade do código, sem os metadados extensos de inspeção. A resposta deve vincular cada requisito do lote a um caso válido; JSON válido/`STOP` sem esses vínculos é recusado, assim como `MAX_TOKENS`. Instrução solicita cenários positivos/negativos/limites sustentados pelas regras, sem inventar resultados para ambiguidades.
+
+`test_parts` guarda entrada, saída, estado, requisitos-alvo, contador e mapeamento código local → global/UUID; `attempts.test_part_id` vincula cada chamada. Um claim processa um lote, preservando checkpoints concluídos. Casos são persistidos por lote com códigos únicos, até 6000 por execução. Revisão abre somente após todos os lotes ativos concluídos e todos os requisitos com cenário. Complementação explícita processa apenas requisitos sem casos não rejeitados, mantendo casos/revisões/respostas anteriores; lotes substituídos ficam cancelados. Aprovação textual e início de automação exigem caso aprovado para cada requisito, inclusive no legado. `test_coverage` expõe matriz e contagens de vínculos gerados/aprovados; não certifica qualidade ou cobertura semântica.
 
 ```mermaid
 flowchart TD

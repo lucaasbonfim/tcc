@@ -123,7 +123,7 @@ Os artefatos ficam por padrão em `backend/artifacts`, fora dos arquivos públic
 2. Adicione PDF com camada textual e confira a extração/avisos; complemente lacunas por texto.
 3. Selecione documentos e versão de código e inicie a análise.
 4. Confira fontes e conteúdo; use **Corrigir conteúdo → Salvar correção** quando necessário. Clique em **Aprovar todos e gerar casos de teste** no início da lista. Itens rejeitados ficam excluídos.
-5. Confira os casos gerados, passos, esperado e requisitos relacionados; salve as correções necessárias e clique em **Aprovar todos e continuar** para abrir Scripts.
+5. Confira os casos gerados, passos, esperado e requisitos relacionados. A geração usa lotes pequenos com checkpoints e exige cenário para cada requisito aprovado. A aba Casos mostra a matriz de vínculos e as lacunas; salve correções e clique em **Aprovar todos e continuar** para abrir Scripts. Se uma rejeição/edição deixar um requisito sem caso, use **Gerar casos para os requisitos sem cenário** antes de aprovar.
 6. Exporte o JSON/CSV em Relatórios ou Histórico. Não é necessário aprovar cada requisito/caso individualmente; observações de correção/aprovação são opcionais no painel, e a ação fica registrada no histórico.
 
 Para continuar: na aba **Scripts**, inspecione fontes do mesmo SHA, escolha módulo/alvos/casos aprovados, gere os testes e revise seu código/esperado. Conclua a revisão; a aba **Execução** exige justificativa e disponibilidade verificada do serviço. Após resultados independentes, o agente 4 propõe análises para confirmação/rejeição/inconclusiva, com justificativa. Exportações v2 incluem scripts, bundles, resultados, evidências e revisões.
@@ -133,6 +133,8 @@ Uma nova análise cria outra execução. Edições no projeto/documentos não al
 Seleções acima de 24 mil caracteres ou 40 páginas são divididas em partes: segmentos de até 6000 caracteres, orçamento de 8000 e sobreposição de 600. O modelo referencia IDs de trechos; o servidor recupera as citações literais do documento. O limite de seleção é de 4,1 milhões de caracteres, até 512 partes/2000 requisitos e 12 MiB por artefato. Upload/extração por documento conservam seus limites; páginas vazias/diagramas exigem conferência. Duplicidades/contradições sinalizadas precisam de revisão humana.
 
 Se a análise de requisitos falhar com partes já concluídas, **Continuar a partir dos checkpoints** cria uma análise vinculada, mantendo documentos/SHA originais e reaproveitando os checkpoints válidos sem novas chamadas. Apenas as partes restantes são redivididas e processadas. A análise anterior, suas tentativas e erros permanecem consultáveis pelos links entre as análises.
+
+Casos textuais usam até quatro requisitos e orçamento de dez mil caracteres serializados por lote, sem incluir a árvore/metadados completos da inspeção. O servidor rejeita respostas que omitam qualquer requisito do lote, mesmo com JSON válido e término `STOP`. Respostas com `MAX_TOKENS` também são recusadas e preservadas. Há até 2000 lotes/6000 casos por análise; limites são explícitos. A aprovação textual e o início da automação exigem todos os requisitos com caso aprovado. Vínculos demonstram rastreabilidade declarada, sem garantir qualidade semântica, cobertura de caminhos ou execução dos testes.
 
 ## Serviço executor (implantação separada)
 
