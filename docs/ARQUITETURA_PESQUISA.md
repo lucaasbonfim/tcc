@@ -52,7 +52,7 @@ Instruções, versões e contratos estão em `agents.js`, `automation-contract.j
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–015 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–016 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 ```mermaid
 erDiagram
@@ -147,6 +147,8 @@ flowchart TD
 O índice parcial admite uma execução ativa por projeto. Claims usam locks e `SKIP LOCKED`; inferência não mantém transação aberta. API retorna 202 para geração/execução autorizada. Worker consulta a cada 2 s; painel a cada 4 s durante estados ativos. Inferência tem prazo de 90 s no SDK/95 s no worker; lease de 180 s. Cancelamento invalida o token da lease e é monitorado pelo worker. Resposta tardia preserva metadados sem reabrir a execução.
 
 Etapas falhas admitem repetição justificada, até três sessões, preservando histórico. Expiração marca tentativas interrompidas e permite retomar explicitamente. API e worker não usam comandos do LLM. Edição humana exige a revisão numérica corrente; após aprovar uma etapa seu conteúdo fica congelado. Scripts podem ser corrigidos antes da autorização, com versões anteriores preservadas.
+
+Requisitos/casos permitem salvar correções como decisão `edited`, mantendo o item pendente e registrando antes/depois. Uma aprovação humana em lote valida todos os IDs/revisões exibidos e os conteúdos aceitos, aprova pendentes e conclui a etapa na mesma transação. Rejeitados/aprovações anteriores são preservados; cada nova aprovação gera auditoria, e a etapa registra `approval_mode:'bulk'`. Exige pelo menos um item aceito. Dados obsoletos ou inválidos revertem a operação inteira; duas solicitações simultâneas não avançam duas vezes. O painel oferece observação opcional com descrição padrão da ação humana e bloqueia aprovação enquanto houver correções não salvas. Requisitos enfileiram casos; casos abrem a aba Scripts, mantendo separadas geração de scripts e autorização de execução.
 
 ## Executor e evidências
 
