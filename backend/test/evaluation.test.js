@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {validateEvaluation} from '../src/research/evaluation-contract.js';
+import {validateEvaluation,evaluationRequestSchema,EVALUATION_SCHEMA} from '../src/research/evaluation-contract.js';
+import {validateShape} from '../src/research/agents.js';
 function sample(status) {
   const test_case_id=randomUUID(),automated_test_id=randomUUID(),id=randomUUID();
   const input={results:[{id,test_case_id,automated_test_id,status,observed_excerpt:'Observação real do fixture executor.',omitted_characters:0}],test_cases:[{id:test_case_id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}]};
@@ -23,4 +24,12 @@ test('falhas técnicas e testes aprovados não viram defeito funcional automatic
   validateEvaluation({findings:[{...finding,classification:'possible_functional_divergence'}],warnings:[]},input);
   input.results[0].omitted_characters=10;
   assert.throws(()=>validateEvaluation({findings:[{...finding,classification:'possible_functional_divergence'}],warnings:[]},input),/truncada/);
+});
+
+test('schema enviado ao modelo restringe esperado aos casos aprovados sem aceitar descrição semelhante do RF',()=>{
+  const {input,finding}=sample('passed');
+  const schema=evaluationRequestSchema(input);
+  validateShape({findings:[finding],warnings:[]},schema);
+  assert.throws(()=>validateShape({findings:[{...finding,expected_behavior:'A função deve retornar o valor cinco.'}],warnings:[]},schema),/fora do contrato/);
+  assert.equal(EVALUATION_SCHEMA.properties.findings.items.properties.expected_behavior.enum,undefined);
 });
