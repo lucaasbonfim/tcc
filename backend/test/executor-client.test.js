@@ -25,3 +25,16 @@ test('cliente vincula recibo, imagem e SHA e nunca envia credenciais de banco/IA
   result.environment.image_id='sha256:'+'d'.repeat(64);
   await assert.rejects(client.execute(bundle,receipt),/Ambiente/);
 });
+
+test('HTTP local exige perfil explícito, endereço literal de loopback e recibo correspondente',async()=>{
+  const config={url:'http://127.0.0.1:8091',mode:'docker-desktop-dev',token:'a'.repeat(32),deployment:'local-test',policy:'b'.repeat(64)};
+  const receipt={ready:true,protocol_version:1,isolation_profile:'docker-desktop-dev',development_only:true,deployment_id:config.deployment,policy_sha256:config.policy,validated_at:new Date().toISOString(),limits:{network:'none',cpu:1,memory_bytes:268435456,pids:64,timeout_ms:60000},images:{'node-test/v2':{image_id:'sha256:'+'c'.repeat(64)}}};
+  let calls=0;
+  const fetcher=async()=>{calls++;return new Response(JSON.stringify(receipt));};
+  assert.equal((await createExecutorClient(config,fetcher).health()).ready,true);
+  calls=0;
+  for(const changes of [{mode:'dedicated-vm'},{url:'http://localhost:8091'},{url:'http://192.168.1.1:8091'},{url:'https://remote.example.test'}])assert.equal((await createExecutorClient({...config,...changes},fetcher).health()).ready,false);
+  assert.equal(calls,0);
+  receipt.isolation_profile='dedicated-vm';receipt.development_only=false;
+  assert.equal((await createExecutorClient(config,fetcher).health()).ready,false);
+});

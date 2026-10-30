@@ -33,8 +33,21 @@ test('executor limpa container após timeout e nunca usa shell ou mount de host'
   assert.equal(calls.some(args=>args[0]==='cp'),false);
 });
 test('isolamento recusa runtime sem rootless/cgroups e imagens não fixadas',async()=>{
-  await assert.rejects(validateIsolation({dedicated_vm:true,deployment_id:'test-deployment',images:{}},{virtualization:'kvm',runDocker:async()=>({code:0,stdout:JSON.stringify({OSType:'linux',CgroupVersion:'1',SecurityOptions:[]})})}),/Rootless/);
-  await assert.rejects(validateIsolation({dedicated_vm:false},{virtualization:'kvm'}),/Dedicated/);
+  await assert.rejects(validateIsolation({dedicated_vm:true,deployment_id:'test-deployment',images:{}},{virtualization:'kvm',runDocker:async()=>({code:0,stdout:JSON.stringify({OSType:'linux',CgroupVersion:'1',SecurityOptions:[]})})}),/cgroup/);
+  await assert.rejects(validateIsolation({dedicated_vm:false,deployment_id:'test-deployment'},{virtualization:'kvm'}),/Dedicated/);
+});
+
+test('perfil Desktop explícito exige probes reais e não aceita produção ou runtime genérico',async()=>{
+  const image='sha256:'+'b'.repeat(64),policy={mode:'docker-desktop-dev',dedicated_vm:false,deployment_id:'desktop-test',images:{'node-test/v2':image}};
+  const runtime={OSType:'linux',OperatingSystem:'Docker Desktop',CgroupVersion:'2',CgroupDriver:'cgroupfs',SecurityOptions:['name=seccomp']};
+  let controls=true;
+  const runDocker=async args=>({code:0,stdout:args[0]==='info' ? JSON.stringify(runtime) : args[0]==='image' ? image : args[0]==='start' ? JSON.stringify({checks:Object.fromEntries(Array.from({length:14},(_,i)=>['control_'+i,controls]))}) : ''});
+  const receipt=await validateIsolation(policy,{runDocker,environment:'development'});
+  assert.equal(receipt.ready,true);assert.equal(receipt.development_only,true);assert.equal(receipt.isolation_profile,'docker-desktop-dev');
+  await assert.rejects(validateIsolation(policy,{runDocker,environment:'production'}),/production/);
+  await assert.rejects(validateIsolation({...policy,mode:'dedicated-vm',dedicated_vm:true},{runDocker,virtualization:'kvm'}),/Rootless/);
+  controls=false;await assert.rejects(validateIsolation(policy,{runDocker}),/controls/);
+  runtime.OperatingSystem='Other Linux';await assert.rejects(validateIsolation(policy,{runDocker}),/Docker Desktop/);
 });
 test('origem Git é verificada independentemente pelo executor',async()=>{
   const bundle=executionFixture();

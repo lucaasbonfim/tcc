@@ -23,6 +23,8 @@ export function createExecutionService({token,status,policy,root,execute=execute
   cleanup=async id=>ensure((await docker(['rm','-f',`research-${id}`])).code===0,'Orphan cleanup failed')}) {
   ensure(typeof token==='string' && token.length>=32,'Executor authentication token too short');
   const directory=resolve(root),jobs=new Map();let active=false,closed=false;
+  const environmentFor=image=>({deployment_id:status.deployment_id,policy_sha256:status.policy_sha256,image_id:image.image_id,limits:status.limits,
+    isolation_profile:status.isolation_profile || 'dedicated-vm',development_only:status.development_only===true,runtime:status.runtime});
   async function persist(job) {
     await mkdir(directory,{recursive:true,mode:0o700});
     const file=resolve(directory,`${job.bundle.job_id}.json`);ensure(dirname(file)===directory,'Invalid job journal path');
@@ -39,7 +41,7 @@ export function createExecutionService({token,status,policy,root,execute=execute
     const job=[...jobs.values()].find(j=>j.status==='pending');if(!job)return;
     active=true;job.status='running';job.controller=new AbortController();
     const started=new Date().toISOString(),image=status.images[job.bundle.adapter];
-    const environment={deployment_id:status.deployment_id,policy_sha256:status.policy_sha256,image_id:image.image_id,limits:status.limits};
+    const environment=environmentFor(image);
     try {
       await persist(job);
       await verify(job.bundle);
@@ -80,7 +82,7 @@ export function createExecutionService({token,status,policy,root,execute=execute
           // On restart, never rerun a previously accepted untrusted job automatically.
           const image=status.images?.[job.bundle.adapter];
           if(!image)continue;
-          job.status='finished';job.result=unavailable(job.bundle,'infrastructure_error','Executor reiniciado; resultado anterior indisponível.',{image_id:image.image_id,deployment_id:status.deployment_id},new Date().toISOString());
+          job.status='finished';job.result=unavailable(job.bundle,'infrastructure_error','Executor reiniciado; resultado anterior indisponível.',environmentFor(image),new Date().toISOString());
         }
         jobs.set(job.bundle.job_id,job);
       }
