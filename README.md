@@ -122,9 +122,9 @@ Os artefatos ficam por padrão em `backend/artifacts`, fora dos arquivos públic
 1. Cadastre o projeto e confira o SHA retornado pelo GitHub.
 2. Adicione PDF com camada textual e confira a extração/avisos; complemente lacunas por texto.
 3. Selecione documentos e versão de código e inicie a análise.
-4. Confira fontes e conteúdo de cada requisito, registre justificativa e aprove/rejeite todos.
-5. Autorize a geração de casos; confira passos, esperado e requisitos relacionados, revisando cada caso.
-6. Conclua a geração textual e exporte o JSON/CSV em Relatórios ou Histórico.
+4. Confira fontes e conteúdo; use **Corrigir conteúdo → Salvar correção** quando necessário. Clique em **Aprovar todos e gerar casos de teste** no início da lista. Itens rejeitados ficam excluídos.
+5. Confira os casos gerados, passos, esperado e requisitos relacionados; salve as correções necessárias e clique em **Aprovar todos e continuar** para abrir Scripts.
+6. Exporte o JSON/CSV em Relatórios ou Histórico. Não é necessário aprovar cada requisito/caso individualmente; observações de correção/aprovação são opcionais no painel, e a ação fica registrada no histórico.
 
 Para continuar: na aba **Scripts**, inspecione fontes do mesmo SHA, escolha módulo/alvos/casos aprovados, gere os testes e revise seu código/esperado. Conclua a revisão; a aba **Execução** exige justificativa e disponibilidade verificada do serviço. Após resultados independentes, o agente 4 propõe análises para confirmação/rejeição/inconclusiva, com justificativa. Exportações v2 incluem scripts, bundles, resultados, evidências e revisões.
 
