@@ -40,13 +40,9 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Inspecionar fontes deste commit'}).click();
   await page.getByLabel('src/projects.js',{exact:true}).check();
   await page.getByRole('textbox',{name:'Justificativa do escopo e da geração'}).fill('Escopo de fonte conhecido da fixture.');
-  await page.getByRole('button',{name:'Gerar scripts dos casos aprovados'}).click();
+  await page.getByRole('button',{name:'Gerar scripts de todos os cenários aprovados'}).click();
   await expect(page.getByRole('heading',{name:'Script node-test/v2 · versão 1'})).toBeVisible({timeout:20000});
-  await page.getByRole('textbox',{name:'Justificativa da revisão do script'}).fill('Import, asserções e esperado conferidos na fixture.');
-  await page.getByRole('button',{name:'Aprovar script',exact:true}).click();
-  await expect(page.locator('.review-item .status-approved')).toBeVisible();
-  await page.getByRole('textbox',{name:'Justificativa da aprovação dos scripts'}).fill('Revisão dos scripts concluída na fixture.');
-  await page.getByRole('button',{name:'Concluir revisão dos scripts'}).click();
+  await page.getByRole('button',{name:'Aprovar todos os scripts e continuar'}).click();
   await page.getByRole('button',{name:'Execução',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Execução de testes não suportada'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeDisabled();
@@ -82,10 +78,41 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   expect(exported.attempts[0].output_data.raw).toContain('Consulta de projetos');
   expect(exported.reviews[0].before_value.content.title).toBe('Consulta de projetos');
   expect(exported.reviews[0].decision).toBe('edited');
-  expect(exported.reviews.filter(review=>review.entity_type==='stage' && review.after_value?.approval_mode==='bulk')).toHaveLength(2);
+  expect(exported.reviews.filter(review=>review.entity_type==='stage' && review.after_value?.approval_mode==='bulk')).toHaveLength(3);
   await page.setViewportSize({width:390,height:844});
   await expect(page.getByRole('navigation',{name:'Navegação principal'})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.screenshot({path:testInfo.outputPath('historico-mobile.png'),fullPage:true});
   expect(errors).toEqual([]);
+});
+
+test('todos os 104 cenários são selecionados e gerados em lotes, com aprovação única dos scripts',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const request=async(path,body)=>{
+    const response=await page.request.post('http://localhost:3101/api'+path,{data:body,headers:{Origin:'http://localhost:5178'}});
+    expect(response.ok()).toBeTruthy();return (await response.json()).data;
+  };
+  await request('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
+  const project=await request('/research/projects',{name:`Lote E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
+  const run=await request(`/research/projects/${project.id}/runs`,{});
+  const detail=async()=>{const response=await page.request.get(`http://localhost:3101/api/research/runs/${run.id}`);return (await response.json()).data;};
+  await expect.poll(async()=>(await detail()).status,{timeout:20000}).toBe('awaiting_review');let current=await detail();
+  await request(`/research/runs/${run.id}/approve/requirements`,{approve_pending:true,items:current.requirements.map(({id,revision})=>({id,revision})),justification:'Fixture E2E de 104 cenários.'});
+  await expect.poll(async()=>(await detail()).test_cases.length,{timeout:20000}).toBe(104);current=await detail();
+  await request(`/research/runs/${run.id}/approve/tests`,{approve_pending:true,items:current.test_cases.map(({id,revision})=>({id,revision})),justification:'Casos da fixture técnica aprovados.'});
+  await page.goto(`/admin/runs/${run.id}?view=automation`);
+  await page.getByRole('button',{name:'Inspecionar fontes deste commit'}).click();
+  await expect(page.getByText('104 de 104 cenários aprovados selecionados.',{exact:false})).toBeVisible();
+  await page.getByText('Escolher cenários (104 de 104)',{exact:true}).click();await page.getByRole('button',{name:'Limpar seleção',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Gerar scripts dos 0 cenários selecionados'})).toBeDisabled();
+  await page.getByRole('button',{name:'Selecionar todos os cenários',exact:true}).click();
+  await page.getByLabel('src/projects.js',{exact:true}).check();await page.getByLabel('Justificativa do escopo e da geração').fill('Todos os 104 cenários da fixture, sem execução de código.');
+  await page.getByRole('button',{name:'Gerar scripts de todos os cenários aprovados'}).click();
+  await expect(page.getByText('52/52 lotes de scripts concluídos',{exact:true})).toBeVisible({timeout:30000});
+  await expect(page.locator('.review-item')).toHaveCount(104);
+  const first=page.locator('.review-item').first();await first.getByText('Ver ou corrigir código do script',{exact:true}).click();const editor=first.getByLabel('Código do teste');await editor.fill((await editor.inputValue()).replace("test('consulta'","test('consulta revisada'"));
+  await expect(page.getByRole('button',{name:'Aprovar todos os scripts e continuar'})).toBeDisabled();await first.getByRole('button',{name:'Salvar correção do script'}).click();
+  await expect(page.getByRole('heading',{name:'Script node-test/v2 · versão 2'})).toBeVisible();
+  await page.getByRole('button',{name:'Aprovar todos os scripts e continuar'}).click();await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
+  current=await detail();expect(current.automated_tests).toHaveLength(104);expect(current.automated_tests.every(row=>row.review_status==='approved')).toBeTruthy();expect(current.automation_coverage.missing).toEqual([]);expect(current.execution_jobs).toEqual([]);expect(errors).toEqual([]);
 });
