@@ -13,7 +13,7 @@ export default function ResearchTestCoverage({run,busy,onComplete}) {
     <p>Os vínculos permitem conferir os requisitos contemplados. A qualidade e a abrangência dos cenários precisam de revisão.</p>
     {active.length>0 && <p>{active.filter(part=>part.status==='completed').length}/{active.length} lotes de casos concluídos. Lotes concluídos são preservados após falhas.</p>}
     {canComplete && <Button disabled={busy} onClick={onComplete}>Gerar casos para os requisitos sem cenário</Button>}
-    <details><summary>Conferir requisitos e casos vinculados</summary><div className="table-wrap"><table><thead><tr><th>Requisito</th><th>Casos</th></tr></thead><tbody>{coverage.rows.map(row=><tr key={row.code}><td>{row.code} · {row.title}</td><td>{row.case_codes.length ? row.case_codes.join(', ') : 'Sem caso vinculado'}</td></tr>)}</tbody></table></div></details>
+    <details><summary>Conferir requisitos e casos vinculados</summary><div className="table-scroll"><table><thead><tr><th>Requisito</th><th>Casos</th></tr></thead><tbody>{coverage.rows.map(row=><tr key={row.code}><td>{row.code} · {row.title}</td><td>{row.case_codes.length ? row.case_codes.join(', ') : 'Sem caso vinculado'}</td></tr>)}</tbody></table></div></details>
     {parts.length>0 && <details><summary>Lotes e erros de geração</summary>{parts.map(part=><p key={part.id}>Lote {part.sequence} · {part.requirement_codes.join(', ')} · <ResearchStatus status={part.status}/>{part.error && ` · ${part.error}`}</p>)}</details>}
   </div>;
 }
