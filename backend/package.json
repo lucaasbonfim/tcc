@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "migrate": "node src/research/migrate.js",
     "worker": "node src/research/worker.js",
+    "smoke:gemini": "node scripts/smoke-gemini.js",
     "test": "node --test test",
     "test:integration": "node --test test/integration"
   },
