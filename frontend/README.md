@@ -13,7 +13,7 @@ A rota inicial redireciona para o painel protegido `/admin`; login em `/admin/lo
 
 A página de execução consulta o servidor a cada quatro segundos somente enquanto pendente/em andamento. Revisões têm justificativa, contador de versão e bloqueio após aprovar a etapa. Erros e indisponibilidades são apresentados sem resultados fictícios. O cliente usa cookie HTTP-only, não armazena token em localStorage.
 
-A aba Scripts reúne inspeção de módulos/fontes no SHA, seleção de alvos/casos e revisão do código gerado pelo agente 2. Aprovar scripts não autoriza executá-los. Execução verifica disponibilidade real do serviço dedicado e exige justificativa; sem infraestrutura validada, o botão permanece bloqueado. Logs, comandos, ambiente e resultados ficam consultáveis. Análise conecta requisito/caso/script/resultado, preservando proposta automática e decisão humana separadas. Documentos extensos exibem partes e checkpoints.
+A aba Scripts reúne inspeção de módulos/fontes no SHA, seleção de alvos/casos e revisão do código gerado pelo agente 2. Aprovar scripts não autoriza executá-los. Execução verifica disponibilidade real do serviço e exige justificativa; sem perfil validado, o botão permanece bloqueado. O perfil local aparece como **Docker Desktop · desenvolvimento local**, inclusive nos resultados preservados. Logs, comandos, ambiente e resultados ficam consultáveis. Análise conecta requisito/caso/script/resultado, preservando proposta automática e decisão humana separadas. Documentos extensos exibem partes e checkpoints. Para subir toda a aplicação localmente, use `npm run dev:local` na raiz.
 
 ## Testes no navegador
 

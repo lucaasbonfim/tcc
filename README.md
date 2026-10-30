@@ -4,6 +4,16 @@ Base funcional do TCC **“Análise de Requisitos e Testes de Software com Intel
 
 A aplicação existente foi evoluída mantendo React/Vite/Tailwind/Router, Express, PostgreSQL, autenticação administrativa e Gemini (`@google/genai`). O fluxo ativo é utilizado pelo pesquisador; participantes, grupos e questionários pertencem ao histórico preservado.
 
+## Desenvolvimento com Docker Desktop
+
+Com dependências e `backend/.env` já configurados, ligue o Docker Desktop e execute **na raiz**:
+
+```powershell
+npm run dev:local
+```
+
+Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil local e inicia executor, API, worker e frontend. Ctrl+C encerra os processos. Não precisa criar VM ou editar tokens do executor; seus `.env` são preservados. [Instruções e solução de problemas](docs/DESENVOLVIMENTO_LOCAL.md).
+
 ## Funcionalidades disponíveis
 
 - Cadastro/edição de projetos públicos do GitHub, com branch/tag/commit resolvido para SHA e versões de código preservadas.
@@ -16,11 +26,11 @@ A aplicação existente foi evoluída mantendo React/Vite/Tailwind/Router, Expre
 - Processamento incremental de documentos extensos com checkpoints, referências por página e consolidação auditável.
 - Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 
-**A execução de projetos externos depende de uma VM dedicada com isolamento validado.** A imagem/runner Node passaram por diagnóstico real no Docker Desktop, com 14 controles e dez cenários sintéticos. A implantação dedicada, Java e o piloto com repositório público ainda estão pendentes. Sem recibo válido do executor, a autorização permanece bloqueada; o agente 4 não produz análises sem evidências independentes. Fixtures técnicas não são resultados da pesquisa.
+**Há dois perfis de execução:** desenvolvimento local com Docker Desktop, ativado explicitamente pelo comando acima, e ambiente dedicado com VM/rootless/TLS, padrão dos serviços iniciados manualmente. Ambos exigem imagens fixadas, controles verificados e autorização dos scripts. Resultados registram o perfil efetivamente usado. Java ainda exige provisionamento adicional; fixtures técnicas não são resultados da pesquisa.
 
 ## Requisitos de desenvolvimento
 
-Node.js 20.19+ para API/frontend (validado com 20.20; prefira uma versão LTS suportada), npm, PostgreSQL 17+ e acesso HTTPS ao GitHub/Gemini. Backend e worker compartilham banco/diretório de artefatos. O executor usa Node 22.13+, em **VM separada**, com Docker rootless/cgroups e imagens pré-provisionadas. Ele não é necessário para análise/geração/revisão.
+Node.js 20.19+ para API/frontend/controle local (validado com 20.20), npm, PostgreSQL 17+ e acesso HTTPS ao GitHub/Gemini. Backend e worker compartilham banco/diretório de artefatos. A imagem Node de testes usa Node 22. No perfil dedicado, o executor fica em VM separada com Docker rootless/cgroups e imagens provisionadas. Ele não é necessário para análise/geração/revisão.
 
 ## Instalação
 
@@ -124,7 +134,7 @@ Documentos acima de 24 mil caracteres são divididos em partes com sobreposiçã
 
 ## Serviço executor (implantação separada)
 
-Siga [executor/README.md](executor/README.md) na VM dedicada. Não inicie projetos ou testes gerados diretamente no host/backend. Após provisionar imagens, passar pelos probes e validar o piloto, configure **na API e no worker**:
+Para desenvolvimento neste PC, use o comando local acima. Para o **perfil dedicado**, siga [executor/README.md](executor/README.md) na VM. Não inicie projetos ou testes gerados diretamente no host/backend. Após provisionar imagens, passar pelos probes e validar o piloto, configure **na API e no worker**:
 
 ```dotenv
 EXECUTOR_URL=https://executor.administrativo.exemplo
@@ -184,6 +194,7 @@ O segundo comando inspeciona fonte pública e valida geração real de um script
 - [Procedimento de repetição e critérios de avaliação](docs/PROTOCOLO_REPRODUCAO.md).
 - [Validações realizadas e resultados técnicos](docs/VALIDACAO.md).
 - [Evolução dos agentes 3/4](docs/EVOLUCAO_EXECUCAO.md) e [piloto de execução](docs/PILOTO_EXECUCAO.md).
+- [Rodar com Docker Desktop neste computador](docs/DESENVOLVIMENTO_LOCAL.md).
 - [API e operação](backend/README.md), [banco](database/README.md) e [frontend](frontend/README.md).
 
 Documentos e scripts SQL exclusivos do experimento encerrado foram removidos. Suas versões anteriores permanecem disponíveis no histórico do Git.

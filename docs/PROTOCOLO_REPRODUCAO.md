@@ -5,7 +5,7 @@
 1. Guarde o commit desta plataforma, lockfiles, versões Node/PostgreSQL e configuração sem segredos. Aplique `npm run migrate`; API e worker verificam as migrações/checksums antes de iniciar.
 2. Faça backup do schema `research` e do diretório de artefatos. API e worker precisam do mesmo banco e armazenamento. PDFs e respostas grandes não estão contidos no backup SQL.
 3. Registre modelo, limites e orçamento. Testes automatizados da plataforma não consomem Gemini. `smoke:gemini` e `smoke:automation` são verificações manuais pagas com oráculos sintéticos.
-4. Para execução, provisione o serviço **em VM dedicada**, conforme [executor](../executor/README.md). Registre imagens imutáveis, deployment, política, probes e ambiente. Não execute repositórios/testes no host da aplicação. Sem recibo válido, continue somente geração/revisão e registre a indisponibilidade.
+4. Escolha e registre o perfil: [Docker Desktop local](DESENVOLVIMENTO_LOCAL.md), com `npm run dev:local`, ou [VM dedicada](../executor/README.md), com provisionamento próprio. Registre imagens, deployment, política, probes e runtime; não execute fontes diretamente na API/worker/host. O modo local não deve ser descrito como VM dedicada/rootless. Sem recibo válido, registre indisponibilidade.
 
 ## Procedimento experimental implementado
 
@@ -41,6 +41,6 @@ Contratos verificam schema, referências, citações, esperado e vínculo com re
 
 Defina previamente critérios de inclusão, protocolo de julgamento, referência humana, tratamento de discordâncias e métricas. Não existem referência ouro, precisão/recall, cobertura ou grau de confiança calibrado implementados. Um cenário aprovado não prova correção global. O suporte Java inicial não automatiza GUI nem serviços externos; pacotes e plugins npm/Maven não são instalados durante o teste.
 
-A implantação e o piloto de execução real **ainda estão pendentes** neste ambiente. O fluxo foi validado com fixtures técnicas separadas e geração real de scripts; esses dados não são evidências experimentais. Consulte [piloto e controles](PILOTO_EXECUCAO.md) antes de considerar execução operacional.
+O piloto Node local foi executado realmente com Gemini/GitHub/Docker, dois cenários sintéticos e exportação. Revisões técnicas feitas pelo assistente estão identificadas nas justificativas, sem alegar avaliação humana independente. Validação do perfil dedicado, Java e controles com defeito público deliberado continuam pendentes. Consulte [piloto e controles](PILOTO_EXECUCAO.md); não misture fixtures ou oráculos sintéticos com dados acadêmicos sem identificar sua finalidade.
 
 Modelos podem ser não determinísticos e aliases podem mudar. Preservar prompts/parâmetros permite auditar condições, sem garantir saída idêntica. Para auditar o resultado original, use snapshots e respostas brutas exportadas.

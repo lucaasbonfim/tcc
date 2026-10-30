@@ -12,6 +12,8 @@ npm run worker
 
 `npm run dev` usa nodemon para a API; o worker é um processo separado e deve ser reiniciado após alterações no seu código. O diretório de artefatos e o banco precisam ser os mesmos nos dois processos.
 
+Para rodar tudo com Docker Desktop, use **`npm run dev:local` na raiz**. O launcher injeta o perfil/URL/token/política locais na API e worker, inicia o executor separado e o frontend, sem alterar `.env`. [Guia local](../docs/DESENVOLVIMENTO_LOCAL.md). Não inicie estes processos em paralelo com o launcher.
+
 ## API ativa
 
 Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`. Login usa cookie HTTP-only `tcc_session`; não há token no corpo. Todas as rotas `/research` exigem administrador, inclusive leitura/download/exportação. Escritas verificam a origem de `FRONTEND_URL`. O sistema é de um pesquisador/administrador, sem contas múltiplas.
@@ -58,7 +60,7 @@ Revisão: `{decision: 'approved'|'rejected', justification, revision, content?}`
 
 Automação: `{inspection_id,module_root,target_paths,test_case_ids?,justification}`. A inspeção deve pertencer à versão fixa da execução; até oito alvos, vinte casos aprovados e fechamento compatível com o adaptador. Revisão de script: `{decision,revision,justification,files?:[{path,code}]}`. Caminhos/caso/SHA/esperado são preservados; correção cria versão auditável. Aprovação da etapa não autoriza execução.
 
-Execução: `{justification}` com etapa de scripts concluída e executor validado. Bundle e recibo são preservados; resultado precisa corresponder a UUID/hash/SHA/imagem/política. Não há endpoint de upload de evidências arbitrárias. Cliente HTTPS separado, sem Docker no backend. Variáveis `EXECUTOR_URL`, `EXECUTOR_TOKEN`, `EXECUTOR_DEPLOYMENT_ID` e `EXECUTOR_POLICY_SHA256` precisam ser iguais na API/worker e coerentes com o serviço dedicado.
+Execução: `{justification}` com etapa de scripts concluída e executor validado. Bundle e recibo são preservados; resultado precisa corresponder a UUID/hash/SHA/imagem/política/perfil. Não há endpoint de upload de evidências arbitrárias. Cliente separado, sem Docker no backend. Variáveis `EXECUTOR_MODE` (padrão `dedicated-vm`), `EXECUTOR_URL`, `EXECUTOR_TOKEN`, `EXECUTOR_DEPLOYMENT_ID` e `EXECUTOR_POLICY_SHA256` precisam ser iguais na API/worker. HTTPS no modo dedicado; HTTP somente em loopback literal para `docker-desktop-dev`, recusado em produção. O launcher configura tudo para desenvolvimento.
 
 Avaliação humana: `{decision:'confirmed'|'rejected'|'inconclusive',revision,justification,classification?}`. Classes: `compatible`, `possible_functional_divergence`, `test_problem`, `environment_failure`, `inconclusive`. Proposta original e decisão humana permanecem separadas. Evidência válida enfileira o agente 4 automaticamente; inferência sem evidências não é permitida. Estados/contratos: [arquitetura](../docs/ARQUITETURA_PESQUISA.md).
 
@@ -73,4 +75,4 @@ Avaliação humana: `{decision:'confirmed'|'rejected'|'inconclusive',revision,ju
 
 ## Validação
 
-`npm test` não chama o Gemini nem executa projetos externos. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` e `npm run smoke:automation` são separados e consomem API real, sem gravar resultados de pesquisa ou executar código gerado. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt. Testes do executor ficam em `../executor`; o piloto real requer infraestrutura dedicada validada.
+`npm test` não chama o Gemini nem executa projetos externos. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` e `npm run smoke:automation` são separados e consomem API real, sem gravar resultados de pesquisa ou executar código gerado. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt. Testes do executor ficam em `../executor`; pilotos reais exigem probes e recibo válidos no perfil explicitamente escolhido. Piloto Node local registrado em [PILOTO_EXECUCAO.md](../docs/PILOTO_EXECUCAO.md).

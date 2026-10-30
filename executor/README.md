@@ -1,10 +1,12 @@
 # Serviço executor isolado
 
-Implementação independente da API: Node HTTP(S), sem `pg`, Gemini, `.env` do backend ou ferramentas de LLM. Recebe somente bundle autorizado de fontes e testes gerados, verifica hashes/vínculo Git no SHA e aciona comandos Docker fixos. **Não executar este serviço no ambiente principal da aplicação.**
+Implementação independente da API: Node HTTP(S), sem `pg`, Gemini, `.env` do backend ou ferramentas de LLM. Recebe somente bundle autorizado, verifica hashes/vínculo Git e aciona comandos Docker fixos. Código dos projetos roda exclusivamente em contêineres, nunca na API/worker.
+
+Para desenvolvimento no PC com Docker Desktop, execute **`npm run dev:local` na raiz do projeto**. O comando configura/inicia os quatro processos automaticamente, preservando `.env`. [Guia local](../docs/DESENVOLVIMENTO_LOCAL.md). O perfil `docker-desktop-dev` é explícito, limitado a loopback e recusado em produção; os resultados registram esse ambiente. O restante da seção de implantação abaixo descreve o perfil padrão `dedicated-vm`.
 
 ## Estado da validação
 
-Os testes padrão injetam Docker e não executam código externo. Após ligar o Docker Desktop, a imagem Node foi construída e o runtime passou em 14 controles e dez cenários sintéticos reais, incluindo falha, erro, dependência, permissões, timeout e cancelamento. Isso valida o runner tecnicamente, sem constituir piloto de pesquisa. Docker Desktop compartilhado, sem rootless e com driver `cgroupfs`, continua fora da política do serviço. **A implantação dedicada, Java e o piloto público ainda precisam de validação.** Não basta configurar uma variável para declarar o executor disponível.
+Os testes padrão injetam Docker e não executam código externo. A imagem Node passou em 14 controles e dez cenários sintéticos reais, incluindo falha, erro, dependência, permissões, timeout e cancelamento. O perfil local usa esse runtime com recibo verdadeiro e registra `development_only=true`; não declara VM dedicada/rootless. **Java e a implantação dedicada continuam pendentes.** Ambos os perfis continuam fechados se os probes/limites/imagens falharem.
 
 ## Implantação dedicada
 
@@ -38,7 +40,7 @@ O boot verifica VM via `systemd-detect-virt --vm`, Docker rootless/seccomp/cgrou
 
 ## Protocolo
 
-Headers: `Authorization: Bearer TOKEN`. Rotas: `GET /v1/health`, `POST /v1/jobs` com `{bundle,request_sha256}`, `GET /v1/jobs/:id` e `DELETE /v1/jobs/:id`. UUID/hash iguais são idempotentes; mesmo UUID com outro bundle retorna 409. Resultados vinculam SHA, adapter, ambiente imutável, comandos, testes, logs, relatórios, duração e exit code. A classificação não afirma defeito funcional por conta própria.
+Headers: `Authorization: Bearer TOKEN`. Rotas: `GET /v1/health`, `POST /v1/jobs` com `{bundle,request_sha256}`, `GET /v1/jobs/:id` e `DELETE /v1/jobs/:id`. UUID/hash iguais são idempotentes; mesmo UUID com outro bundle retorna 409. Resultados vinculam SHA, adapter, perfil/runtime, ambiente imutável, comandos, testes, logs, relatórios, duração e exit code. A classificação não afirma defeito funcional por conta própria. O cliente exige correspondência entre perfil autorizado, recibo e evidência. HTTPS é obrigatório no perfil dedicado; HTTP é permitido somente em loopback literal no modo local explícito, fora de produção.
 
 ## Testes
 

@@ -2,7 +2,7 @@
 
 Estado implementado em 30/10/2026. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Situação operacional:** análise de requisitos, casos textuais e geração de scripts são utilizáveis com Gemini. A imagem/runner Node passaram por diagnóstico Docker real com 14 controles e dez cenários sintéticos. Integração dos agentes 3 e 4 está implementada, mas implantação dedicada, Java e piloto público continuam pendentes. Docker Desktop disponível é compartilhado, sem rootless e com driver `cgroupfs`, fora da política do serviço. Sem recibo válido, a autorização permanece bloqueada. Fixtures não são evidências da pesquisa.
+**Situação operacional:** análise, geração, execução Node e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Java e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
 ## Componentes
 
@@ -21,7 +21,7 @@ flowchart LR
   A1 --> G[Gateway Gemini sem ferramentas]
   A2 --> G
   W --> A3[Agente 3 / determinístico]
-  A3 -->|HTTPS autenticado e bundle autorizado| E[Executor em VM dedicada]
+  A3 -->|HTTP local ou HTTPS dedicado / autenticado| E[Serviço executor / perfil local ou VM dedicada]
   E -->|verificação independente do SHA| GH
   E --> C[Contêiner restrito / fonte imutável / sem rede]
   E -->|resultados, logs e relatórios| A3
@@ -32,7 +32,7 @@ flowchart LR
   H -->|decisões separadas da saída automática| UI
 ```
 
-O backend não importa o runtime Docker nem cria processos de projetos. O worker recebe tarefas no PostgreSQL e usa exclusivamente o cliente HTTPS do executor. Este serviço não tem `pg`, chave Gemini ou credenciais da aplicação. O token compartilhado de transporte não entra no contêiner, nos prompts, nos bundles ou nas exportações.
+O backend não importa o runtime Docker nem cria processos de projetos. O worker recebe tarefas no PostgreSQL e usa exclusivamente o cliente HTTP(S) do executor. O serviço não tem `pg`, chave Gemini ou credenciais da aplicação. O token de transporte não entra no contêiner, nos prompts, bundles ou exportações. O launcher local passa ao serviço somente seu token/política e variáveis de sistema necessárias ao Docker; os `.env` do backend não são carregados nele.
 
 Acorn foi acrescentado para análise estática de JavaScript; não carrega o código inspecionado. PDF.js extrai a camada textual em processo com prazo/heap limitados. Playwright é dependência de desenvolvimento para os fluxos de interface. Não há broker ou framework externo de agentes.
 
@@ -106,7 +106,7 @@ O pesquisador escolhe até oito alvos e vinte casos aprovados. O fechamento incl
 | `node-test/v2` | JavaScript ESM/CJS, exports existentes, fontes relativas/builtins permitidos e `node:test` | Sem npm install/scripts npm, TypeScript/build/transpilação ou serviços; arquivos gerados explícitos, sem descobrir testes antigos |
 | `java-junit/v1` | Classes selecionadas com JDK/dependências locais e JUnit provisionado na imagem | Maven é inspecionado; plugins/downloads Maven não são executados. `javac -proc:none` e Console JUnit headless, sem Swing/banco. Resultado inicial por classe gerada/caso |
 
-Dockerfile/runner Node foram exercitados em contêineres reais com fixtures controladas; imagem Java e piloto público precisam de validação no ambiente dedicado. Nenhum adaptador é anunciado operacional apenas por ser reconhecido na inspeção. A geração real Gemini de um script Node sobre código público foi validada; esse script não foi executado neste ambiente.
+Dockerfile/runner Node foram exercitados com fixtures e no piloto público `is-number`, SHA fixo, com dois scripts gerados pelo Gemini executados realmente. O agente 4 analisou essas evidências, com revisão técnica identificada e exportação. Imagem Java e perfil dedicado ainda precisam de validação própria. Nenhum adaptador é anunciado operacional apenas por ser reconhecido na inspeção.
 
 ## Documentos extensos e consolidação
 
@@ -146,7 +146,7 @@ Etapas falhas admitem repetição justificada, até três sessões, preservando 
 
 ## Executor e evidências
 
-O executor exige VM Linux dedicada, Docker rootless/seccomp/cgroups v2-systemd, token administrativo, TLS e imagens imutáveis pré-carregadas. Probe confiável verifica UID/capacidades/no-new-privileges, root read-only, proibição de escrita no projeto, limites efetivos, rede e ausência de socket/segredos. JDK/JUnit têm versão e hash conferidos. A API confere identidade/deployment, hash da política, validade do recibo e ID da imagem; mudança exige autorização compatível.
+O perfil padrão `dedicated-vm` exige VM Linux, Docker rootless/seccomp/cgroups v2-systemd, token, TLS e imagens fixadas. O perfil explícito `docker-desktop-dev` permite o serviço no computador de desenvolvimento com Docker Desktop/Linux/cgroups v2/seccomp, somente em loopback e fora de produção. Não exige rootless/systemd, mas conserva os mesmos probes de limites efetivos, UID/capacidades/no-new-privileges, root read-only, fontes protegidas, rede e ausência de socket/segredos. JDK/JUnit têm versão/hash conferidos quando provisionados. A API confere identidade, política, validade, imagem e perfil; cada evidência preserva perfil/runtime e `development_only`. Não há recibo fictício para liberar execução.
 
 Cada contêiner: CPU 1, memória/swap 256 MiB, 64 processos, prazo externo 60 s, rede none, sem bind mounts ou Docker socket. Tmpfs de trabalho 64 MiB, temporário 16 MiB e projeto 2 MiB. Inicializador confiável de comando fixo recebe JSON validado, grava somente no tmpfs e sela arquivos root/0444 e diretórios 0555 antes de enviar a entrada ao runner. Essa preparação usa UID 0 sem capacidades; testes/runner usam UID 1000 e raiz read-only. Não utiliza `docker cp`, recusado pelo daemon nessa configuração. Código do projeto não pode substituir runner/reporter. Entrada Node confiável importa somente o arquivo gerado selecionado e transforma erros de importação em eventos estruturados; `commands.test_file` preserva seu caminho. Sem teste registrado, resultado inconclusivo. A suíte antiga não é descoberta.
 
@@ -166,4 +166,4 @@ API e worker compartilham banco e diretório absoluto de artefatos; backup deve 
 
 Não há quota global/retencão automática de artefatos da API. Falha de persistência pode deixar arquivos órfãos; não apagar sem cruzar referências/backups. Listagem global limita execuções a 500, com histórico por projeto; contagens do dashboard consultam todo o banco. Modelos não são determinísticos e aliases podem mudar: para auditoria, preserve commit/lockfiles da plataforma, instruções, snapshots, metadados e respostas originais.
 
-O critério de execução real de ponta a ponta ainda depende do piloto na VM. Consulte `PILOTO_EXECUCAO.md` e `VALIDACAO.md` para separar implementado, validado com fixtures, validado com Gemini real e pendente de infraestrutura.
+O fluxo técnico Node foi validado de ponta a ponta no perfil local, usando repositório público e oráculo sintético. Isso não substitui protocolo/avaliação humana independente da pesquisa. Consulte `PILOTO_EXECUCAO.md` e `VALIDACAO.md` para separar esse piloto, fixtures, suporte Java e validação dedicada ainda pendente.

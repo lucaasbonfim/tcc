@@ -1,4 +1,4 @@
-# Piloto técnico e validação pendente de infraestrutura
+# Piloto técnico Node e condições de reprodução
 
 ## Escolha inicial
 
@@ -8,9 +8,9 @@ O oráculo em `docs/piloto/REQUISITOS_NODE.md` é **sintético para validação 
 
 O segundo candidato, Vai&Volta, foi inspecionado no SHA `9afa820038de42c134c8c69c2b6eaddb6404ea5f`. Maven declara PostgreSQL, jBCrypt, FlatLaf, JUnit, Mockito e H2. Modelos como `Passageiro` podem ser selecionados com seu fechamento JDK/local; controladores/DAOs e Swing não são presumidos viáveis. Foram lidos 24 arquivos, com 12 candidatos omitidos explicitamente. A inspeção é parcial e deve ser revisada. Suporte Java/JUnit está implementado de forma inicial, mas imagem, compilação e runner ainda não foram validados em VM.
 
-## Procedimento na infraestrutura dedicada
+## Procedimento
 
-1. Provisionar a VM e imagens conforme `executor/README.md`; comprovar probes de CPU/memória/pids/rede/permissões e limpeza. Fixar política/deployment/imagens na API e worker. Saúde precisa retornar `ready=true` com o mesmo hash de política.
+1. Escolher o perfil: para Docker Desktop local, executar `npm run dev:local` na raiz; para VM dedicada, provisionar conforme `executor/README.md`. Conferir probes de CPU/memória/pids/rede/permissões e limpeza, política/deployment/imagens. Saúde precisa retornar `ready=true` com o perfil/hash esperados.
 2. Cadastrar o projeto Node com o SHA acima, importar os requisitos sintéticos e processar/revisar requisitos e casos textuais.
 3. Na aba Scripts, inspecionar o mesmo SHA, selecionar raiz e `index.js`. Gerar scripts, conferir import/API/asserções e esperado; revisar cada arquivo e concluir a etapa.
 4. Na aba Execução, conferir identidade/política do executor e autorizar com justificativa. Registrar UUID do trabalho e verificar que `commands.test_file` aponta ao arquivo em `__research_generated__`, carregado pela entrada confiável Node; a suíte antiga não é descoberta.
@@ -33,6 +33,24 @@ Não apresentar as fixtures dos testes unitários/E2E como esses controles reais
 
 ## Estado atual
 
-Geração real sobre fonte pública validada. Persistência, estados e interface do fluxo completo validados com fixtures separadas. Com Docker Desktop ligado, imagem/runner Node passaram em 14 controles reais e dez cenários técnicos, incluindo falha, erro, dependência, proteção de fontes, timeout/cancelamento e limpeza. Isso não é execução do projeto público nem evidência experimental.
+Após escolha explícita do usuário pelo Docker Desktop para desenvolvimento, o perfil `docker-desktop-dev` foi implementado e validado. Não declara VM dedicada/rootless; mantém os probes e registra runtime/perfil em evidências/exportações. O padrão `dedicated-vm` permanece estrito, e o modo local é recusado em produção.
 
-**Piloto real, implantação dedicada e Java ainda pendentes.** O Docker Desktop compartilhado usa `cgroupfs` e não é rootless; o serviço recusa esse ambiente pela política atual. Nenhum recibo de saúde foi falsificado nem houve alteração para contornar o bloqueio. Esta fase ainda não cumpre o critério de execução real de ponta a ponta com repositório público.
+Piloto real concluído em 30/10/2026:
+
+| Registro | Valor |
+| --- | --- |
+| Projeto público | `jonschlinkert/is-number` |
+| SHA | `98e8ff1da1a89f93d1397a24d7413ed15421c139` |
+| Execução | `10a33dbc-8ea0-4f79-9bb4-da75a1482b84` |
+| Trabalho do executor | `64099cc6-dfd1-4be8-a32f-4097405b772e` |
+| Fluxo | Gemini real → dois requisitos/casos → dois scripts revisados → Docker real → agente 4 → revisão técnica → JSON/CSV |
+| Resultados | `isNumber(2) === true` e `isNumber(NaN) === false`: ambos passaram |
+| Tempo observado no runner | 612 ms, exit code 0; não inclui toda a preparação/geração |
+| Análises | Duas propostas `compatible`, limitadas aos cenários executados |
+| Perfil | `docker-desktop-dev`, `development_only=true`, Docker Desktop/cgroupfs/v2 |
+
+Fontes/manifesto pertencem ao SHA e foram verificados independentemente pelo serviço. Somente arquivos gerados foram carregados, com comandos/caminhos, eventos e hashes preservados. Contêiner removido. A primeira resposta do agente 4 copiou o texto do RF no lugar do esperado do caso e foi rejeitada. O schema da nova chamada restringiu os esperados às opções dos casos aprovados; repetição explícita passou, sem relaxar a validação ou apagar a falha.
+
+As revisões deste piloto foram **técnicas, realizadas pelo assistente**, identificadas nas justificativas. O documento é um oráculo sintético e não substitui julgamento humano independente do estudo. Cinco chamadas Gemini, 12.938 tokens informados ao todo, custo desconhecido (`null`). Exportações locais em `.local/desktop-pilot/export.json` e `.csv`; resumo em `summary.json`. Os mesmos resultados estão no histórico autenticado da aplicação.
+
+Fixtures técnicas anteriores continuam separadas. **Java, perfil dedicado e controles de defeito público deliberado permanecem pendentes**; não extrapolar os dois cenários para correção/cobertura global do projeto.
