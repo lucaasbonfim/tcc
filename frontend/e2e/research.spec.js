@@ -32,6 +32,8 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.locator('.review-item .status-pending')).toBeVisible();
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Consultar projetos cadastrados',exact:true})).toBeVisible({timeout:20000});
+  await expect(page.getByText('1/1 requisitos com casos vinculados',{exact:true})).toBeVisible();
+  await expect(page.getByText('1/1 lotes de casos concluídos.',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Aprovar todos e continuar'}).click();
   await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
   await page.getByRole('button',{name:'Scripts',exact:true}).click();
@@ -70,6 +72,9 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   const exported = JSON.parse(await readFile(await file.path(),'utf8'));
   expect(exported.requirements[0].content.title).toBe('Consulta de projetos revisada');
   expect(exported.traceability).toHaveLength(1);
+  expect(exported.test_coverage.missing_approved).toEqual([]);
+  expect(exported.test_parts).toHaveLength(1);
+  expect(exported.test_parts[0].input_data.requirements).toHaveLength(1);
   expect(exported.stages[2].status).toBe('completed');
   expect(exported.automated_tests).toHaveLength(1);
   expect(exported.evidence).toHaveLength(1);
