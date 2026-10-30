@@ -19,6 +19,8 @@ A aba Scripts reúne inspeção de módulos/fontes no SHA, seleção de alvos/ca
 
 Scripts seleciona todos os cenários aprovados por padrão, sem limite de vinte na seleção. Há controles para selecionar todos/limpar ou escolher um subconjunto. A geração percorre lotes pequenos e mostra progresso, scripts gerados, impossibilidades justificadas e casos ainda faltantes. Código fica recolhido por script; **Salvar correção do script** preserva versão sem aprovar. **Aprovar todos os scripts e continuar** conclui a revisão em uma operação, preservando rejeitados; rascunhos não salvos bloqueiam esse botão. A execução mantém autorização e limites próprios.
 
+O pesquisador escolhe o módulo inteiro, sem selecionar fontes manualmente. O painel mostra arquivos lidos/omitidos/lotes de leitura e, em detalhes, os escopos automáticos e as restrições por arquivo. Fontes com dependência indireta de banco são identificadas no planejamento. Um cenário sem script em um escopo é considerado nos demais antes da justificativa final. Ler todas as fontes não implica suporte de execução a Swing ou banco.
+
 ## Testes no navegador
 
 ```powershell

@@ -6,7 +6,7 @@ Adaptador: `node-test/v2`, sem instalação de pacotes ou descoberta da suíte e
 
 O oráculo em `docs/piloto/REQUISITOS_NODE.md` é **sintético para validação técnica**, não um documento acadêmico original nem dado experimental. `npm run smoke:automation` comprovou uma geração real Gemini válida sobre esse código/commit, sem compilar/executar o script ou gravar evidências de pesquisa.
 
-O segundo candidato, Vai&Volta, foi inspecionado no SHA `9afa820038de42c134c8c69c2b6eaddb6404ea5f`. Maven declara PostgreSQL, jBCrypt, FlatLaf, JUnit, Mockito e H2. Modelos como `Passageiro` podem ser selecionados com seu fechamento JDK/local; controladores/DAOs e Swing não são presumidos viáveis. Foram lidos 24 arquivos, com 12 candidatos omitidos explicitamente. A inspeção é parcial e deve ser revisada. Suporte Java/JUnit está implementado de forma inicial, mas imagem, compilação e runner ainda não foram validados em VM.
+O segundo candidato, Vai&Volta, foi inspecionado no SHA `9afa820038de42c134c8c69c2b6eaddb6404ea5f`. Maven declara PostgreSQL, jBCrypt, FlatLaf, JUnit, Mockito e H2. A inspeção inicial leu 24 arquivos e omitiu 12 candidatos. Em 30/10/2026, o leitor v2.1 leu os **36/36 candidatos**, sem omissões, em dois lotes; reaproveitou 24 fontes após conferir hashes e consultou as doze restantes. A inspeção anterior permanece no histórico. O planejamento do módulo considera 33 fontes, com cinco modelos em um fechamento compatível e 28 fontes com restrições diretas/indiretas de GUI/banco. Isso não é um novo teto de cinco: é o resultado da compatibilidade desses arquivos no adaptador atual. Suporte Java/JUnit continua inicial; leitura das fontes não comprova compilação, execução de Swing/banco ou validação da imagem Java.
 
 ## Procedimento
 
