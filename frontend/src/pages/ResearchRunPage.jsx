@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useResearch } from '../hooks/useResearch';
 import { research } from '../services/research.service';
 import { AGENT_LABELS, date, shortId } from '../utils/research';
@@ -18,6 +18,7 @@ function clean(content) {return Object.fromEntries(Object.entries(content).map((
 
 export default function ResearchRunPage() {
   const {runId} = useParams();
+  const navigate=useNavigate();
   const {data:run,error,loading,reload} = useResearch(`/runs/${runId}`,true);
   const [params,setParams] = useSearchParams();
   const tab = params.get('view') || 'requirements';
@@ -35,9 +36,11 @@ export default function ResearchRunPage() {
   const canApprove = editable && items.length>0 && items.every(item => item.review_status!=='pending') && items.some(item => item.review_status==='approved');
   return <div className="page-stack"><div className="page-heading"><div><Link className="back-link" to={`/admin/projects/${run.project_id}`}>← {project.name}</Link><p className="eyebrow mt-3">EXECUÇÃO {shortId(run.id)}</p><h1>Análise do projeto</h1><p>{project.name} · {date(run.created_at)}</p></div><div className="heading-actions"><ResearchStatus status={run.status}/><Button variant="secondary" onClick={reload}>Atualizar</Button></div></div>
     <ErrorMessage>{error || actionError}</ErrorMessage>
+    {run.resumed_from_run_id && <p className="notice">Continuação com checkpoints preservados. <Link to={`/admin/runs/${run.resumed_from_run_id}`}>Consultar análise anterior e suas tentativas</Link>.</p>}
     <div className="commit-row"><span>{run.snapshot_data.code_version.requested_ref}</span><code>{run.snapshot_data.code_version.commit_sha}</code><span>{run.model}</span></div>
     <div className="agent-grid">{run.stages.filter(s=>s.agent!=='automation').map(original=>original.agent==='tests' && run.stages.some(s=>s.agent==='automation') ? {...run.stages.find(s=>s.agent==='automation'),agent:'tests',position:2,message:'Casos textuais concluídos. '+(run.stages.find(s=>s.agent==='automation').message || 'Automação em processamento.')} : original).map(stage => <div className={`agent-card agent-${stage.status}`} key={stage.id}><span className="eyebrow">AGENTE {stage.position}</span><h2>{AGENT_LABELS[stage.agent]}</h2><ResearchStatus status={stage.status}/><p>{stage.message || (stage.status==='blocked' ? 'Depende da aprovação da etapa anterior.' : stage.status==='pending' ? 'Aguardando processamento pelo worker.' : 'Consulte os resultados e registros abaixo.')}</p><small>Instrução v{stage.instruction_version} · {stage.attempt_count}/3 sessões de tentativa</small></div>)}</div>
     {run.status==='pending' && <p className="notice">Execução enfileirada. O processamento requer o worker ativo; esta página consulta o estado a cada quatro segundos.</p>}
+    {run.status==='failed' && run.stages.some(stage=>stage.agent==='requirements' && stage.status==='failed') && run.requirement_parts?.some(part=>part.status==='completed') && run.requirement_parts.some(part=>part.status!=='completed') && <Card><h2>Continuar sem refazer as partes concluídas</h2><p>Cria uma análise vinculada a esta, com os mesmos documentos e commit. Os checkpoints válidos são reaproveitados; apenas as partes restantes serão processadas em trechos menores. O histórico anterior permanece preservado.</p><label>Justificativa da continuação<textarea value={justification} onChange={event=>setJustification(event.target.value)} maxLength={5000} rows={2}/></label><Button disabled={busy || !justification.trim()} onClick={()=>action(async()=>{const next=await research.post(`/runs/${runId}/resume`,{justification});navigate(`/admin/runs/${next.id}`);},false)}>Continuar a partir dos checkpoints</Button></Card>}
     <nav className="result-tabs" aria-label="Resultados da execução">{tabs.map(([value,label]) => <button key={value} className={tab===value ? 'selected' : ''} onClick={() => setParams({view:value})}>{label}</button>)}</nav>
     {['requirements','tests'].includes(tab) && <Card><div className="section-heading"><div><h2>{tab==='requirements' ? 'Requisitos identificados' : 'Casos de teste textuais'}</h2><p>{items.length} itens · {items.filter(item => item.review_status==='pending').length} aguardando revisão</p></div><span className="eyebrow">RASTREABILIDADE PRESERVADA</span></div>
       {tab==='requirements' && run.requirement_parts?.length>0 && <div className="notice compact"><strong>{run.requirement_parts.filter(p=>p.status==='completed').length}/{run.requirement_parts.length} partes processadas</strong><p>Checkpoints preservados; somente partes não concluídas são retomadas.</p><details><summary>Páginas, trechos e estados</summary>{run.requirement_parts.map(part=><div key={part.id}><p>Parte {part.sequence}: <ResearchStatus status={part.status}/>{part.error && ` · ${part.error}`}</p><pre className="code-panel">{JSON.stringify(part.segments,null,2)}</pre></div>)}</details></div>}
