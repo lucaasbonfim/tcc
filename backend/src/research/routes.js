@@ -2,6 +2,7 @@ import { Router, raw } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requireAdmin } from '../middlewares/auth.js';
 import { assert, uuid } from './errors.js';
+import { exportCsv } from './export.js';
 
 export function createResearchRouter({ projects, store, runs }) {
   const router = Router();
@@ -19,11 +20,24 @@ export function createResearchRouter({ projects, store, runs }) {
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });
   router.param('projectId', (_request, _response, next, value) => { uuid(value); next(); });
   router.param('documentId', (_request, _response, next, value) => { uuid(value); next(); });
-  for (const name of ['runId','itemId','attemptId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
+  for (const name of ['runId','itemId','attemptId','versionId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
+  router.use((req,_res,next) => {
+    if (['POST','PUT'].includes(req.method) && !req.path.endsWith('/documents')) {
+      assert(req.body && typeof req.body === 'object' && !Array.isArray(req.body),'Envie um objeto JSON.');
+    }
+    next();
+  });
+  router.get('/capabilities',handler(() => ({
+    requirements:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),requires_worker:true},
+    tests:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),artifact_type:'textual',requires_review:true},
+    execution:{enabled:false,reason:'Executor isolado não provisionado; nenhum código externo é executado.'},
+    evaluation:{enabled:false,reason:'Depende de evidências independentes de execução, indisponíveis nesta versão.'},
+  })));
   router.get('/projects', handler(() => projects.list()));
   router.post('/projects', imports, async (req, res) => res.status(201).json({ data: await projects.create(req.body) }));
   router.get('/projects/:projectId', handler(req => projects.detail(req.params.projectId)));
   router.put('/projects/:projectId', imports, handler(req => projects.update(req.params.projectId, req.body)));
+  router.post('/projects/:projectId/versions/:versionId/inspect',imports,handler(req => projects.inspect(req.params.projectId,req.params.versionId)));
   router.post('/projects/:projectId/documents', imports,
     raw({ type: ['application/pdf','text/plain','text/markdown','application/octet-stream'], limit: '10mb', inflate: false }),
     async (req, res) => {
@@ -45,5 +59,12 @@ export function createResearchRouter({ projects, store, runs }) {
   router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));
   router.post('/runs/:runId/cancel', handler(req => runs.cancel(req.params.runId,req.body)));
   router.get('/runs/:runId/attempts/:attemptId/:type', handler(req => runs.artifact(req.params.runId,req.params.attemptId,req.params.type)));
+  router.get('/runs/:runId/export/:format',async (req,res) => {
+    assert(['json','csv'].includes(req.params.format),'Formato de exportação inválido.');
+    const data = await runs.export(req.params.runId);
+    res.attachment(`research-${req.params.runId}.${req.params.format}`);
+    if (req.params.format === 'csv') res.type('text/csv').send(exportCsv(data));
+    else res.json(data);
+  });
   return router;
 }
