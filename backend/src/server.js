@@ -11,7 +11,7 @@ async function startServer() {
     await assertMigrations(pool);
     console.log("Conexão com o PostgreSQL estabelecida com sucesso.");
 
-    app.listen(port, () => {
+    app.listen(port, process.env.HOST, () => {
       console.log(`Servidor iniciado na porta ${port}.`);
     });
   } catch (error) {
