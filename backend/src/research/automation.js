@@ -2,12 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { assert, text, transaction, uuid } from './errors.js';
 import { AUTOMATION, buildScope, generatedPath, validateAutomation } from './automation-contract.js';
 import {testCoverage} from './test-parts.js';
+import {planAutomationParts} from './automation-parts.js';
 
 export function createAutomationService({pool,store}) {
-  async function inputFor(runId,stage,db=pool) {
+  async function inputFor(runId,stage,db=pool,caseIds=stage.context.case_ids) {
     const scope=await store.json(stage.context.scope);
-    const cases=(await db.query("SELECT id,content FROM research.test_cases WHERE run_id=$1 AND review_status='approved' AND id=ANY($2::uuid[]) ORDER BY code",[runId,stage.context.case_ids])).rows;
-    const requirements=(await db.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[runId])).rows.map(r=>r.content);
+    const cases=(await db.query("SELECT id,content FROM research.test_cases WHERE run_id=$1 AND review_status='approved' AND id=ANY($2::uuid[]) ORDER BY code",[runId,caseIds])).rows;
+    const codes=[...new Set(cases.flatMap(row=>row.content.requirement_codes))];
+    const requirements=(await db.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' AND code=ANY($2::text[]) ORDER BY code",[runId,codes])).rows.map(r=>r.content);
     return {scope,test_cases:cases,requirements,generated_paths:cases.map(row=>({test_case_id:row.id,...generatedPath(row.id,scope.module.adapter)}))};
   }
   return {
@@ -32,32 +34,43 @@ export function createAutomationService({pool,store}) {
           input.test_case_ids.forEach(uuid);
           assert(input.test_case_ids.every(id=>cases.includes(id)),'Caso selecionado não aprovado nesta execução.',422);cases=input.test_case_ids;
         }
-        assert(cases.length>0 && cases.length<=20,'Selecione entre 1 e 20 casos aprovados para automação.',422);
+        assert(cases.length>0 && cases.length<=6000,'Selecione casos aprovados dentro do limite da análise.',422);
         const scopeRef=await store.put(scope),id=randomUUID();
+        const created=[scopeRef];let parts;
         try {
+          parts=planAutomationParts(await inputFor(runId,{context:{scope:scopeRef,case_ids:cases}},db));
           await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context)
             VALUES($1,$2,'automation',5,'pending',$3,$4,$5)`,[id,runId,AUTOMATION.version,AUTOMATION.instruction,{scope:scopeRef,inspection_id:inspection.id,case_ids:cases,schema:AUTOMATION.schema}]);
+          for(const part of parts) {
+            const ref=await store.put(part);created.push(ref);
+            await db.query("INSERT INTO research.automation_parts(id,run_id,sequence,status,input,case_ids) VALUES($1,$2,$3,'pending',$4,$5)",[randomUUID(),runId,part.batch.sequence,ref,JSON.stringify(part.batch.case_ids)]);
+          }
           await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
           await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,after_value,actor)
             VALUES($1,$2,$3,'stage',$3,'approved',$4,$5,'admin')`,[randomUUID(),runId,id,justification,{inspection_id:inspection.id,target_paths:scope.target_paths,test_case_ids:cases}]);
-        }catch(error){await store.remove(scopeRef);throw error;}
-        return {id,run_id:runId,status:'pending'};
+        }catch(error){for(const ref of created)await store.remove(ref);throw error;}
+        return {id,run_id:runId,status:'pending',selected_cases:cases.length,parts:parts.length};
       });
     },
     async persist(db,job,output) {
+      const dispositions=[];
       for(const artifact of output.artifacts) {
         const {files,...content}=artifact;
         const ref=await store.put(files);
+        const id=randomUUID();
         await db.query(`INSERT INTO research.automated_tests(id,run_id,test_case_id,generation_attempt_id,adapter,content,files,compatibility)
-          VALUES($1,$2,$3,$4,$5,$6,$7,'compatible')`,[randomUUID(),job.run.id,artifact.test_case_id,job.attemptId,artifact.adapter,JSON.stringify(content),ref]);
+          VALUES($1,$2,$3,$4,$5,$6,$7,'compatible')`,[id,job.run.id,artifact.test_case_id,job.attemptId,artifact.adapter,JSON.stringify(content),ref]);
+        dispositions.push({test_case_id:artifact.test_case_id,status:'generated',automated_test_id:id});
       }
+      for(const item of output.unsupported_cases)dispositions.push({...item,status:'unsupported'});
+      return dispositions;
     },
     async list(runId) {
       const rows=(await pool.query('SELECT * FROM research.automated_tests WHERE run_id=$1 ORDER BY created_at',[runId])).rows;
       return Promise.all(rows.map(async row=>({...row,files_data:await store.json(row.files)})));
     },
     async review(runId,id,input) {
-      assert(['approved','rejected'].includes(input.decision),'Escolha aprovar ou rejeitar.');
+      assert(['approved','rejected','edited'].includes(input.decision),'Escolha aprovar, rejeitar ou salvar correção.');
       const justification=text(input.justification,'Justificativa',5000,true);
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
@@ -67,11 +80,11 @@ export function createAutomationService({pool,store}) {
         assert(row,'Script não encontrado.',404);
         assert(Number.isInteger(input.revision) && input.revision===row.revision,'Script alterado por outra revisão. Atualize a página.',409);
         const candidate={...row.content,files:input.files || await store.json(row.files)};
-        const context=await inputFor(runId,stage,db);
+        const context=await inputFor(runId,stage,db,[row.test_case_id]);
         validateAutomation({artifacts:[candidate],unsupported_cases:[],warnings:[]},{...context,test_cases:context.test_cases.filter(t=>t.id===row.test_case_id)});
         const files=input.files ? await store.put(candidate.files) : row.files;
         const after=(await db.query(`UPDATE research.automated_tests SET files=$3,review_status=$4,revision=revision+1,version=version+$5
-          WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,files,input.decision,input.files ? 1 : 0])).rows[0];
+          WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,files,input.decision==='edited' ? 'pending' : input.decision,input.files ? 1 : 0])).rows[0];
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'automated_test',$4,$5,$6,$7,$8,'admin')`,[randomUUID(),runId,stage.id,id,input.decision,justification,JSON.stringify(row),JSON.stringify(after)]);
         return after;
@@ -83,13 +96,31 @@ export function createAutomationService({pool,store}) {
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='automation' FOR UPDATE",[runId])).rows[0];
         assert(run?.status==='awaiting_review' && stage?.status==='awaiting_review','Etapa não aguarda revisão.',409);
+        assert(input.approve_pending===undefined || typeof input.approve_pending==='boolean','Opção de aprovação em lote inválida.');
+        if(input.approve_pending) {
+          const rows=(await db.query('SELECT * FROM research.automated_tests WHERE run_id=$1 ORDER BY id FOR UPDATE',[runId])).rows;
+          const items=input.items ?? (input.revisions && typeof input.revisions==='object' && !Array.isArray(input.revisions) ? Object.entries(input.revisions).map(([id,revision])=>({id,revision})) : null);
+          assert(Array.isArray(items) && items.length===rows.length && new Set(items.map(row=>row?.id)).size===rows.length,'Lista de scripts mudou. Atualize a página.',409);
+          const versions=new Map(items.map(row=>[row?.id,row?.revision]));
+          assert(rows.every(row=>Number.isInteger(versions.get(row.id)) && versions.get(row.id)===row.revision),'Script alterado por outra revisão. Atualize a página.',409);
+          const context=await inputFor(runId,stage,db);
+          for(const row of rows.filter(row=>row.review_status!=='rejected'))validateAutomation({artifacts:[{...row.content,files:await store.json(row.files)}],unsupported_cases:[],warnings:[]},{...context,test_cases:context.test_cases.filter(item=>item.id===row.test_case_id)});
+          const updated=(await db.query("UPDATE research.automated_tests SET review_status='approved',revision=revision+1 WHERE run_id=$1 AND review_status='pending' RETURNING *",[runId])).rows;
+          if(updated.length) {
+            const originals=new Map(rows.map(row=>[row.id,row]));
+            const entries=updated.map(row=>({id:randomUUID(),entity_id:row.id,before_value:originals.get(row.id),after_value:row}));
+            await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
+              SELECT e.id,$2,$3,'automated_test',e.entity_id,'approved',$4,e.before_value,e.after_value,'admin'
+              FROM jsonb_to_recordset($1::jsonb) AS e(id uuid,entity_id uuid,before_value jsonb,after_value jsonb)`,[JSON.stringify(entries),runId,stage.id,justification]);
+          }
+        }
         const counts=(await db.query(`SELECT count(*) FILTER(WHERE review_status='pending')::int AS pending,
           count(*) FILTER(WHERE review_status='approved')::int AS approved FROM research.automated_tests WHERE run_id=$1`,[runId])).rows[0];
         assert(counts.pending===0 && counts.approved>0,'Revise todos os scripts e aprove pelo menos um.',409);
         await db.query("UPDATE research.stages SET status='completed',message='Scripts revisados. Execução exige autorização separada e executor disponível.' WHERE id=$1",[stage.id]);
         await db.query("UPDATE research.runs SET status='completed',finished_at=now() WHERE id=$1",[runId]);
-        await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor)
-          VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')`,[randomUUID(),runId,stage.id,justification]);
+        await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,after_value,actor)
+          VALUES($1,$2,$3,'stage',$3,'approved',$4,$5,'admin')`,[randomUUID(),runId,stage.id,justification,input.approve_pending ? {approval_mode:'bulk'} : null]);
         return {status:'completed'};
       });
     },
