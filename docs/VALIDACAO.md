@@ -141,3 +141,10 @@
 - Consolidação determinística mescla somente conteúdo idêntico, preserva fontes e mapeia códigos locais para globais. Possíveis duplicidades com diferenças e contradições lexicais são alertas para revisão, não conclusões semânticas.
 - Limite anterior de 100 mil removido: seleção até 4,1 milhões de caracteres, 512 partes, 2000 requisitos consolidados e teto de artefato de 12 MiB; limites de upload/extração por documento continuam explícitos.
 - Três testes específicos aprovados: cobertura integral dos offsets/páginas, duplicidades/contradições e documento acima de 100 mil com falha/retomada sem repetir a primeira parte. Sem consumo Gemini.
+
+## Continuação — interface integrada
+
+- Quatro cartões lógicos mantidos; automação aparece como subetapa do agente 2. Inspeção detalha módulos, fontes/símbolos, omissões e links no SHA. Scripts têm código revisável, esperado, fontes e aprovação separada da autorização.
+- Execução consulta capacidade real do serviço e bloqueia o botão sem recibo válido. Resultados, comandos, ambiente, stdout/stderr e relatórios são consultáveis. Avaliações exibem a cadeia requisito/caso/script/resultado e decisões humanas independentes.
+- Partes de documentos exibem checkpoints, offsets e erros. Relatórios incluem toda a cadeia persistida.
+- Build e lint aprovados. Playwright/Chromium: fluxo de cadastro até revisão da avaliação, incluindo inspeção/geração/aprovação de scripts, bloqueio inicial do executor, evidências e exportação conferida; modo móvel sem overflow. Resultado: um teste aprovado, sem créditos Gemini e somente fixtures em banco isolado. A rota que habilita o executor fictício existe exclusivamente no servidor E2E, nunca na aplicação real.
