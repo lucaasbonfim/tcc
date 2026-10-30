@@ -28,6 +28,7 @@ export function createResearchRouter({ projects, store, runs }) {
     evaluation:{enabled:false,reason:'Depende de evidências independentes de execução, indisponíveis nesta versão.'},
   })));
   router.get('/projects', handler(() => projects.list()));
+  router.get('/summary',handler(() => runs.summary()));
   router.post('/projects', imports, async (req, res) => res.status(201).json({ data: await projects.create(req.body) }));
   router.get('/projects/:projectId', handler(req => projects.detail(req.params.projectId)));
   router.put('/projects/:projectId', imports, handler(req => projects.update(req.params.projectId, req.body)));

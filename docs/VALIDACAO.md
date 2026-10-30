@@ -87,3 +87,8 @@
 
 - Helper de configuração recebe senha somente por stdin, gera bcrypt e rejeita entrada acima de 72 bytes UTF-8; login também aplica esse limite para evitar truncamento silencioso do bcrypt.
 - Validação manual com subprocesso: hash gerado confere com a senha sintética e entrada acima do limite é recusada. Suíte backend: 22 aprovações.
+
+## Indicadores globais
+
+- Dashboard usa contagens agregadas de todo o banco, sem confundir o limite de 500 itens do histórico global com o total de execuções.
+- Agregação validada na integração PostgreSQL; backend com 22 testes aprovados; frontend build/lint aprovados.
