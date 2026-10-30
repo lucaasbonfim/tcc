@@ -5,7 +5,8 @@ import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
 import { assert, text, transaction, uuid } from './errors.js';
 import { createAutomationService } from './automation.js';
 import {createExecutionService} from './execution.js';
-import {createParts} from './requirement-parts.js';
+import {createParts,continuationParts} from './requirement-parts.js';
+import {preservedOutput} from './citations.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -64,10 +65,10 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           for (const doc of selected) await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) VALUES($1,$2,$3)',[projectId,id,doc.id]);
           for (const definition of AGENTS) {
             const enabled = ['requirements','tests'].includes(definition.agent);
-            await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,message)
-              VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [randomUUID(),id,definition.agent,definition.position,
+            await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,message,context)
+              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [randomUUID(),id,definition.agent,definition.position,
               definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',definition.version,definition.instruction,
-              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.']);
+              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.',definition.agent==='requirements' ? {citation_mode:'catalog/v1'} : null]);
           }
           await createParts(db,id,documents,store);
           return get(id, db);
@@ -92,7 +93,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       const agentOutputs = {};
       for (const attempt of attempts.rows.filter(attempt => attempt.status==='completed' && attempt.output)) {
         const agent = stages.rows.find(stage => stage.id===attempt.stage_id)?.agent;
-        if (agent) agentOutputs[agent] = JSON.parse((await store.json(attempt.output)).raw);
+        if (agent) agentOutputs[agent] = preservedOutput(await store.json(attempt.output));
       }
       const consolidation=run.consolidation ? await store.json(run.consolidation) : null;
       if(consolidation)agentOutputs.requirements=consolidation.output;
@@ -156,6 +157,39 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         return get(runId, db);
       });
     },
+    async resume(runId,input) {
+      const justification=text(input.justification,'Justificativa',5000,true),created=[];
+      try{return await transaction(pool,async db=>{
+        const source=await get(runId,db,true);
+        assert(source.status==='failed','Somente análise com falha pode ser continuada.',409);
+        await db.query('SELECT id FROM research.projects WHERE id=$1 FOR UPDATE',[source.project_id]);
+        assert(!(await db.query("SELECT id FROM research.runs WHERE project_id=$1 AND status IN ('pending','running','awaiting_review')",[source.project_id])).rowCount,'Projeto já possui outra execução ativa.',409);
+        const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='requirements'",[runId])).rows[0];
+        assert(stage?.status==='failed','Continuação disponível somente para falha na análise de requisitos.',409);
+        const oldParts=(await db.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[runId])).rows;
+        assert(oldParts.some(p=>p.status==='completed') && oldParts.some(p=>p.status!=='completed'),'Não há checkpoints parciais para continuar.',409);
+        const parts=await continuationParts(oldParts,store),id=randomUUID();
+        const snapshot=await store.put({...await store.json(source.snapshot),agent_definitions:AGENTS,continuation:{source_run_id:runId,reused_part_ids:oldParts.filter(p=>p.status==='completed').map(p=>p.id),justification}});created.push(snapshot);
+        await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,resumed_from_run_id)
+          VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`,[id,source.project_id,source.code_version_id,snapshot,source.model,source.parameters,runId]);
+        await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) SELECT project_id,$2,document_id FROM research.run_documents WHERE run_id=$1',[runId,id]);
+        let requirementStage;
+        for(const definition of AGENTS) {
+          const stageId=randomUUID();if(definition.agent==='requirements')requirementStage=stageId;
+          await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context,message)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[stageId,id,definition.agent,definition.position,definition.agent==='requirements' ? 'pending' : definition.agent==='tests' ? 'blocked' : 'not_supported',definition.version,definition.instruction,
+            definition.agent==='requirements' ? {citation_mode:'catalog/v1'} : null,definition.agent==='requirements' ? 'Continuando com checkpoints preservados.' : null]);
+        }
+        for(const part of parts) {
+          let ref=part.input;
+          if(part.input_data){ref=await store.put(part.input_data);created.push(ref);}
+          await db.query(`INSERT INTO research.requirement_parts(id,run_id,sequence,status,input,output,segments,character_count,attempt_count,reused_from_part_id)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[randomUUID(),id,part.sequence,part.status,ref,part.output || null,JSON.stringify(part.segments),part.character_count,part.attempt_count,part.reused_from_part_id]);
+        }
+        await review(db,id,requirementStage,'run',id,'retry',justification,{source_run_id:runId},{reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length});
+        return {...await get(id,db),reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length};
+      });}catch(error){for(const ref of created)await store.remove(ref);throw error;}
+    },
     async retry(runId, input) {
       const justification = text(input.justification,'Justificativa',5000,true);
       return transaction(pool, async db => {
@@ -201,6 +235,13 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         attempt.output_data = attempt.output ? await store.json(attempt.output) : null;
       }
       for(const job of data.execution_jobs)job.bundle_data=await store.json(job.bundle);
+      for(const part of data.requirement_parts) {
+        part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;
+        if(part.reused_from_part_id) {
+          part.reused_attempts=(await pool.query('SELECT * FROM research.attempts WHERE requirement_part_id=$1 ORDER BY number',[part.reused_from_part_id])).rows;
+          for(const attempt of part.reused_attempts){attempt.input_data=attempt.input ? await store.json(attempt.input) : null;attempt.output_data=attempt.output ? await store.json(attempt.output) : null;}
+        }
+      }
       for(const review of data.reviews.filter(r=>r.entity_type==='automated_test')) {
         if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
         if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);

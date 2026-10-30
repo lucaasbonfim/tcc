@@ -15,7 +15,7 @@ const url = process.env.TEST_DATABASE_URL;
 if (url && !new URL(url).pathname.startsWith('/tcc_test_')) throw new Error('Utilize banco separado tcc_test_.');
 const req = { code:'RF-001',title:'Autenticação',description:'Autenticar o pesquisador.',kind:'functional',actors:[],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{document_id:'complementary-text',page:1,quote:'autenticar o pesquisador'}] };
 const tc = { code:'CT-001',title:'Autenticação',objective:'Verificar acesso.',requirement_codes:['RF-001'],preconditions:[],input_data:[],steps:['Autenticar.'],expected_result:'Pesquisador autenticado.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Projeto não inspecionado.'} };
-const output = request => ({ raw:JSON.stringify(request.input.documents ? {requirements:[req],alerts:[]} : {test_cases:[tc],warnings:[]}),metadata:{model_version:'fixture',usage:null,cost:null} });
+const output = request => ({ raw:JSON.stringify(request.input.documents ? {requirements:[{...req,...(request.input.source_catalog ? {sources:[{source_id:request.input.source_catalog[0].source_id}]} : {})}],alerts:[]} : {test_cases:[tc],warnings:[]}),metadata:{model_version:'fixture',usage:null,cost:null} });
 
 test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamento e recuperação', { skip: !url }, async t => {
   const pool = new pg.Pool({connectionString:url});
