@@ -1,0 +1,9 @@
+export default function ResearchInspectionView({inspection,repositoryUrl,commitSha}) {
+  if(inspection?.inspection_version!=='2.0.0')return null;
+  return <div className="mt-4"><p className="muted">{inspection.files.length} arquivos lidos · {inspection.omitted.length} omitidos · {inspection.total_bytes} bytes. Nenhum comando do projeto foi executado.</p>
+    {inspection.warnings.map((warning,index)=><p className="notice compact" key={index}>{warning}</p>)}
+    {inspection.modules.map(module=><details key={module.root}><summary>{module.root || '(raiz)'} · {module.stack} · {module.adapter}</summary><dl className="metadata-list"><dt>Framework</dt><dd>{module.framework}</dd><dt>Dependências</dt><dd>{module.dependency_names.join(', ') || 'Nenhuma declarada'}</dd><dt>Possíveis serviços</dt><dd>{module.possible_service_dependencies.join(', ') || 'Não identificados'}</dd><dt>Restrições</dt><dd>{module.restrictions.map((restriction,index)=><p key={index}>{restriction}</p>)}</dd></dl></details>)}
+    <details><summary>Fontes e símbolos inspecionados</summary>{inspection.files.map(file=><div className="attempt-row" key={file.path}><div><p className="repository-label">{file.path}</p><p className="muted">{file.role==='existing_test' ? 'Teste existente (não executado pela pesquisa)' : 'Fonte/manifesto'} · {file.byte_size} bytes</p><p className="muted">{[...(file.symbols?.exports || []),...(file.symbols?.classes || []),...(file.symbols?.methods || [])].join(', ')}</p></div><a className="text-button" href={`${repositoryUrl}/blob/${commitSha}/${file.path.split('/').map(encodeURIComponent).join('/')}`} target="_blank" rel="noreferrer">Ver fonte ↗</a></div>)}</details>
+    <details><summary>Arquivos omitidos e estrutura encontrada</summary><pre className="code-panel">{JSON.stringify({omitidos:inspection.omitted,árvore:inspection.tree},null,2)}</pre></details>
+  </div>;
+}
