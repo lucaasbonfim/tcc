@@ -45,14 +45,23 @@ if(bundle.adapter==='node-test/v2') {
 } else {
   mkdirSync('/work/classes',{recursive:true});
   const sources=bundle.source_files.filter(f=>f.path.endsWith('.java')).map(f=>`/project/${f.path}`);
-  const compile=command(['javac','-J-Xmx128m','-proc:none','-cp','/opt/research/junit.jar','-d','/work/classes',...sources,...bundle.generated_tests.map(t=>`/project/${t.files[0].path}`)]);
+  const compile=command(['javac','-J-Xmx128m','-proc:none','-d','/work/classes',...sources]);
   if(compile.status!==0)for(const test of bundle.generated_tests)fallback(test,compile.signal ? 'timeout' : 'compilation_error',compile.stderr || 'Java compilation failed');
   else for(const test of bundle.generated_tests) {
     const name=basename(test.files[0].path,'.java');
-    const result=command(['java','-Xmx128m','-Djava.awt.headless=true','-jar','/opt/research/junit.jar','execute','--disable-banner','--disable-ansi-colors','--class-path','/work/classes','--select-class',name,'--fail-if-no-tests']);
-    reports.push({artifact_id:test.id,format:'junit-console/v1',stdout:(result.stdout || '').slice(0,30000),stderr:(result.stderr || '').slice(0,30000)});
-    // The initial Java adapter reports a generated class as its individual case; 1 is a JUnit test failure, not proof of defect.
-    fallback(test,result.signal ? 'timeout' : result.status===0 ? 'passed' : result.status===1 ? 'failed' : 'test_error',(result.stdout || '')+'\n'+(result.stderr || ''));
+    const directory=`/work/tests/${test.id}`;mkdirSync(directory,{recursive:true});
+    const compiled=command(['javac','-J-Xmx128m','-proc:none','-cp','/opt/research/junit.jar:/work/classes','-d',directory,`/project/${test.files[0].path}`]);
+    if(compiled.status!==0){fallback(test,compiled.signal ? 'timeout' : 'compilation_error',compiled.stderr || 'Generated Java test compilation failed');continue;}
+    const result=command(['java','-Xmx128m','-Djava.awt.headless=true','-cp',`/opt/research/classes:/opt/research/junit.jar:/work/classes:${directory}`,'ResearchJUnitRunner',name]);
+    if(result.signal || result.error){fallback(test,result.signal ? 'timeout' : 'infrastructure_error',result.stderr || result.error?.message || 'JUnit interrupted');continue;}
+    let report;
+    try {
+      report=JSON.parse(result.stdout || '');
+      if(result.status!==0 || !Array.isArray(report.tests) || !report.tests.length || report.tests.length>120 || report.tests.some(row=>
+        !['passed','failed','test_error','skipped','inconclusive'].includes(row.status) || typeof row.test_name!=='string' || row.test_name.length>1000 || typeof row.observed!=='string' || row.observed.length>20000))throw new Error('Invalid JUnit report');
+    }catch{fallback(test,'inconclusive','JUnit did not return a valid structured result. '+(result.stderr || '').slice(0,3000));continue;}
+    reports.push({artifact_id:test.id,format:'junit-events/v1',...report});
+    for(const row of report.tests)tests.push({artifact_id:test.id,test_case_id:test.test_case_id,...row});
   }
 }
 process.stdout.write(JSON.stringify({started_at,finished_at:new Date().toISOString(),duration_ms:Date.now()-start,

@@ -13,6 +13,7 @@ COPY shared/execution-protocol.js /opt/research/protocol.mjs
 COPY executor/vendor/junit-platform-console-standalone.jar /opt/research/junit.jar
 ARG JUNIT_SHA256
 RUN printf '%s  /opt/research/junit.jar\n' "$JUNIT_SHA256" | sha256sum -c -
+RUN mkdir /opt/research/classes && javac -proc:none -cp /opt/research/junit.jar -d /opt/research/classes /opt/research/ResearchJUnitRunner.java
 USER 1000:1000
 WORKDIR /project
 ENTRYPOINT ["/usr/local/bin/node", "/opt/research/run.mjs"]
