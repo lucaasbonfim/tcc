@@ -22,7 +22,16 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         const scope=await store.json(automation.context.scope);
         assert(receipt.images[scope.module.adapter],'Imagem do adaptador indisponível.',503);
         const id=randomUUID(),bundle={protocol_version:1,job_id:id,run_id:runId,repository_url:scope.repository_url,commit_sha:scope.commit_sha,adapter:scope.module.adapter,
-          source_files:scope.files.map(({path,content,git_sha,sha256})=>({path,content,git_sha,sha256})),generated_tests:[]};
+          source_files:[],generated_tests:[]};
+        const sources=new Map();
+        for(const script of scripts) {
+          const attempt=(await db.query('SELECT input FROM research.attempts WHERE id=$1',[script.generation_attempt_id])).rows[0];
+          const original=attempt?.input ? (await store.json(attempt.input)).input.scope : scope;
+          assert(original.commit_sha===scope.commit_sha && original.module.adapter===scope.module.adapter,'Escopo do script diverge da autorização.',422);
+          for(const file of original.files){const previous=sources.get(file.path);assert(!previous || previous.sha256===file.sha256,'Fontes de scripts divergem no mesmo caminho.',422);sources.set(file.path,file);}
+        }
+        assert(sources.size<=16,'Fontes dos scripts aprovados excedem o limite de um bundle de execução. A geração foi preservada; revise a seleção para execução.',422);
+        bundle.source_files=[...sources.values()].map(({path,content,git_sha,sha256})=>({path,content,git_sha,sha256}));
         for(const script of scripts)bundle.generated_tests.push({id:script.id,test_case_id:script.test_case_id,version:script.version,
           files:(await store.json(script.files)).map(file=>({...file,sha256:sha256(file.code)}))});
         validateBundle(bundle);

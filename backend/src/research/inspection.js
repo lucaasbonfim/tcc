@@ -4,7 +4,7 @@ import { posix } from 'node:path';
 import { githubJson, parseRepository } from './github.js';
 import { assert } from './errors.js';
 
-export const INSPECTION_LIMITS = Object.freeze({ maxFiles:24, maxFileBytes:30000, maxTotalBytes:240000, maxDepth:8, maxTreeEntries:5000,maxDurationMs:30000 });
+export const INSPECTION_LIMITS = Object.freeze({ maxFiles:512, maxFileBytes:30000, maxTotalBytes:2097152, maxDepth:8, maxTreeEntries:5000,maxDurationMs:60000,batchSize:24,concurrency:4 });
 export function safePath(path) {
   assert(typeof path==='string' && path.length<=240 && /^[A-Za-z0-9_./@-]+$/.test(path) && !path.startsWith('/') && !path.split('/').some(p=>!p || p==='.' || p==='..'), 'Caminho de código inválido.',422);
   return path;
@@ -52,7 +52,7 @@ export function javaSymbols(content) {
     requires_database:/\b(?:java\.sql|javax\.sql|jdbc:|DriverManager|EntityManager)\b/.test(content)};
 }
 
-export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECTION_LIMITS) {
+export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECTION_LIMITS,cachedFiles=[]) {
   const started=Date.now();
   const repo=parseRepository(version.repository_url);
   assert(/^[a-f0-9]{40}$/.test(version.commit_sha),'Commit inválido.');
@@ -61,7 +61,7 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
   assert(Array.isArray(tree.tree),'Árvore GitHub inválida.',502);
   const warnings=[],omitted=[];
   if(tree.truncated || tree.tree.length>limits.maxTreeEntries)warnings.push('Árvore parcial: limite do GitHub/inspeção atingido. Escopo não representa o repositório inteiro.');
-  const candidates=tree.tree.slice(0,limits.maxTreeEntries).filter(item=>item.type==='blob' &&
+  const candidates=tree.tree.slice(0,limits.maxTreeEntries).filter(item=>item.type==='blob' && !/(?:^|\/)(?:node_modules|target|dist|build|\.git)\//.test(item.path) &&
     /(?:^|\/)(?:package\.json|pom\.xml|[^/]+\.(?:[cm]?js|ts|java))$/.test(item.path));
   function priority(item) {
     if(/(?:^|\/)(?:package\.json|pom\.xml)$/.test(item.path))return 0;
@@ -69,25 +69,50 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
     return 1;
   }
   candidates.sort((a,b)=>priority(a)-priority(b) || a.path.localeCompare(b.path));
-  const files=[];
-  let total=0;
-  for(const entry of candidates) {
-    if(Date.now()-started>limits.maxDurationMs){omitted.push({path:entry.path,reason:'Prazo total de inspeção atingido.'});continue;}
-    if(!/^(100644|100755)$/.test(entry.mode || '') || entry.path.split('/').length>limits.maxDepth || !Number.isInteger(entry.size) || entry.size>limits.maxFileBytes || files.length>=limits.maxFiles || total+entry.size>limits.maxTotalBytes) {
-      omitted.push({path:entry.path,reason:'Limite de arquivos/bytes/profundidade ou arquivo não regular.'});continue;
+  const files=[],read_batches=[],cache=new Map(cachedFiles.map(file=>[file.path,file]));
+  let total=0,remoteUnavailable='';
+  async function read(entry) {
+    const cached=cache.get(entry.path);let buffer,from_cache=false;
+    if(cached?.git_sha===entry.sha && typeof cached.content==='string') {
+      const candidate=Buffer.from(cached.content,'utf8');
+      if(candidate.length===entry.size && createHash('sha1').update(`blob ${candidate.length}\0`).update(candidate).digest('hex')===entry.sha && createHash('sha256').update(candidate).digest('hex')===cached.sha256){buffer=candidate;from_cache=true;}
     }
-    try{safePath(entry.path);}catch{omitted.push({path:entry.path,reason:'Caminho não suportado.'});continue;}
-    if(/(?:^|\/)(?:node_modules|target|dist|build|\.git)\//.test(entry.path))continue;
-    const blob=await githubJson(`${prefix}/git/blobs/${entry.sha}`,fetchImpl);
-    assert(blob.encoding==='base64' && typeof blob.content==='string','Blob GitHub inválido.',502);
-    const buffer=Buffer.from(blob.content,'base64');
-    assert(buffer.length===entry.size && buffer.length<=limits.maxFileBytes && total+buffer.length<=limits.maxTotalBytes,'Tamanho do blob diverge da árvore.',422);
+    if(!buffer) {
+      if(remoteUnavailable)return {omitted:{path:entry.path,reason:remoteUnavailable}};
+      let blob;try{blob=await githubJson(`${prefix}/git/blobs/${entry.sha}`,fetchImpl);}
+      catch(error){if(![502,503].includes(error.statusCode))throw error;if(error.statusCode===503)remoteUnavailable=error.message;return {omitted:{path:entry.path,reason:error.message}};}
+      assert(blob.encoding==='base64' && typeof blob.content==='string','Blob GitHub inválido.',502);
+      buffer=Buffer.from(blob.content,'base64');
+    }
+    assert(buffer.length===entry.size && buffer.length<=limits.maxFileBytes,'Tamanho do blob diverge da árvore.',422);
     assert(createHash('sha1').update(`blob ${buffer.length}\0`).update(buffer).digest('hex')===entry.sha,'Integridade do blob Git comprometida.',422);
     const content=new TextDecoder('utf-8',{fatal:true}).decode(buffer);
-    total+=buffer.length;
     const role=/(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\./i.test(entry.path) ? 'existing_test' : 'source';
     const symbols=/\.[cm]?js$/.test(entry.path) ? javascriptSymbols(content) : /\.java$/.test(entry.path) ? javaSymbols(content) : null;
-    files.push({path:entry.path,git_sha:entry.sha,sha256:createHash('sha256').update(buffer).digest('hex'),byte_size:buffer.length,content,role,symbols});
+    return {file:{path:entry.path,git_sha:entry.sha,sha256:createHash('sha256').update(buffer).digest('hex'),byte_size:buffer.length,content,role,symbols},from_cache};
+  }
+  const batchSize=limits.batchSize || 24,concurrency=limits.concurrency || 4;
+  for(let offset=0;offset<candidates.length;offset+=batchSize) {
+    const selected=[];let reserved=0;
+    for(const entry of candidates.slice(offset,offset+batchSize)) {
+      let reason='';
+      if(Date.now()-started>limits.maxDurationMs)reason='Prazo total de inspeção atingido.';
+      else if(!/^(100644|100755)$/.test(entry.mode || '') || entry.path.split('/').length>limits.maxDepth || !Number.isInteger(entry.size))reason='Arquivo não regular ou profundidade não suportada.';
+      else if(entry.size>limits.maxFileBytes)reason=`Arquivo excede ${limits.maxFileBytes} bytes.`;
+      else if(files.length+selected.length>=limits.maxFiles)reason=`Teto global de ${limits.maxFiles} arquivos atingido.`;
+      else if(total+reserved+entry.size>limits.maxTotalBytes)reason='Teto global de bytes da inspeção atingido.';
+      try{safePath(entry.path);}catch{reason='Caminho não suportado.';}
+      if(reason){omitted.push({path:entry.path,reason});continue;}
+      selected.push(entry);reserved+=entry.size;
+    }
+    const batch={sequence:read_batches.length+1,paths:[],cached:0};
+    for(let offset=0;offset<selected.length;offset+=concurrency) {
+      const group=selected.slice(offset,offset+concurrency);
+      if(Date.now()-started>limits.maxDurationMs){for(const entry of group)omitted.push({path:entry.path,reason:'Prazo total de inspeção atingido.'});continue;}
+      const results=await Promise.all(group.map(read));
+      for(const result of results){if(result.omitted)omitted.push(result.omitted);else{files.push(result.file);total+=result.file.byte_size;batch.paths.push(result.file.path);if(result.from_cache)batch.cached++;}}
+    }
+    if(batch.paths.length)read_batches.push(batch);
   }
   if(omitted.length)warnings.push(`${omitted.length} arquivos candidatos não foram lidos. Consulte a lista de omissões.`);
   const modules=[];
@@ -116,7 +141,7 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
         restrictions:['Compilação restrita a classes selecionadas e dependências locais/JDK. Plugins Maven não executados.','Swing e banco não suportados no adaptador headless.']});
     }
   }
-  return {inspection_version:'2.0.0',inspected_at:new Date().toISOString(),repository_url:version.repository_url,commit_sha:version.commit_sha,
+  return {inspection_version:'2.0.0',reader_version:'2.1.0',candidate_count:candidates.length,read_batches,inspected_at:new Date().toISOString(),repository_url:version.repository_url,commit_sha:version.commit_sha,
     stack:modules.map(m=>m.stack).join(', ') || 'unknown',adapter:modules.length===1 ? modules[0].adapter : 'select_module',
     execution_enabled:false,status:modules.some(m=>m.targets.length) ? 'inspection_ready' : 'not_supported',
     reason:'Inspeção estática no SHA. Escolha módulo/arquivos para geração; execução requer executor validado e aprovação.',

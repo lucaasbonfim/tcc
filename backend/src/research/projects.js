@@ -3,6 +3,7 @@ import { assert, text, transaction } from './errors.js';
 import { resolveRepository } from './github.js';
 import { extractDocument } from './documents.js';
 import { inspectCodeVersion } from './adapters.js';
+import {planModuleScopes} from './module-scopes.js';
 
 export function createProjectService({ pool, store, resolveCode = resolveRepository, extract = extractDocument, inspectCode=inspectCodeVersion }) {
   async function get(id, db = pool, lock = false) {
@@ -88,7 +89,10 @@ export function createProjectService({ pool, store, resolveCode = resolveReposit
     async inspect(projectId, versionId) {
       const version = (await pool.query('SELECT * FROM research.code_versions WHERE project_id=$1 AND id=$2',[projectId,versionId])).rows[0];
       assert(version,'Versão não encontrada neste projeto.',404);
-      const inspection = await inspectCode(version);
+      const previous=(await pool.query('SELECT artifact FROM research.inspections WHERE code_version_id=$1 ORDER BY created_at DESC LIMIT 1',[versionId])).rows[0];
+      const cachedFiles=previous ? (await store.json(previous.artifact)).files : [];
+      const inspection = await inspectCode(version,undefined,undefined,cachedFiles);
+      for(const module of inspection.modules)module.automation_plan=planModuleScopes(inspection,module.root).summary;
       const artifact=await store.put(inspection);
       const id=randomUUID();
       const summary={...inspection,inspection_id:id,files:inspection.files.map(({content,...metadata})=>metadata)};

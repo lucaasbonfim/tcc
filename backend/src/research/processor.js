@@ -88,7 +88,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         if(!error) {
           const parts=(await db.query('SELECT status,dispositions FROM research.automation_parts WHERE run_id=$1',[job.run.id])).rows;
           partial=parts.some(part=>part.status!=='completed');
-          if(!partial){const addressed=parts.flatMap(part=>part.dispositions.map(item=>item.test_case_id));assert(addressed.length===job.stage.context.case_ids.length && new Set(addressed).size===addressed.length && job.stage.context.case_ids.every(id=>addressed.includes(id)),'Existem casos sem script ou justificativa na consolidação.',422);}
+          if(!partial){const addressed=parts.flatMap(part=>part.dispositions.filter(item=>item.status!=='deferred').map(item=>item.test_case_id));assert(addressed.length===job.stage.context.case_ids.length && new Set(addressed).size===addressed.length && job.stage.context.case_ids.every(id=>addressed.includes(id)),'Existem casos sem script ou justificativa na consolidação.',422);}
         }
       }
       if (!error && !partial && !job.testPart && !job.automationPart) {
