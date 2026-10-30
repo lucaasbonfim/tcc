@@ -62,7 +62,7 @@ test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamen
       assert.equal(final.status,'completed');
       assert.equal(final.stages[2].status,'not_supported');
       assert.equal(final.stages[3].status,'not_supported');
-      assert.equal(final.stages[2].instruction_version,'2.0.0');
+      assert.equal(final.stages[2].instruction_version,'2.1.0');
       assert.match(final.stages[2].message,/scripts aprovados/);
       assert.equal(final.stages[3].instruction_version,'2.0.0');
       assert.match(final.attempts[0].output_data.raw,/Autenticação/);

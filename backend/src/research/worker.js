@@ -11,7 +11,7 @@ for (const signal of ['SIGINT','SIGTERM']) process.on(signal,() => { stopping = 
 const processor = createProcessor({pool,store:createArtifactStore(),generate:createModelGateway()});
 try {
   await assertMigrations(pool);
-  console.log('Worker de pesquisa iniciado. Execução externa somente via executor dedicado validado.');
+  console.log('Worker de pesquisa iniciado. Execução externa somente via serviço executor validado.');
   while (!stopping) {
     try {
       await processor.recoverExpired();

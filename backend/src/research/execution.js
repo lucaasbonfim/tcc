@@ -3,7 +3,7 @@ import {assert,text,transaction} from './errors.js';
 import {createExecutorClient} from './executor-client.js';
 import {sha256,validateBundle,validateExecutionResult} from '../../../shared/execution-protocol.js';
 
-export const EXECUTION_INSTRUCTION='Agente 3 determinístico v2: executar somente scripts aprovados com fontes do SHA em serviço dedicado autenticado e política validada; comandos fixos por adaptador. Preservar ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
+export const EXECUTION_INSTRUCTION='Agente 3 determinístico v2.1: executar somente scripts aprovados com fontes do SHA em serviço autenticado e política do perfil validada; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
 export function createExecutionService({pool,store,client=createExecutorClient()}) {
   return {
     capabilities:()=>client.health(),
@@ -30,7 +30,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='execution' FOR UPDATE",[runId])).rows[0];
         await db.query(`INSERT INTO research.execution_jobs(id,run_id,stage_id,status,adapter,bundle,request_sha256,executor_receipt)
           VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`,[id,runId,stage.id,bundle.adapter,bundleRef,hash,JSON.stringify(receipt)]);
-        await db.query("UPDATE research.stages SET status='pending',instruction_version='2.0.0',instruction=$2,context=$3,message='Execução autorizada, aguardando worker.' WHERE id=$1",[stage.id,EXECUTION_INSTRUCTION,{job_id:id}]);
+        await db.query("UPDATE research.stages SET status='pending',instruction_version='2.1.0',instruction=$2,context=$3,message='Execução autorizada, aguardando worker.' WHERE id=$1",[stage.id,EXECUTION_INSTRUCTION,{job_id:id}]);
         await db.query("UPDATE research.stages SET status='blocked',message='Aguardando evidências independentes de execução.' WHERE run_id=$1 AND agent='evaluation' AND status='not_supported'",[runId]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
@@ -51,6 +51,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
       const row=(await db.query('SELECT * FROM research.execution_jobs WHERE id=$1 FOR UPDATE',[job.stage.context.job_id])).rows[0];
       const bundle=await store.json(row.bundle);validateExecutionResult(output,bundle,row.request_sha256);
       assert(output.environment.image_id===row.executor_receipt.images[row.adapter].image_id && output.environment.deployment_id===row.executor_receipt.deployment_id && output.environment.policy_sha256===row.executor_receipt.policy_sha256,'Ambiente recebido não corresponde à autorização.',422);
+      assert((output.environment.isolation_profile || 'dedicated-vm')===(row.executor_receipt.isolation_profile || 'dedicated-vm') && Boolean(output.environment.development_only)===Boolean(row.executor_receipt.development_only),'Perfil recebido não corresponde à autorização.',422);
       const ref=await store.put(output),evidenceId=randomUUID();
       await db.query("UPDATE research.execution_jobs SET status='completed',result=$2,finished_at=now() WHERE id=$1",[row.id,ref]);
       await db.query('INSERT INTO research.evidence(id,run_id,job_id,artifact) VALUES($1,$2,$3,$4)',[evidenceId,job.run.id,row.id,ref]);
