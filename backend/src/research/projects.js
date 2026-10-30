@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { assert, text, transaction } from './errors.js';
 import { resolveRepository } from './github.js';
 import { extractDocument } from './documents.js';
+import { inspectCodeVersion } from './adapters.js';
 
 export function createProjectService({ pool, store, resolveCode = resolveRepository, extract = extractDocument }) {
   async function get(id, db = pool, lock = false) {
@@ -83,6 +84,13 @@ export function createProjectService({ pool, store, resolveCode = resolveReposit
       const doc = (await pool.query('SELECT * FROM research.documents WHERE id=$1 AND project_id=$2', [id,projectId])).rows[0];
       assert(doc, 'Documento não encontrado.', 404);
       return { ...doc, ...(await store.json(doc.extraction)) };
+    },
+    async inspect(projectId, versionId) {
+      const version = (await pool.query('SELECT * FROM research.code_versions WHERE project_id=$1 AND id=$2',[projectId,versionId])).rows[0];
+      assert(version,'Versão não encontrada neste projeto.',404);
+      const inspection = await inspectCodeVersion(version);
+      await pool.query('UPDATE research.code_versions SET inspection=$2 WHERE id=$1',[versionId,inspection]);
+      return inspection;
     },
   };
 }

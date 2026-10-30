@@ -36,3 +36,9 @@
 - Revisão de cada item com justificativa, cópia antes/depois e revisão numérica para evitar sobrescrita concorrente. Geração recebe somente requisitos aprovados; conclusão exige revisar todos e aprovar pelo menos um item.
 - PostgreSQL isolado: pipeline completo, prevenção de duplicação e claims concorrentes, snapshot imutável, rastreabilidade, correção auditada, JSON inválido, limite de repetição, cancelamento durante inferência e recuperação de lease expirado.
 - `TEST_DATABASE_URL=... npm test`: 19 testes aprovados, sem chamadas à API de IA. Execução e avaliação permanecem `not_supported`, inclusive em execuções concluídas de geração textual.
+
+## Exportação e inspeção técnica
+
+- Exportação JSON inclui snapshot, instruções, tentativas/entradas/saídas e revisões; CSV usa linhas por entidade, vínculos e payload JSON, com escape de fórmulas e delimitadores.
+- Adaptador declarativo `node-built-in-test/v1` identifica apenas script exato `node --test`, sugere comando fixo e mantém execução bloqueada. Maven é identificado sem executor; manifestos limitados à raiz e SHA registrado.
+- Testes de exportação e inspeção com transporte injetado; `node --check backend/src/research/{worker,runs,processor}.js` e suíte com PostgreSQL: 21 testes aprovados.
