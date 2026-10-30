@@ -24,6 +24,7 @@ export function scenarioServices(pool,store,options={}) {
         targets:[{path:'src/calc.js',symbols:['sum']}],rationale:'Confere soma definida no requisito.',expected_result:row.content.expected_result,expected_sources:[{requirement_code:'RF-001',quote:'somar dois números'}],limitations:[]}],unsupported_cases:[],warnings:[]};
     } else if(request.input.documents) output={requirements:[{code:'RF-001',title:'Somar',description:'O sistema deve somar dois números.',kind:'functional',actors:[],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{document_id:'complementary-text',page:1,quote:'somar dois números'}]}],alerts:[]};
     else output={test_cases:[{code:'CT-001',title:'Somar valores',objective:'Conferir soma.',requirement_codes:['RF-001'],preconditions:[],input_data:['2 e 3'],steps:['Somar 2 e 3.'],expected_result:'Retorna a soma.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Conferir função sum.'}}],warnings:[]};
+    if(request.input.source_catalog)for(const item of [...output.requirements,...output.alerts])item.sources=item.sources.map(()=>({source_id:request.input.source_catalog[0].source_id}));
     return {raw:JSON.stringify(output),metadata:{model_version:'test-fixture',usage:null,cost:null}};
   };
   const processor=createProcessor({pool,store,generate,...options});

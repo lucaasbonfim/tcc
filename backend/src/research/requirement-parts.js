@@ -2,9 +2,10 @@ import {randomUUID} from 'node:crypto';
 import {assert} from './errors.js';
 import {requirementsOutputSchema,validateOutput,validateShape,validateRequirement,validateSources} from './agents.js';
 import {canonical} from '../../../shared/execution-protocol.js';
+import {preservedOutput} from './citations.js';
 
 export const PART_SCHEMA={...requirementsOutputSchema,properties:{...requirementsOutputSchema.properties,requirements:{...requirementsOutputSchema.properties.requirements,minItems:0}}};
-export function planParts(documents,{pageSlice=12000,budget=16000,overlap=600}={}) {
+export function planParts(documents,{pageSlice=6000,budget=8000,overlap=600,maxPages=40}={}) {
   const fragments=[];
   for(const doc of documents)for(const page of doc.pages) {
     if(!page.text.length){fragments.push({document_id:doc.id,name:doc.name,version:doc.version,page:page.page,start:0,end:0,text:'',context_only:false});continue;}
@@ -22,7 +23,7 @@ export function planParts(documents,{pageSlice=12000,budget=16000,overlap=600}={
   }
   const groups=[];let current=[],size=0;
   for(const fragment of fragments) {
-    if(current.length && (size+fragment.text.length>budget || current.some(f=>f.document_id===fragment.document_id && f.page===fragment.page))) {
+    if(current.length && (size+fragment.text.length>budget || current.length>=maxPages || current.some(f=>f.document_id===fragment.document_id && f.page===fragment.page))) {
       groups.push(current);current=[];size=0;
     }
     current.push(fragment);size+=fragment.text.length;
@@ -45,7 +46,7 @@ export function planParts(documents,{pageSlice=12000,budget=16000,overlap=600}={
 }
 export async function createParts(db,runId,documents,store) {
   const total=documents.reduce((n,d)=>n+d.pages.reduce((m,p)=>m+p.text.length,0),0);
-  if(total<=24000)return;
+  if(total<=24000 && documents.reduce((n,doc)=>n+doc.pages.length,0)<=40)return;
   const parts=planParts(documents);
   for(const part of parts) {
     const input=await store.put({documents:part.documents,part:{sequence:part.sequence,total:parts.length,segments:part.segments,
@@ -53,6 +54,27 @@ export async function createParts(db,runId,documents,store) {
     await db.query(`INSERT INTO research.requirement_parts(id,run_id,sequence,status,input,segments,character_count)
       VALUES($1,$2,$3,'pending',$4,$5,$6)`,[randomUUID(),runId,part.sequence,input,JSON.stringify(part.segments),part.character_count]);
   }
+}
+
+export async function continuationParts(parts,store) {
+  const prepared=[];
+  for(const part of parts) {
+    const input=await store.json(part.input);
+    if(part.status==='completed') {
+      validatePart(preservedOutput(await store.json(part.output)),input);
+      prepared.push({status:'completed',input:part.input,output:part.output,segments:part.segments,character_count:part.character_count,attempt_count:part.attempt_count,reused_from_part_id:part.id});
+      continue;
+    }
+    for(const plan of planParts(input.documents)) {
+      const segments=plan.segments.map(segment=>{
+        const original=(input.part?.segments || part.segments).find(s=>s.document_id===segment.document_id && s.page===segment.page);
+        return {...segment,start:segment.start+(original?.start || 0),end:segment.end+(original?.start || 0),context_only:segment.context_only || Boolean(original?.context_only)};
+      });
+      prepared.push({status:'pending',input_data:{documents:plan.documents,part:{segments,limitations:['Continuação das partes não concluídas, redivididas em entradas menores.']}},segments,character_count:plan.character_count,attempt_count:0,reused_from_part_id:null});
+    }
+  }
+  assert(prepared.length<=512,'Continuação excede 512 partes; reduza a seleção em uma nova análise.',422);
+  return prepared.map((part,index)=>({...part,sequence:index+1,...(part.input_data ? {input_data:{...part.input_data,part:{...part.input_data.part,sequence:index+1,total:prepared.length}}} : {})}));
 }
 export function validatePart(output,input) {
   validateShape(output,PART_SCHEMA);

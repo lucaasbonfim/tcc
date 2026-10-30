@@ -7,6 +7,7 @@ import {createExecutionService} from './execution.js';
 import {createEvaluationService} from './evaluation.js';
 import {validateEvaluation,evaluationRequestSchema} from './evaluation-contract.js';
 import {PART_SCHEMA,validatePart,consolidateParts} from './requirement-parts.js';
+import {citationRequest,resolveCitations,preservedOutput} from './citations.js';
 
 export function createProcessor({ pool, store, generate, executorClient }) {
   const automation=createAutomationService({pool,store});
@@ -50,7 +51,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           const parts=(await db.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[job.run.id])).rows;
           partial=parts.some(p=>p.status!=='completed');
           if(!partial) {
-            const inputs=[];for(const part of parts)inputs.push({id:part.id,output:JSON.parse((await store.json(part.output)).raw)});
+            const inputs=[];for(const part of parts)inputs.push({id:part.id,output:preservedOutput(await store.json(part.output))});
             const consolidated=consolidateParts(inputs),snapshot=await store.json(job.run.snapshot);
             consolidated.output.requirements.forEach(req=>validateRequirement(req,snapshot.documents));
             const ref=await store.put(consolidated);
@@ -119,8 +120,10 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
           requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
         const definition = job.part ? {schema:PART_SCHEMA} : ['automation','evaluation'].includes(job.stage.agent) ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
+        const grounded=job.stage.agent==='requirements' && job.stage.context?.citation_mode==='catalog/v1' ? citationRequest(input,definition.schema) : null;
+        if(grounded)input=grounded.input;
         const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction,
-          instruction_version:job.stage.instruction_version,schema:job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema,input };
+          instruction_version:job.stage.instruction_version,schema:grounded?.schema || (job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema),input };
         inputRef = await store.put(request);
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
@@ -139,12 +142,17 @@ export function createProcessor({ pool, store, generate, executorClient }) {
             timer = setTimeout(() => { controller.abort(); reject(new Error('Prazo de 95 segundos excedido na chamada ao modelo.')); },95000);
           })]);
           metadata = result.metadata;
-          outputRef = await store.put({raw:result.raw});
+          let resolved=false;
+          try {
+          assertComplete(result.metadata);
           output = JSON.parse(result.raw);
+          if(grounded)output=resolveCitations(output,input,request.schema);
           if(job.part)validatePart(output,input);
           else if(job.stage.agent==='automation')validateAutomation(output,input);
           else if(job.stage.agent==='evaluation')validateEvaluation(output,input);
           else if(job.stage.agent!=='execution')validateOutput(job.stage.agent,output,input);
+          resolved=Boolean(grounded);
+          } finally {outputRef=await store.put({raw:result.raw,...(resolved ? {validated_output:output,citation_method:'source-catalog/v1'} : {})});}
         } finally { clearTimeout(timer);clearInterval(monitor); }
       } catch (cause) {
         // Não persistir objetos do SDK, cabeçalhos ou credenciais recebidos em erros remotos.
@@ -158,4 +166,10 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       return true;
     },
   };
+}
+
+function assertComplete(metadata) {
+  if(metadata?.finish_reasons?.includes('MAX_TOKENS')) {
+    const error=new Error('Resposta interrompida pelo limite de saída do modelo. Continue em partes menores; nenhuma saída parcial foi aceita.');error.statusCode=422;throw error;
+  }
 }
