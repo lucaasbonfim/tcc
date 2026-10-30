@@ -57,6 +57,8 @@ test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamen
       await runs.reviewItem(runId,'tests',caseRow.id,{revision:0,decision:'approved',justification:'Passos conferidos.'});
       await runs.approveStage(runId,'tests',{justification:'Geração textual concluída.'});
       const final = await runs.export(runId);
+      const summary = await runs.summary();
+      assert.ok(summary.projects >= 1 && summary.runs >= 1 && summary.completed >= 1);
       assert.equal(final.status,'completed');
       assert.equal(final.stages[2].status,'not_supported');
       assert.equal(final.stages[3].status,'not_supported');

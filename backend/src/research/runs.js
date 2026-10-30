@@ -16,6 +16,13 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     [randomUUID(),runId,stageId,entityType,entityId,decision,justification,before ? JSON.stringify(before) : null,after ? JSON.stringify(after) : null]);
   }
   const service = {
+    async summary() {
+      return (await pool.query(`SELECT
+        (SELECT count(*)::int FROM research.projects) AS projects,
+        count(*)::int AS runs,
+        count(*) FILTER(WHERE status='awaiting_review')::int AS awaiting_review,
+        count(*) FILTER(WHERE status='completed')::int AS completed FROM research.runs`)).rows[0];
+    },
     async create(projectId, input = {}) {
       const config = configuration();
       return transaction(pool, async db => {
