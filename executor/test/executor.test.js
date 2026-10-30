@@ -4,7 +4,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:http';
-import {containerArguments,projectTar,executeContainer} from '../src/docker.js';
+import {containerArguments,executeContainer} from '../src/docker.js';
 import {createExecutionService,verifyRepositoryMembership} from '../src/service.js';
 import {validateIsolation} from '../src/isolation.js';
 import {validateBundle,validateExecutionResult,sha256} from '../../shared/execution-protocol.js';
@@ -16,17 +16,21 @@ test('contrato rejeita adulteração e comandos do usuário não entram no vetor
   const args=containerArguments(`research-${bundle.job_id}`,'sha256:'+'a'.repeat(64));
   for(const flag of ['--read-only','--cap-drop','--security-opt','--network','--pids-limit','--cpus','--memory','--memory-swap','--user','--tmpfs'])assert.ok(args.includes(flag));
   assert.equal(args.includes('--privileged'),false);assert.equal(args.some(arg=>arg.includes('docker.sock')),false);
-  assert.ok(projectTar(bundle).length%512===0);
   const result=fixtureResult(bundle);validateExecutionResult(result,bundle,sha256(bundle));
   assert.throws(()=>validateExecutionResult({...result,request_sha256:'x'},bundle,sha256(bundle)),/authorized/);
 });
 test('executor limpa container após timeout e nunca usa shell ou mount de host',async()=>{
   const calls=[],bundle=executionFixture();
-  const result=await executeContainer(bundle,'sha256:'+'a'.repeat(64),{runDocker:async(args)=>{
+  const result=await executeContainer(bundle,'sha256:'+'a'.repeat(64),{runDocker:async(args,options)=>{
+    if(args[0]==='exec') {
+      assert.deepEqual(args,['exec','--user','0:0','--workdir','/','-i',`research-${bundle.job_id}`,'/usr/local/bin/node','/opt/research/install.mjs']);
+      assert.equal(options.input,JSON.stringify(bundle)+'\n');
+    }
     calls.push(args);return args[0]==='attach' ? {code:null,terminated:true,stdout:'',stderr:''} : {code:0,terminated:false,stdout:'',stderr:''};
   }});
   assert.equal(result.status,'timeout');assert.deepEqual(calls.at(-1),['rm','-f',`research-${bundle.job_id}`]);
   assert.ok(calls.every(args=>!args.includes('sh') && !args.includes('-v') && !args.includes('--mount')));
+  assert.equal(calls.some(args=>args[0]==='cp'),false);
 });
 test('isolamento recusa runtime sem rootless/cgroups e imagens não fixadas',async()=>{
   await assert.rejects(validateIsolation({dedicated_vm:true,deployment_id:'test-deployment',images:{}},{virtualization:'kvm',runDocker:async()=>({code:0,stdout:JSON.stringify({OSType:'linux',CgroupVersion:'1',SecurityOptions:[]})})}),/Rootless/);

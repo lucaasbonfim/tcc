@@ -3,11 +3,10 @@ import {spawnSync} from 'node:child_process';
 import {basename} from 'node:path';
 import {dirname} from 'node:path';
 import {probe} from './probe.mjs';
-import {validateBundle,sha256} from './protocol.mjs';
+import {sha256,readBundle} from './protocol.mjs';
 if(!existsSync('/opt/research/container-only'))throw new Error('This runner can only run in its provisioned container.');
 probe();
-let input='';for await(const chunk of process.stdin){input+=chunk;if(Buffer.byteLength(input)>1048576)throw new Error('Bundle too large');}
-const bundle=validateBundle(JSON.parse(input));
+const bundle=await readBundle();
 for(const file of [...bundle.source_files,...bundle.generated_tests.flatMap(t=>t.files)]) {
   if(sha256(readFileSync(`/project/${file.path}`))!==file.sha256)throw new Error('Immutable source mismatch');
   let path=`/project/${file.path}`;
@@ -19,23 +18,23 @@ for(const file of [...bundle.source_files,...bundle.generated_tests.flatMap(t=>t
 }
 const commands=[],tests=[],reports=[];
 let stdout='',stderr='';const started_at=new Date().toISOString(),start=Date.now();
-function command(argv) {
+function command(argv,variables={}) {
   const remaining=45000-(Date.now()-start);
   if(remaining<=0)return {status:null,stdout:'',stderr:'Execution timeout',signal:'SIGKILL'};
   const result=spawnSync(argv[0],argv.slice(1),{encoding:'utf8',cwd:'/project',timeout:Math.min(25000,remaining),maxBuffer:512000,
-    env:{PATH:process.env.PATH,HOME:'/work',TMPDIR:'/tmp',LANG:'C.UTF-8'}});
-  commands.push({argv,exit_code:result.status});stdout+=(result.stdout || '').slice(0,30000);stderr+=(result.stderr || '').slice(0,30000);
+    env:{PATH:process.env.PATH,HOME:'/work',TMPDIR:'/tmp',LANG:'C.UTF-8',...variables}});
+  commands.push({argv,exit_code:result.status,...(variables.RESEARCH_TEST_FILE ? {test_file:variables.RESEARCH_TEST_FILE} : {})});stdout+=(result.stdout || '').slice(0,30000);stderr+=(result.stderr || '').slice(0,30000);
   return result;
 }
 function fallback(test,status,observed){tests.push({artifact_id:test.id,test_case_id:test.test_case_id,test_name:basename(test.files[0].path),status,observed:observed.slice(0,20000)});}
 if(bundle.adapter==='node-test/v2') {
   for(const test of bundle.generated_tests) {
-    const result=command(['/usr/local/bin/node','--test','--test-reporter=/opt/research/node-reporter.mjs',`/project/${test.files[0].path}`]);
+    const result=command(['/usr/local/bin/node','--test','--test-reporter=/opt/research/node-reporter.mjs','/opt/research/node-entry.mjs'],{RESEARCH_TEST_FILE:`/project/${test.files[0].path}`});
     if(result.signal || result.error){fallback(test,result.error?.code==='ETIMEDOUT' || result.signal ? 'timeout' : 'infrastructure_error',result.stderr || result.error?.message || 'Runner interrupted');continue;}
     let events;
     try{events=(result.stdout || '').trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));}catch{fallback(test,'inconclusive','Framework report could not be parsed');continue;}
     reports.push({artifact_id:test.id,format:'node-test-events/v1',events});
-    const outcomes=events.filter(e=>['test:pass','test:fail'].includes(e.type));
+    const outcomes=events.filter(e=>['test:pass','test:fail'].includes(e.type) && !(e.type==='test:pass' && e.name==='/opt/research/node-entry.mjs'));
     if(!outcomes.length){fallback(test,'inconclusive','No test event reported');continue;}
     for(const row of outcomes) {
       const status=row.skip || row.todo ? 'skipped' : row.type==='test:pass' ? 'passed' : row.error_code==='ERR_ASSERTION' ? 'failed' :

@@ -40,6 +40,19 @@ export function validateBundle(bundle) {
   ensure(Buffer.byteLength(JSON.stringify(bundle))<=1048576,'Bundle too large');
   return bundle;
 }
+
+// One bounded JSON line: Docker attach need not propagate EOF to container stdin.
+export async function readBundle(stream=process.stdin) {
+  const chunks=[];let bytes=0;
+  for await(const chunk of stream) {
+    const buffer=Buffer.from(chunk);bytes+=buffer.length;
+    ensure(bytes<=1048577,'Bundle too large');
+    chunks.push(buffer);
+    if(buffer.includes(10))break;
+  }
+  return validateBundle(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+}
+
 export function validateExecutionResult(result,bundle,requestHash) {
   ensure(result?.protocol_version===1 && result.job_id===bundle.job_id && result.request_sha256===requestHash && result.commit_sha===bundle.commit_sha && result.adapter===bundle.adapter,'Evidence does not belong to authorized job');
   ensure(JOB_STATUSES.includes(result.status),'Invalid execution status');
