@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateOutput } from '../src/research/agents.js';
-import { createModelGateway, GENERATION_PARAMETERS } from '../src/research/model.js';
+import { createModelGateway, GENERATION_PARAMETERS, providerSchema } from '../src/research/model.js';
 
 export const requirement = {
   code:'RF-001',title:'Autenticação',description:'O sistema deve autenticar o pesquisador.',kind:'functional',
@@ -36,4 +36,10 @@ test('gateway injeta cliente, separa instruções e coleta somente metadados dis
   assert.match(request.contents,/untrusted_research_data/);
   assert.equal(result.metadata.cost,null);
   assert.equal(result.metadata.usage.totalTokenCount,10);
+});
+
+test('schema do provedor reduz complexidade, mantendo limites na validação local', () => {
+  const schema = {type:'array',maxItems:10,items:{type:'integer',minimum:1}};
+  assert.deepEqual(providerSchema(schema),{type:'array',items:{type:'integer'}});
+  assert.equal(schema.maxItems,10);
 });
