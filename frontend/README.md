@@ -1,63 +1,26 @@
-# Frontend
+﻿# Frontend do painel de pesquisa
 
-Interface web do experimento de geracao de casos de teste com IA generativa.
-
-## Tecnologias
-
-- React
-- Vite
-- JavaScript
-- React Router DOM
-- Axios
-- Tailwind CSS
-
-## Instalacao
-
-```bash
-npm install
-```
-
-## Configuracao
-
-Crie o arquivo `.env` a partir do exemplo:
+React, Vite, Tailwind e React Router preservados. Configure `VITE_API_URL` no `.env` como `http://localhost:3000/api` e use `FRONTEND_URL=http://localhost:5173` no backend.
 
 ```powershell
-Copy-Item .env.example .env
-```
-
-Variavel esperada:
-
-```env
-VITE_API_URL=http://localhost:3000/api
-```
-
-## Desenvolvimento
-
-```bash
+npm ci
 npm run dev
-```
-
-## Build
-
-```bash
+npm run lint
 npm run build
 ```
 
-## Fluxos disponiveis
+A rota inicial redireciona para o painel protegido `/admin`; login em `/admin/login`. Projetos, documentos, requisitos, casos, execuções, análise e relatórios compõem o fluxo ativo. Componentes e páginas históricos continuam no código para referência, sem rotas de participantes ou dependência de `ParticipantProvider` na aplicação ativa.
 
-- Login do participante com e-mail e codigo de acesso.
-- Consentimento e questionario de perfil.
-- Execucao das tres atividades do experimento na ordem configurada pelo grupo.
-- Atividade manual com cadastro, edicao e exclusao de casos de teste.
-- Atividade com prompt simples em que o participante escreve uma instrucao livre.
-- Atividade com prompt estruturado em que o participante preenche um formulario.
-- Pre-visualizacao do prompt final antes do envio para IA.
-- Confirmacao de envio unico para Gemini, sem regeneracao.
-- Login administrativo em `/admin/login`.
-- Area administrativa em `/admin` com cadastro de participantes por e-mail, reenvio de acesso, visao geral, participantes, atividades, rastreabilidade dos prompts e exportacoes JSON/CSV/Excel.
+A página de execução consulta o servidor a cada quatro segundos somente enquanto pendente/em andamento. Revisões têm justificativa, contador de versão e bloqueio após aprovar a etapa. Erros e indisponibilidades são apresentados sem resultados fictícios. O cliente usa cookie HTTP-only, não armazena token em localStorage.
 
-## Pseudonimizacao
+## Testes no navegador
 
-O e-mail e usado somente para controle de acesso. As telas e exportacoes de
-analise experimental continuam usando o codigo pseudonimizado do participante,
-como `P01` ou `P02`.
+```powershell
+npx playwright install chromium
+$env:TEST_DATABASE_URL='postgresql://usuario:senha@localhost:5432/tcc_test_browser'
+npm run test:e2e
+```
+
+Crie antes um banco separado `tcc_test_browser`. A suíte inicia seus próprios servidores em 5178/3101 e usa serviços reais de persistência/autenticação, com GitHub/Gemini injetados e identificados como fixtures técnicas. Não inicia o servidor de produção nem usa créditos de IA. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` permite reutilizar um executável Chromium instalado. Capturas/trace ficam em `test-results` (ignorado no Git).
+
+[Instalação completa](../README.md) e [arquitetura/limitações](../docs/ARQUITETURA_PESQUISA.md).
