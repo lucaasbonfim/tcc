@@ -1,0 +1,11 @@
+{
+  "name": "tcc-research-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:local": "node scripts/dev-local.mjs",
+    "executor:setup": "node scripts/local-executor.mjs setup",
+    "executor:local": "node scripts/local-executor.mjs start"
+  },
+  "engines": {"node": ">=20.19.0"}
+}

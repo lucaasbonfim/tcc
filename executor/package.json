@@ -4,5 +4,5 @@
   "version":"1.0.0",
   "type":"module",
   "scripts":{"start":"node src/server.js","test":"node --test test","smoke:runtime":"node scripts/smoke-runtime.js"},
-  "engines":{"node":">=22.13.0"}
+  "engines":{"node":">=20.19.0"}
 }
