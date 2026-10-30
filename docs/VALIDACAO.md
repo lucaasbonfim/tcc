@@ -48,3 +48,9 @@
 - Teste manual separado da suíte, com texto sintético explicitamente técnico: provedor acessível e análise de requisitos validada com citação existente.
 - O modelo configurado `gemini-3.5-flash-lite` rejeitou o JSON Schema com limites aninhados (`400 invalid argument`). A configuração agora envia estrutura/tipos/enums/campos obrigatórios sem limites que multiplicam a complexidade. O contrato completo e todos os limites continuam obrigatórios no backend.
 - Após o ajuste: um requisito válido; provedor reportou 250 tokens de entrada, 176 de saída, total 426 na chamada diagnóstica. Sem custo informado. Esses valores são validação técnica, não resultados da pesquisa.
+
+## Fundação da interface de pesquisa
+
+- Novo layout reutiliza Tailwind e os componentes existentes, com navegação responsiva, estados em português, cliente de API autenticado e hook com cancelamento e polling limitado a etapas ativas.
+- `npm run build` e `npm run lint`: aprovados, sem avisos de lint após correção dos estados derivados.
+- Auditoria também identificou Vite vulnerável já instalado; atualização compatível para 8.3.5 validada no build (lockfile incluído com a infraestrutura E2E).
