@@ -28,3 +28,11 @@
 - Testes locais de citações/páginas, códigos duplicados, referências a requisitos inexistentes, falso artefato executável e cliente Gemini injetado: aprovados.
 - Gateway real preserva modelo solicitado, versão retornada, tokens quando informados e custo nulo quando indisponível. Dados não confiáveis são separados da instrução de sistema; sem ferramentas do modelo.
 - `npm test`: 11 aprovados, duas integrações ignoradas nesta invocação sem URL de teste. A suíte não chama o provedor.
+
+## Orquestração e revisões
+
+- Worker separado com claim transacional, `SKIP LOCKED`, lease de 180 s, prazo de inferência de 95 s e máximo de três tentativas por etapa. Repetições exigem justificativa; não há repetição paga automática.
+- Snapshot preserva projeto, SHA, versões e texto dos documentos, definições/instruções/contratos dos agentes; tentativas guardam entrada, saída bruta, metadados disponíveis e duração.
+- Revisão de cada item com justificativa, cópia antes/depois e revisão numérica para evitar sobrescrita concorrente. Geração recebe somente requisitos aprovados; conclusão exige revisar todos e aprovar pelo menos um item.
+- PostgreSQL isolado: pipeline completo, prevenção de duplicação e claims concorrentes, snapshot imutável, rastreabilidade, correção auditada, JSON inválido, limite de repetição, cancelamento durante inferência e recuperação de lease expirado.
+- `TEST_DATABASE_URL=... npm test`: 19 testes aprovados, sem chamadas à API de IA. Execução e avaliação permanecem `not_supported`, inclusive em execuções concluídas de geração textual.
