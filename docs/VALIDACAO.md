@@ -42,3 +42,9 @@
 - Exportação JSON inclui snapshot, instruções, tentativas/entradas/saídas e revisões; CSV usa linhas por entidade, vínculos e payload JSON, com escape de fórmulas e delimitadores.
 - Adaptador declarativo `node-built-in-test/v1` identifica apenas script exato `node --test`, sugere comando fixo e mantém execução bloqueada. Maven é identificado sem executor; manifestos limitados à raiz e SHA registrado.
 - Testes de exportação e inspeção com transporte injetado; `node --check backend/src/research/{worker,runs,processor}.js` e suíte com PostgreSQL: 21 testes aprovados.
+
+## Compatibilidade real do Gemini
+
+- Teste manual separado da suíte, com texto sintético explicitamente técnico: provedor acessível e análise de requisitos validada com citação existente.
+- O modelo configurado `gemini-3.5-flash-lite` rejeitou o JSON Schema com limites aninhados (`400 invalid argument`). A configuração agora envia estrutura/tipos/enums/campos obrigatórios sem limites que multiplicam a complexidade. O contrato completo e todos os limites continuam obrigatórios no backend.
+- Após o ajuste: um requisito válido; provedor reportou 250 tokens de entrada, 176 de saída, total 426 na chamada diagnóstica. Sem custo informado. Esses valores são validação técnica, não resultados da pesquisa.
