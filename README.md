@@ -100,7 +100,7 @@ npm run dev
 
 Acesse **http://localhost:5173**, faça login administrativo e cadastre um projeto. Sem worker ativo, uma análise permanece pendente; a API não executa inferências na requisição.
 
-As migrações em `database/migrations` são transacionais, têm checksum e podem ser reexecutadas. **Não rode novamente os scripts históricos 001–008 em bancos existentes.** Novo banco também usa apenas `npm run migrate`. O schema novo `research` não remove nem transforma dados antigos. A API informa quando o schema ainda não foi aplicado.
+As migrações em `database/migrations` são transacionais, têm checksum e podem ser reexecutadas. Bancos novos e existentes usam apenas `npm run migrate`. O schema novo `research` não remove nem transforma dados antigos. A API informa quando o schema ainda não foi aplicado.
 
 Os artefatos ficam por padrão em `backend/artifacts`, fora dos arquivos públicos. Configure um diretório absoluto compartilhado para API/worker em ambientes separados. Faça backup do banco **e** desse diretório. A base não tem política automática de retenção ou quota global de disco.
 
@@ -162,4 +162,4 @@ npm run smoke:gemini
 - [Validações realizadas e resultados técnicos](docs/VALIDACAO.md).
 - [API e operação](backend/README.md), [banco](database/README.md) e [frontend](frontend/README.md).
 
-Os antigos `docs/SMOKE_TEST.md` e `docs/EXPERIMENT_CHECKLIST.md` documentam exclusivamente o experimento encerrado; não são o procedimento vigente.
+Documentos e scripts SQL exclusivos do experimento encerrado foram removidos. Suas versões anteriores permanecem disponíveis no histórico do Git.
