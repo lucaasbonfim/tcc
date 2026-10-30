@@ -11,8 +11,8 @@
     "migrate": "node src/research/migrate.js",
     "worker": "node src/research/worker.js",
     "smoke:gemini": "node scripts/smoke-gemini.js",
-    "test": "node --test test",
-    "test:integration": "node --test test/integration"
+    "test": "node --test --test-concurrency=1 test",
+    "test:integration": "node --test --test-concurrency=1 test/integration"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",

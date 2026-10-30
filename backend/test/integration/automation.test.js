@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import pg from 'pg';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {migrate} from '../../src/research/migrate.js';
+import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createAutomationService} from '../../src/research/automation.js';
+import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
+const url=process.env.TEST_DATABASE_URL;
+if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
+test('automação exige revisão textual, preserva scripts e audita edição/aprovação', {skip:!url},async()=>{
+  const pool=new pg.Pool({connectionString:url}),directory=await mkdtemp(join(tmpdir(),'tcc-auto-'));
+  const store=createArtifactStore(directory);
+  try {
+    await migrate(pool);
+    const services=scenarioServices(pool,store),automation=createAutomationService({pool,store});
+    const {project,run,inspection}=await textualScenario(services);
+    const input={inspection_id:inspection.inspection_id,module_root:'',target_paths:['src/calc.js'],justification:'Escopo revisado.'};
+    await automation.start(run.id,input);
+    await assert.rejects(automation.start(run.id,input),/Conclua/);
+    await services.processor.processOne();
+    const [script]=await automation.list(run.id);
+    assert.equal(script.compatibility,'compatible');
+    assert.equal(script.test_case_id,(await services.runs.detail(run.id)).test_cases[0].id);
+    await assert.rejects(automation.approve(run.id,{justification:'Tentar sem revisão.'}),/Revise todos/);
+    const files=script.files_data.map(file=>({...file,code:file.code.replace("test('soma'","test('soma revisada'")}));
+    await automation.review(run.id,script.id,{revision:0,decision:'approved',files,justification:'Código e esperado conferidos.'});
+    await assert.rejects(automation.review(run.id,script.id,{revision:0,decision:'rejected',justification:'Revisão antiga.'}),/outra revisão/);
+    await automation.approve(run.id,{justification:'Scripts aprovados. Execução requer ação separada.'});
+    const exported=await services.runs.export(run.id);
+    assert.equal(exported.automated_tests[0].version,2);
+    assert.ok(exported.reviews.some(r=>r.entity_type==='automated_test' && r.before_value.files.sha256!==r.after_value.files.sha256));
+    assert.equal(exported.status,'completed');
+    assert.equal((await services.projects.detail(project.id)).versions[0].inspection.inspection_version,'2.0.0');
+  }finally{await pool.end();await rm(directory,{recursive:true,force:true});}
+});

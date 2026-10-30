@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { AGENTS, validateOutput } from './agents.js';
 import { transaction } from './errors.js';
+import { createAutomationService } from './automation.js';
+import { validateAutomation } from './automation-contract.js';
 
 export function createProcessor({ pool, store, generate }) {
+  const automation=createAutomationService({pool,store});
   async function claim() {
     return transaction(pool, async db => {
       const run = (await db.query(`SELECT r.* FROM research.runs r WHERE r.status='pending'
@@ -29,6 +32,8 @@ export function createProcessor({ pool, store, generate }) {
         return;
       }
       if (!error) {
+        if(job.stage.agent==='automation') await automation.persist(db,job,output);
+        else {
         const items = job.stage.agent === 'requirements' ? output.requirements : output.test_cases;
         const table = job.stage.agent === 'requirements' ? 'requirements' : 'test_cases';
         for (const content of items) {
@@ -37,12 +42,14 @@ export function createProcessor({ pool, store, generate }) {
           if (table === 'test_cases') for (const code of content.requirement_codes) await db.query(`INSERT INTO research.test_requirements(run_id,test_case_id,requirement_id)
             SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND review_status='approved'`,[job.run.id,id,code]);
         }
+        }
       }
       await db.query(`UPDATE research.attempts SET status=$2,input=$3,output=$4,provider_metadata=$5,error=$6,finished_at=now(),duration_ms=$7 WHERE id=$1`,
         [job.attemptId,error ? 'failed' : 'completed',inputRef,outputRef,metadata,error,elapsed]);
+      const unsupported=job.stage.agent==='automation' && !error && output.artifacts.length===0;
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
-        [job.stage.id,error ? 'failed' : 'awaiting_review',error || 'Resultados estruturados disponíveis para revisão humana.']);
-      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : 'awaiting_review']);
+        [job.stage.id,error ? 'failed' : unsupported ? 'not_supported' : 'awaiting_review',error || (unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
+      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : unsupported ? 'completed' : 'awaiting_review']);
     });
   }
   return {
@@ -70,10 +77,11 @@ export function createProcessor({ pool, store, generate }) {
       try {
         const snapshot = await store.json(job.run.snapshot);
         let input;
-        if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
+        if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
+        else if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
           requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
-        const definition = (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
+        const definition = job.stage.agent==='automation' ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
         const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction,
           instruction_version:job.stage.instruction_version,schema:definition.schema,input };
         inputRef = await store.put(request);
@@ -87,7 +95,8 @@ export function createProcessor({ pool, store, generate }) {
           metadata = result.metadata;
           outputRef = await store.put({raw:result.raw});
           output = JSON.parse(result.raw);
-          validateOutput(job.stage.agent,output,input);
+          if(job.stage.agent==='automation')validateAutomation(output,input);
+          else validateOutput(job.stage.agent,output,input);
         } finally { clearTimeout(timer); }
       } catch (cause) {
         // Não persistir objetos do SDK, cabeçalhos ou credenciais recebidos em erros remotos.

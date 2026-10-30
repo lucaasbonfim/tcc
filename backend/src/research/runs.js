@@ -3,6 +3,7 @@ import { AGENTS, validateRequirement, validateTestCase } from './agents.js';
 import { GENERATION_PARAMETERS } from './model.js';
 import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
 import { assert, text, transaction, uuid } from './errors.js';
+import { createAutomationService } from './automation.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -78,7 +79,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     async detail(id) {
       const run = await get(id);
       const [stages, attempts, requirements, tests, links, reviews] = await Promise.all([
-        pool.query('SELECT id,agent,position,status,instruction_version,attempt_count,message,lease_until FROM research.stages WHERE run_id=$1 ORDER BY position',[id]),
+        pool.query('SELECT id,agent,position,status,instruction_version,attempt_count,message,lease_until,context FROM research.stages WHERE run_id=$1 ORDER BY position',[id]),
         pool.query(`SELECT a.* FROM research.attempts a JOIN research.stages s ON s.id=a.stage_id WHERE s.run_id=$1 ORDER BY a.started_at`,[id]),
         pool.query('SELECT * FROM research.requirements WHERE run_id=$1 ORDER BY code',[id]),
         pool.query('SELECT * FROM research.test_cases WHERE run_id=$1 ORDER BY code',[id]),
@@ -91,7 +92,8 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         if (agent) agentOutputs[agent] = JSON.parse((await store.json(attempt.output)).raw);
       }
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
-        requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows};
+        requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
+        automated_tests:await createAutomationService({pool,store}).list(id)};
     },
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
