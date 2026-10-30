@@ -1,4 +1,4 @@
-﻿# Backend da plataforma de pesquisa
+# Backend da plataforma de pesquisa
 
 Express e PostgreSQL com autenticação administrativa reaproveitada. Instalação e variáveis: [README principal](../README.md). Execute os comandos dentro de `backend`.
 
@@ -22,7 +22,7 @@ Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`
 | POST | `/auth/admin/login` | `{email,password}` |
 | GET | `/auth/me` | Sessão administrativa |
 | POST | `/auth/logout` | Encerrar sessão |
-| GET | `/research/capabilities` | Disponibilidade real das etapas |
+| GET | `/research/capabilities` | Disponibilidade real, recibo do executor e adaptadores |
 | GET | `/research/summary` | Contagens globais reais do dashboard |
 | GET/POST | `/research/projects` | Listar/cadastrar projeto |
 | GET/PUT | `/research/projects/:projectId` | Consultar/editar e resolver nova versão |
@@ -37,6 +37,14 @@ Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`
 | POST | `/research/runs/:runId/approve/:agent` | Aprovar etapa `requirements` ou `tests` |
 | POST | `/research/runs/:runId/retry` | Repetir etapa falha, máximo três tentativas |
 | POST | `/research/runs/:runId/cancel` | Cancelar sem apagar histórico |
+| POST | `/research/runs/:runId/automation` | Gerar scripts com inspeção/módulo/alvos/casos aprovados |
+| GET | `/research/runs/:runId/automated-tests` | Scripts e arquivos versionados |
+| POST | `/research/runs/:runId/automated-tests/:itemId/review` | Revisar/corrigir arquivos de um script |
+| POST | `/research/runs/:runId/automation/approve` | Concluir revisão de scripts |
+| POST | `/research/runs/:runId/execution` | Autorizar trabalho isolado, resposta 202 |
+| POST | `/research/runs/:runId/evaluation` | Enfileirar avaliação de evidências prévias, quando ainda não iniciada |
+| POST | `/research/runs/:runId/findings/:itemId/review` | Decisão humana sobre a proposta de avaliação |
+| POST | `/research/runs/:runId/evaluation/approve` | Concluir revisão de todas as análises |
 | GET | `/research/runs/:runId/attempts/:attemptId/:type` | Entrada (`input`) ou saída (`output`) preservada |
 | GET | `/research/runs/:runId/export/:format` | JSON ou CSV por execução |
 
@@ -44,21 +52,25 @@ Cadastro/edição envia `name`, `repository_url`, `requested_ref` e campos opcio
 
 Upload: `Content-Type: application/pdf` (ou `text/plain`/`text/markdown`) e `X-File-Name: encodeURIComponent(nome)`. Não é multipart. Até 10 MiB, 200 páginas e 200 mil caracteres por documento. Até 20 versões e 100 MiB por projeto. PDF sem texto recebe aviso; não há OCR. Download valida vínculo e hash. Os dados ficam fora do diretório público.
 
-Criação de execução: `{code_version_id,document_ids}` opcional; omissão seleciona código mais recentemente resolvido e a última versão de cada nome de documento. Inclui texto complementar. Não há truncamento automático: mais de 100 mil caracteres de fonte gera 422. Uma execução ativa por projeto.
+Criação de execução: `{code_version_id,document_ids}` opcional; omissão seleciona código mais recentemente resolvido e a última versão de cada nome de documento. Inclui texto complementar. Mais de 24 mil caracteres cria partes/checkpoints; até 4,1 milhões selecionados, 512 partes, 2000 requisitos e 12 MiB por artefato, sem truncamento silencioso. Uma execução ativa por projeto.
 
 Revisão: `{decision: 'approved'|'rejected', justification, revision, content?}`. Código é imutável, conteúdo é validado, `revision` deve coincidir com a versão corrente. Alteração concorrente retorna 409. Aprovação de etapa, repetição e cancelamento exigem `{justification}`. Todos os itens precisam de decisão e pelo menos um aprovado para aprovar a etapa. Requisitos aprovados ficam congelados após autorizar o agente 2.
 
-Estados e contratos: [arquitetura implementada](../docs/ARQUITETURA_PESQUISA.md). O quarto agente não faz inferência sem evidências e não há endpoint para habilitar execução externa nesta versão. Casos textuais não são scripts.
+Automação: `{inspection_id,module_root,target_paths,test_case_ids?,justification}`. A inspeção deve pertencer à versão fixa da execução; até oito alvos, vinte casos aprovados e fechamento compatível com o adaptador. Revisão de script: `{decision,revision,justification,files?:[{path,code}]}`. Caminhos/caso/SHA/esperado são preservados; correção cria versão auditável. Aprovação da etapa não autoriza execução.
+
+Execução: `{justification}` com etapa de scripts concluída e executor validado. Bundle e recibo são preservados; resultado precisa corresponder a UUID/hash/SHA/imagem/política. Não há endpoint de upload de evidências arbitrárias. Cliente HTTPS separado, sem Docker no backend. Variáveis `EXECUTOR_URL`, `EXECUTOR_TOKEN`, `EXECUTOR_DEPLOYMENT_ID` e `EXECUTOR_POLICY_SHA256` precisam ser iguais na API/worker e coerentes com o serviço dedicado.
+
+Avaliação humana: `{decision:'confirmed'|'rejected'|'inconclusive',revision,justification,classification?}`. Classes: `compatible`, `possible_functional_divergence`, `test_problem`, `environment_failure`, `inconclusive`. Proposta original e decisão humana permanecem separadas. Evidência válida enfileira o agente 4 automaticamente; inferência sem evidências não é permitida. Estados/contratos: [arquitetura](../docs/ARQUITETURA_PESQUISA.md).
 
 ## Operação e falhas
 
-- Worker consulta a cada 2 s; lease de 180 s e timeout de inferência de 95 s. Interrupções exigem repetição explícita, preservando tentativas.
+- Worker consulta a cada 2 s; lease de 180 s e timeout de inferência de 95 s. Interrupções exigem repetição explícita, preservando tentativas. Em documentos extensos, chamadas por parte têm registros próprios; checkpoints concluídos não são repetidos. Três sessões de tentativa da etapa, em vez de limitar o número de partes a três.
 - Sem credenciais/modelo configurados, uma nova execução não é criada. Falhas do provedor são registradas sem cabeçalhos/segredos; respostas inválidas ficam disponíveis para auditoria.
 - Banco remoto usa TLS com certificado verificado. Conexões têm prazo de 10 s. Para configuração de CA privada, adapte explicitamente a configuração de confiança; não desabilite verificação silenciosamente.
-- A API verifica a existência do schema no início e solicita `npm run migrate` quando necessário. Health é liveness, não comprovação de disponibilidade do modelo/worker.
+- API e worker verificam migrações/checksums no início e solicitam `npm run migrate` quando necessário. Health é liveness, não comprovação de disponibilidade do modelo/worker.
 - `ARTIFACTS_DIR` padrão: `backend/artifacts`. Use caminho absoluto em implantação. Backup precisa incluir banco e arquivos; não existem coleta automática de órfãos ou quota global de disco.
 - Rotas antigas de participantes, grupos e atividades estão desmontadas; módulos e tabelas históricos não são excluídos.
 
 ## Validação
 
-`npm test` não chama o Gemini. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` é separado e consome API real; não grava resultados de pesquisa. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt.
+`npm test` não chama o Gemini nem executa projetos externos. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` e `npm run smoke:automation` são separados e consomem API real, sem gravar resultados de pesquisa ou executar código gerado. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt. Testes do executor ficam em `../executor`; o piloto real requer infraestrutura dedicada validada.
