@@ -26,7 +26,7 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 - Processamento incremental de documentos extensos com checkpoints, referências por página e consolidação auditável.
 - Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 
-**Há dois perfis de execução:** desenvolvimento local com Docker Desktop, ativado explicitamente pelo comando acima, e ambiente dedicado com VM/rootless/TLS, padrão dos serviços iniciados manualmente. Ambos exigem imagens fixadas, controles verificados e autorização dos scripts. Resultados registram o perfil efetivamente usado. Java ainda exige provisionamento adicional; fixtures técnicas não são resultados da pesquisa.
+**Há dois perfis de execução:** desenvolvimento local com Docker Desktop, ativado explicitamente pelo comando acima, e ambiente dedicado com VM/rootless/TLS, padrão dos serviços iniciados manualmente. Ambos exigem imagens fixadas, controles verificados e autorização dos scripts. Resultados registram o perfil efetivamente usado. O comando local provisiona Node e Java/JUnit; o adaptador Java continua limitado a classes locais/JDK, sem Swing ou banco. Fixtures técnicas não são resultados da pesquisa.
 
 ## Requisitos de desenvolvimento
 

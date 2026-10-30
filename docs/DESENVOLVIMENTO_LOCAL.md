@@ -8,7 +8,7 @@ npm run dev:local
 
 Abra **http://localhost:5173** e use seu login administrativo. Mantenha o terminal aberto; **Ctrl+C** encerra frontend, API, worker e executor. Se o Windows perguntar sobre finalizar o arquivo em lotes, responda `S`.
 
-O comando prepara a imagem Node, cria token/política locais, valida os controles e sobe os quatro processos. Configuração privada fica em `.local/executor-dev`, ignorada pelo Git. Usa o banco/Gemini/login de `backend/.env`, preservando esse arquivo. Não precisa preencher manualmente variáveis do executor nem criar VM.
+O comando prepara as imagens Node e Java/JUnit, cria token/política locais, valida os controles e sobe os quatro processos. A primeira preparação baixa a base Java por digest e o JUnit do Maven Central, conferindo o SHA-256 fixado em `executor/images/java-lock.json`; os builds seguintes usam o cache. Configuração privada fica em `.local/executor-dev`, ignorada pelo Git. Usa o banco/Gemini/login de `backend/.env`, preservando esse arquivo. Não precisa preencher manualmente variáveis do executor nem criar VM.
 
 ## Primeira instalação em outro computador
 
@@ -27,11 +27,11 @@ Não é necessário instalar dependências na raiz. O host foi validado com Node
 
 1. Cadastre o repositório público e confira seu SHA.
 2. Adicione requisitos, gere e revise requisitos/casos textuais.
-3. Em Scripts, inspecione esse SHA, selecione fontes Node compatíveis e gere/revise os scripts.
+3. Em Scripts, inspecione esse SHA, escolha o módulo Node/Java e gere/revise os scripts dos escopos compatíveis.
 4. Em Execução, confira **Docker Desktop · desenvolvimento local**, justifique e autorize.
 5. Consulte resultados/logs; em Análise, revise as propostas do agente 4 e exporte os dados.
 
-O adaptador local provisionado é **Node com `node:test`**, sem instalação de pacotes. Java/JUnit exige uma imagem adicional provisionada e validada. A suíte antiga não é executada automaticamente. Um projeto pode depender de pacotes/GUI/banco ainda não suportados: isso continua sendo uma limitação técnica, mesmo com Docker ligado.
+Os adaptadores locais provisionados são **Node com `node:test`** e **Java 21 com JUnit Jupiter**, sem instalação de dependências do projeto durante os testes. Java compila as fontes e cada teste separadamente; erros de compilação de um teste não invalidam os demais. O listener JUnit distingue asserção falha, exceção, ignorado e ausência de testes, sem considerar apenas o exit code. A suíte antiga não é executada automaticamente. **Swing, persistência e bibliotecas externas continuam sem suporte neste adaptador Java.** Provisionar o JDK não resolve essas dependências nem garante scripts para os cenários do VVV. Casos textuais vinculados a requisitos não comprovam cobertura automatizada.
 
 ## Perfis e rastreabilidade
 
