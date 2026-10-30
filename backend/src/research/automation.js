@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { assert, text, transaction, uuid } from './errors.js';
 import { AUTOMATION, buildScope, generatedPath, validateAutomation } from './automation-contract.js';
+import {testCoverage} from './test-parts.js';
 
 export function createAutomationService({pool,store}) {
   async function inputFor(runId,stage,db=pool) {
@@ -19,6 +20,8 @@ export function createAutomationService({pool,store}) {
         assert(run && run.status==='completed','Conclua a revisão textual antes de preparar automação.',409);
         const tests=(await db.query("SELECT status FROM research.stages WHERE run_id=$1 AND agent='tests'",[runId])).rows[0];
         assert(tests?.status==='completed','Casos textuais ainda não aprovados.',409);
+        const coverage=testCoverage((await db.query('SELECT code,content,review_status FROM research.requirements WHERE run_id=$1',[runId])).rows,(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1',[runId])).rows);
+        assert(!coverage.missing_approved.length,'Existem requisitos sem caso aprovado. Complete a geração textual antes da automação.',409);
         assert(!(await db.query("SELECT id FROM research.stages WHERE run_id=$1 AND agent='automation'",[runId])).rowCount,'Automação já preparada. Consulte/replique a execução ou repita a etapa com falha.',409);
         const inspection=(await db.query('SELECT * FROM research.inspections WHERE id=$1 AND code_version_id=$2',[input.inspection_id,run.code_version_id])).rows[0];
         assert(inspection,'Inspeção deve pertencer à versão de código desta execução.',422);

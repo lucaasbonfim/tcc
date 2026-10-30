@@ -59,6 +59,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.post('/runs/:runId/evaluation/approve',handler(req=>evaluation.approve(req.params.runId,req.body)));
   router.post('/runs/:runId/reviews/:kind/:itemId', handler(req => runs.reviewItem(req.params.runId,req.params.kind,req.params.itemId,req.body)));
   router.post('/runs/:runId/approve/:agent', handler(req => runs.approveStage(req.params.runId,req.params.agent,req.body)));
+  router.post('/runs/:runId/tests/complete',imports,async(req,res)=>res.status(202).json({data:await runs.completeTests(req.params.runId,req.body)}));
   router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));
   router.post('/runs/:runId/resume',imports,async(req,res)=>res.status(202).json({data:await runs.resume(req.params.runId,req.body)}));
   router.post('/runs/:runId/cancel', handler(async req => {const result=await runs.cancel(req.params.runId,req.body);await execution?.cancel(req.params.runId);return result;}));
