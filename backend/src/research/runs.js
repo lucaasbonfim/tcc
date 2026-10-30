@@ -4,6 +4,7 @@ import { GENERATION_PARAMETERS } from './model.js';
 import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
 import { assert, text, transaction, uuid } from './errors.js';
 import { createAutomationService } from './automation.js';
+import {createExecutionService} from './execution.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -93,7 +94,10 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       }
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
-        automated_tests:await createAutomationService({pool,store}).list(id)};
+        automated_tests:await createAutomationService({pool,store}).list(id),
+        execution_jobs:await createExecutionService({pool,store}).list(id),
+        test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
+        evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows};
     },
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
@@ -169,6 +173,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         await db.query(`UPDATE research.attempts SET status='interrupted',finished_at=now(),error='Cancelada pelo pesquisador.'
           WHERE status='running' AND stage_id IN (SELECT id FROM research.stages WHERE run_id=$1)`,[runId]);
         await db.query("UPDATE research.stages SET status='cancelled',lease_token=NULL,lease_until=NULL WHERE run_id=$1 AND status IN ('blocked','pending','running','awaiting_review','failed')",[runId]);
+        await db.query("UPDATE research.execution_jobs SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running')",[runId]);
         if (stage) await review(db,runId,stage.id,'run',runId,'cancelled',justification,{status:run.status},{status:'cancelled'});
         return get(runId, db);
       });

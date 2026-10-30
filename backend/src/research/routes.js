@@ -5,7 +5,7 @@ import { assert, uuid } from './errors.js';
 import { exportCsv } from './export.js';
 import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 
-export function createResearchRouter({ projects, store, runs, automation }) {
+export function createResearchRouter({ projects, store, runs, automation,execution }) {
   const router = Router();
   router.use(requireAdmin);
   router.use(trustedOrigin);
@@ -21,10 +21,10 @@ export function createResearchRouter({ projects, store, runs, automation }) {
     }
     next();
   });
-  router.get('/capabilities',handler(() => ({
+  router.get('/capabilities',handler(async() => ({
     requirements:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),requires_worker:true},
-    tests:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),artifact_type:'textual',requires_review:true},
-    execution:{enabled:false,reason:'Executor isolado não provisionado; nenhum código externo é executado.'},
+    tests:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),artifact_types:['textual','automated'],requires_review:true,adapters:['node-test/v2','java-junit/v1']},
+    execution:execution ? await execution.capabilities() : {ready:false,reason:'Executor não configurado.'},
     evaluation:{enabled:false,reason:'Depende de evidências independentes de execução, indisponíveis nesta versão.'},
   })));
   router.get('/projects', handler(() => projects.list()));
@@ -53,10 +53,11 @@ export function createResearchRouter({ projects, store, runs, automation }) {
   router.get('/runs/:runId/automated-tests',handler(req=>automation.list(req.params.runId)));
   router.post('/runs/:runId/automated-tests/:itemId/review',handler(req=>automation.review(req.params.runId,req.params.itemId,req.body)));
   router.post('/runs/:runId/automation/approve',handler(req=>automation.approve(req.params.runId,req.body)));
+  router.post('/runs/:runId/execution',imports,async(req,res)=>res.status(202).json({data:await execution.authorize(req.params.runId,req.body)}));
   router.post('/runs/:runId/reviews/:kind/:itemId', handler(req => runs.reviewItem(req.params.runId,req.params.kind,req.params.itemId,req.body)));
   router.post('/runs/:runId/approve/:agent', handler(req => runs.approveStage(req.params.runId,req.params.agent,req.body)));
   router.post('/runs/:runId/retry', imports, handler(req => runs.retry(req.params.runId,req.body)));
-  router.post('/runs/:runId/cancel', handler(req => runs.cancel(req.params.runId,req.body)));
+  router.post('/runs/:runId/cancel', handler(async req => {const result=await runs.cancel(req.params.runId,req.body);await execution?.cancel(req.params.runId);return result;}));
   router.get('/runs/:runId/attempts/:attemptId/:type', handler(req => runs.artifact(req.params.runId,req.params.attemptId,req.params.type)));
   router.get('/runs/:runId/export/:format',async (req,res) => {
     assert(['json','csv'].includes(req.params.format),'Formato de exportação inválido.');
