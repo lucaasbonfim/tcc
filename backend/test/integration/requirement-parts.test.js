@@ -72,6 +72,7 @@ test('continuação preserva snapshot e checkpoints após esgotar tentativas, se
     assert.ok(after.requirement_parts.slice(1).every(p=>p.character_count<=8600));
     assert.equal((await services.runs.detail(original.id)).attempts.length,before.attempts.length);
     assert.equal((await services.runs.detail(original.id)).status,'failed');
+    assert.equal((await services.runs.detail(original.id)).continuations[0].id,next.id);
     await services.runs.cancel(next.id,{justification:'Encerrar fixture.'});
   } finally {await pool.end();await rm(directory,{recursive:true,force:true});}
 });

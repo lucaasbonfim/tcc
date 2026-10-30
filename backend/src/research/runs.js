@@ -105,6 +105,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         requirement_parts:(await pool.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows,
+        continuations:(await pool.query('SELECT id,status,created_at FROM research.runs WHERE resumed_from_run_id=$1 ORDER BY created_at DESC LIMIT 10',[id])).rows,
         consolidation_data:consolidation};
     },
     async reviewItem(runId, kind, id, input) {
