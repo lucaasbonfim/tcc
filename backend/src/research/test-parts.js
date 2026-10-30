@@ -41,6 +41,7 @@ export async function createTestParts(db,run,store,{missingOnly=false}={}) {
   assert(selected.length,'Todos os requisitos já possuem casos não rejeitados.',409);
   const snapshot=await store.json(run.snapshot),version=snapshot.code_version;
   const groups=planTestParts(selected.map(row=>row.content)),offset=(await db.query('SELECT COALESCE(max(sequence),0)::int AS n FROM research.test_parts WHERE run_id=$1',[run.id])).rows[0].n;
+  assert(offset+groups.length<=2000,'Execução excede 2000 lotes de casos. Preserve o histórico e crie outra análise.',422);
   const definition=AGENTS.find(agent=>agent.agent==='tests');
   for(let i=0;i<groups.length;i++) {
     const requirement_codes=groups[i].map(item=>item.code),sequence=offset+i+1;
