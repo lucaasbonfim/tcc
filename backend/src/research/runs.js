@@ -111,7 +111,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
       const decision = input.decision;
-      assert(['approved','rejected'].includes(decision), 'Escolha aprovar ou rejeitar.');
+      assert(['approved','rejected','edited'].includes(decision), 'Escolha aprovar, rejeitar ou salvar correção.');
       const justification = text(input.justification,'Justificativa',5000,true);
       const table = kind === 'requirements' ? 'requirements' : 'test_cases';
       return transaction(pool, async db => {
@@ -121,6 +121,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const row = (await db.query(`SELECT * FROM research.${table} WHERE id=$1 AND run_id=$2 FOR UPDATE`,[id,runId])).rows[0];
         assert(row,'Item não encontrado nesta execução.',404);
         assert(Number.isInteger(input.revision) && input.revision === row.revision,'Item alterado por outra revisão. Atualize a página.',409);
+        assert(decision !== 'edited' || input.content,'Informe o conteúdo corrigido.');
         const content = input.content || row.content;
         assert(content.code === row.code,'O código do item não pode ser alterado.');
         if (kind === 'requirements') validateRequirement(content,(await store.json(run.snapshot)).documents);
@@ -128,7 +129,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           const approved = (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND review_status='approved'",[runId])).rows;
           validateTestCase(content,approved);
         }
-        const updated = (await db.query(`UPDATE research.${table} SET content=$3,review_status=$4,revision=revision+1 WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,JSON.stringify(content),decision])).rows[0];
+        const updated = (await db.query(`UPDATE research.${table} SET content=$3,review_status=$4,revision=revision+1 WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,JSON.stringify(content),decision==='edited' ? 'pending' : decision])).rows[0];
         if (kind === 'tests') {
           await db.query('DELETE FROM research.test_requirements WHERE test_case_id=$1',[id]);
           for (const code of content.requirement_codes) await db.query(`INSERT INTO research.test_requirements(run_id,test_case_id,requirement_id)
@@ -146,6 +147,28 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const stage = (await db.query('SELECT * FROM research.stages WHERE run_id=$1 AND agent=$2 FOR UPDATE',[runId,agent])).rows[0];
         assert(run.status === 'awaiting_review' && stage?.status === 'awaiting_review','Etapa não aguarda aprovação.',409);
         const table = agent === 'requirements' ? 'requirements' : 'test_cases';
+        assert(input.approve_pending===undefined || typeof input.approve_pending==='boolean','Opção de aprovação em lote inválida.');
+        if(input.approve_pending) {
+          const rows=(await db.query(`SELECT * FROM research.${table} WHERE run_id=$1 ORDER BY code FOR UPDATE`,[runId])).rows;
+          assert(Array.isArray(input.items) && input.items.length===rows.length && new Set(input.items.map(item=>item?.id)).size===rows.length,'Lista de itens mudou. Atualize a página antes de aprovar.',409);
+          const revisions=new Map(input.items.map(item=>[item?.id,item?.revision]));
+          assert(rows.every(row=>Number.isInteger(revisions.get(row.id)) && revisions.get(row.id)===row.revision),'Item alterado por outra revisão. Atualize a página antes de aprovar todos.',409);
+          const documents=agent==='requirements' ? (await store.json(run.snapshot)).documents : null;
+          const approved=agent==='tests' ? (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND review_status='approved'",[runId])).rows : null;
+          for(const row of rows.filter(row=>row.review_status!=='rejected')) {
+            if(agent==='requirements')validateRequirement(row.content,documents);
+            else validateTestCase(row.content,approved);
+          }
+          const updated=(await db.query(`UPDATE research.${table} SET review_status='approved',revision=revision+1 WHERE run_id=$1 AND review_status='pending' RETURNING *`,[runId])).rows;
+          if(updated.length) {
+            const originals=new Map(rows.map(row=>[row.id,row]));
+            const entries=updated.map(row=>({id:randomUUID(),entity_id:row.id,before_value:originals.get(row.id),after_value:row}));
+            await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
+              SELECT e.id,$2,$3,$4,e.entity_id,'approved',$5,e.before_value,e.after_value,'admin'
+              FROM jsonb_to_recordset($1::jsonb) AS e(id uuid,entity_id uuid,before_value jsonb,after_value jsonb)`,
+            [JSON.stringify(entries),runId,stage.id,agent==='requirements' ? 'requirement' : 'test_case',justification]);
+          }
+        }
         const counts = (await db.query(`SELECT count(*) FILTER(WHERE review_status='pending')::int AS pending,
           count(*) FILTER(WHERE review_status='approved')::int AS approved FROM research.${table} WHERE run_id=$1`,[runId])).rows[0];
         assert(counts.pending === 0 && counts.approved > 0,'Revise todos os itens e aprove pelo menos um antes de continuar.',409);
@@ -154,7 +177,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           await db.query("UPDATE research.stages SET status='pending' WHERE run_id=$1 AND agent='tests' AND status='blocked'",[runId]);
           await db.query("UPDATE research.runs SET status='pending' WHERE id=$1",[runId]);
         } else await db.query("UPDATE research.runs SET status='completed',finished_at=now() WHERE id=$1",[runId]);
-        await review(db,runId,stage.id,'stage',stage.id,'approved',justification,{status:'awaiting_review'},{status:'completed'});
+        await review(db,runId,stage.id,'stage',stage.id,'approved',justification,{status:'awaiting_review'},{status:'completed',...(input.approve_pending ? {approval_mode:'bulk'} : {})});
         return get(runId, db);
       });
     },
