@@ -4,7 +4,7 @@ import { posix } from 'node:path';
 import { githubJson, parseRepository } from './github.js';
 import { assert } from './errors.js';
 
-export const INSPECTION_LIMITS = Object.freeze({ maxFiles:24, maxFileBytes:30000, maxTotalBytes:240000, maxDepth:8, maxTreeEntries:5000 });
+export const INSPECTION_LIMITS = Object.freeze({ maxFiles:24, maxFileBytes:30000, maxTotalBytes:240000, maxDepth:8, maxTreeEntries:5000,maxDurationMs:30000 });
 export function safePath(path) {
   assert(typeof path==='string' && path.length<=240 && /^[A-Za-z0-9_./@-]+$/.test(path) && !path.startsWith('/') && !path.split('/').some(p=>!p || p==='.' || p==='..'), 'Caminho de código inválido.',422);
   return path;
@@ -53,6 +53,7 @@ export function javaSymbols(content) {
 }
 
 export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECTION_LIMITS) {
+  const started=Date.now();
   const repo=parseRepository(version.repository_url);
   assert(/^[a-f0-9]{40}$/.test(version.commit_sha),'Commit inválido.');
   const prefix=`${repo.owner}/${repo.repo}`;
@@ -71,6 +72,7 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
   const files=[];
   let total=0;
   for(const entry of candidates) {
+    if(Date.now()-started>limits.maxDurationMs){omitted.push({path:entry.path,reason:'Prazo total de inspeção atingido.'});continue;}
     if(!/^(100644|100755)$/.test(entry.mode || '') || entry.path.split('/').length>limits.maxDepth || !Number.isInteger(entry.size) || entry.size>limits.maxFileBytes || files.length>=limits.maxFiles || total+entry.size>limits.maxTotalBytes) {
       omitted.push({path:entry.path,reason:'Limite de arquivos/bytes/profundidade ou arquivo não regular.'});continue;
     }
@@ -91,7 +93,13 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
   const modules=[];
   for(const manifest of files.filter(f=>/(?:^|\/)(package\.json|pom\.xml)$/.test(f.path))) {
     const root=posix.dirname(manifest.path)==='.' ? '' : posix.dirname(manifest.path);
-    const inside=files.filter(f=>!root || f.path.startsWith(`${root}/`));
+    const manifestName=manifest.path.endsWith('package.json') ? 'package.json' : 'pom.xml';
+    const roots=files.filter(f=>f.path===manifestName || f.path.endsWith(`/${manifestName}`)).map(f=>posix.dirname(f.path)==='.' ? '' : posix.dirname(f.path));
+    const inside=files.filter(f=>{
+      if(root && !f.path.startsWith(`${root}/`))return false;
+      const nearest=roots.filter(candidate=>!candidate || f.path.startsWith(`${candidate}/`)).sort((a,b)=>b.length-a.length)[0];
+      return nearest===root;
+    });
     if(manifest.path.endsWith('package.json')) {
       let pkg;
       try{pkg=JSON.parse(manifest.content);}catch{warnings.push(`Manifesto inválido: ${manifest.path}`);continue;}

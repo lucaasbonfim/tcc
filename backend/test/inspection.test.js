@@ -18,3 +18,11 @@ test('símbolos são extraídos estaticamente, com bloqueio de caminhos e alerta
   assert.equal(javaSymbols('import javax.swing.JFrame; public class Tela extends JFrame {}').requires_gui,true);
   for(const path of ['../a.js','/a.js','a//b.js','a\\b.js'])assert.throws(()=>safePath(path));
 });
+test('monorepo respeita manifestos aninhados e interrupção por prazo fica explícita',async()=>{
+  const fixture=repositoryFixture({'package.json':'{"type":"commonjs"}','index.js':'exports.root=()=>1;','apps/api/package.json':'{"type":"module"}','apps/api/index.js':'export const api=()=>2;'});
+  const inspected=await inspectRepository(version,fixture.fetch);
+  assert.deepEqual(inspected.modules.find(m=>m.root==='').targets,['index.js']);
+  assert.deepEqual(inspected.modules.find(m=>m.root==='apps/api').targets,['apps/api/index.js']);
+  const timed=await inspectRepository(version,fixture.fetch,{...INSPECTION_LIMITS,maxDurationMs:-1});
+  assert.ok(timed.omitted.every(file=>file.reason.includes('Prazo')));
+});

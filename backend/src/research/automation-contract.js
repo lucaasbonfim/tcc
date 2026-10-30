@@ -58,8 +58,10 @@ export function buildScope(inspection, moduleRoot, targetPaths) {
     }
   }
   for(const path of targetPaths) {assert(module.targets.includes(path),'Fonte não é candidata deste módulo: '+path,422);add(path);}
-  const manifests=inspection.files.filter(f=>f.path==='package.json' || f.path===(module.root ? `${module.root}/package.json` : 'package.json'));
+  const manifests=inspection.files.filter(f=>(f.path==='package.json' || f.path.endsWith('/package.json')) &&
+    [...selected.values()].some(source=>f.path==='package.json' || source.path.startsWith(`${posix.dirname(f.path)}/`)));
   const files=[...selected.values(),...manifests.filter(f=>!selected.has(f.path))];
+  assert(files.length<=16,'Escopo excede o limite de fontes/manifestos do executor.',422);
   assert(files.reduce((n,f)=>n+f.content.length,0)<=60000,'Contexto técnico excede 60 mil caracteres. Reduza o escopo.',422);
   return {inspection_version:inspection.inspection_version,commit_sha:inspection.commit_sha,repository_url:inspection.repository_url,module,
     target_paths:targetPaths,files,limitations:[...inspection.warnings,...module.restrictions,'Escopo selecionado, não representa cobertura integral do projeto.']};
