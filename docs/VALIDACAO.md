@@ -21,3 +21,10 @@
 - PostgreSQL separado: versões de projeto e documento, extrações preservadas e migração reexecutada.
 - `pdfjs-dist` 5.5.207: compatível com Node 20.19+, fora do intervalo vulnerável 5.6.83–6.2.107 apontado pelo audit; interpretação de JavaScript desabilitada. Avaliar atualização para Node 22 e PDF.js 6 em evolução posterior.
 - `npm audit fix` aplicou atualizações compatíveis das dependências existentes; auditoria do backend: zero vulnerabilidades.
+
+## Contratos e modelo
+
+- Instruções versionadas e contratos separados para requisitos e casos; responsabilidades explícitas para execução e avaliação não suportadas.
+- Testes locais de citações/páginas, códigos duplicados, referências a requisitos inexistentes, falso artefato executável e cliente Gemini injetado: aprovados.
+- Gateway real preserva modelo solicitado, versão retornada, tokens quando informados e custo nulo quando indisponível. Dados não confiáveis são separados da instrução de sistema; sem ferramentas do modelo.
+- `npm test`: 11 aprovados, duas integrações ignoradas nesta invocação sem URL de teste. A suíte não chama o provedor.
