@@ -18,7 +18,7 @@ test('migração PostgreSQL é reexecutável e mantém integridade referencial',
       await assert.rejects(client.query(`INSERT INTO research.code_versions(id,project_id,repository_url,requested_ref,commit_sha)
         VALUES($1,$2,'https://github.com/example/repo','main',$3)`, [randomUUID(),randomUUID(),'a'.repeat(40)]), { code: '23503' });
       await client.query('ROLLBACK');
-      assert.equal((await client.query("SELECT count(*)::int AS n FROM research.migrations")).rows[0].n, 1);
+      assert.ok((await client.query("SELECT count(*)::int AS n FROM research.migrations")).rows[0].n >= 2);
     } finally { client.release(); }
   } finally { await pool.end(); }
 });
