@@ -13,6 +13,32 @@ import {scenarioServices,textualScenario} from '../../test-support/research-scen
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 
+test('falha de um script mantém o outro; repetição envia somente o caso inválido e o erro anterior',{skip:!url},async()=>{
+  const pool=new pg.Pool({connectionString:url}),directory=await mkdtemp(join(tmpdir(),'tcc-auto-subset-')),store=createArtifactStore(directory);
+  try{
+    await migrate(pool);const base=scenarioServices(pool,store),{run,inspection}=await textualScenario(base);
+    const original=(await base.runs.detail(run.id)).test_cases[0],secondId=randomUUID();
+    await pool.query("INSERT INTO research.test_cases(id,run_id,code,content,review_status) VALUES($1,$2,'CT-002',$3,'approved')",[secondId,run.id,JSON.stringify({...original.content,code:'CT-002'})]);
+    await createAutomationService({pool,store}).start(run.id,{inspection_id:inspection.inspection_id,module_root:'',justification:'Fixture com um script inválido.'});
+    let calls=0;
+    const services=scenarioServices(pool,store,{generate:async request=>{
+      const result=await base.generate(request),output=JSON.parse(result.raw);calls++;
+      output.artifacts=request.input.test_cases.map(row=>({...output.artifacts[0],test_case_id:row.id,files:[{...output.artifacts[0].files[0],path:generatedPath(row.id,'node-test/v2').path}]}));
+      if(calls===1)output.artifacts.find(row=>row.test_case_id===secondId).expected_result='Esperado inventado.';
+      else{assert.deepEqual(request.input.test_cases.map(row=>row.id),[secondId]);assert.match(request.input.previous_generation_error,/CT-002.*preservar/);}
+      return {...result,raw:JSON.stringify(output)};
+    }});
+    await services.processor.processOne();let detail=await base.runs.detail(run.id);
+    assert.equal(detail.status,'failed');assert.equal(detail.automated_tests.length,1);assert.equal(detail.automation_coverage.generated,1);
+    const first=detail.automated_tests[0],failed=detail.attempts.at(-1),preserved=await store.json(failed.output);
+    assert.match(preserved.raw,/Esperado inventado/);assert.equal(preserved.validated_output.artifacts.length,1);assert.equal(preserved.validation_errors.length,1);
+    await base.runs.retry(run.id,{justification:'Corrigir apenas o artefato com erro.'});await services.processor.processOne();detail=await base.runs.detail(run.id);
+    assert.equal(detail.status,'awaiting_review');assert.equal(detail.automated_tests.length,2);assert.equal(detail.automated_tests.find(row=>row.id===first.id).generation_attempt_id,first.generation_attempt_id);
+    assert.deepEqual(detail.automation_coverage.missing,[]);assert.equal(detail.automation_parts[0].dispositions.length,2);
+    assert.equal(detail.attempts.find(row=>row.id===failed.id).status,'failed');assert.equal(calls,2);
+  }finally{await pool.end();await rm(directory,{recursive:true,force:true});}
+});
+
 test('104 cenários geram lotes retomáveis, sem omissões e com revisão única atômica dos scripts',{skip:!url},async()=>{
   const pool=new pg.Pool({connectionString:url}),directory=await mkdtemp(join(tmpdir(),'tcc-auto-parts-')),store=createArtifactStore(directory);
   try{

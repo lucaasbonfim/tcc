@@ -22,7 +22,7 @@ export function planAutomationParts(input,{maxCases=2,budget=16000}={}) {
 }
 
 export function automationCoverage(caseIds,parts,scripts=[]) {
-  const completed=parts.filter(part=>part.status==='completed').flatMap(part=>part.dispositions);
+  const completed=parts.flatMap(part=>part.dispositions);
   const generated=new Set([...scripts.map(row=>row.test_case_id),...completed.filter(row=>row.status==='generated').map(row=>row.test_case_id)]);
   const unsupported=completed.filter(row=>row.status==='unsupported');
   const addressed=new Set([...generated,...unsupported.map(row=>row.test_case_id)]);

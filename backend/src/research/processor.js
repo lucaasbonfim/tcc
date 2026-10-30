@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { AGENTS, validateOutput,validateRequirement } from './agents.js';
 import { transaction } from './errors.js';
 import { createAutomationService } from './automation.js';
-import { validateAutomation } from './automation-contract.js';
+import { partitionAutomation,AUTOMATION_COVERAGE_GUARD } from './automation-contract.js';
 import {createExecutionService} from './execution.js';
 import {createEvaluationService} from './evaluation.js';
 import {validateEvaluation,evaluationRequestSchema} from './evaluation-contract.js';
@@ -45,7 +45,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       return {run,stage,token,attemptId,part,testPart,automationPart};
     });
   }
-  async function finish(job, { inputRef, outputRef, metadata, output, error, elapsed }) {
+  async function finish(job, { inputRef, outputRef, metadata, output, error, elapsed, automationValidated=false }) {
     return transaction(pool, async db => {
       await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);
       const current = (await db.query('SELECT status,lease_token FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
@@ -83,7 +83,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         }
       }
       if(job.automationPart) {
-        const dispositions=error ? [] : await automation.persist(db,job,output);
+        const dispositions=[...job.automationPart.dispositions,...(!error || automationValidated ? await automation.persist(db,job,output) : [])];
         await db.query('UPDATE research.automation_parts SET status=$2,output=$3,error=$4,dispositions=$5 WHERE id=$1',[job.automationPart.id,error ? 'failed' : 'completed',outputRef,error,JSON.stringify(dispositions)]);
         if(!error) {
           const parts=(await db.query('SELECT status,dispositions FROM research.automation_parts WHERE run_id=$1',[job.run.id])).rows;
@@ -142,11 +142,11 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       const job = await claim();
       if (!job) return false;
       const started = Date.now();
-      let inputRef = null, outputRef = null, metadata = null, output = null, error = null;
+      let inputRef = null, outputRef = null, metadata = null, output = null, error = null,automationValidated=false;
       try {
         const snapshot = await store.json(job.run.snapshot);
         let input;
-        if(job.automationPart)input=await store.json(job.automationPart.input);
+        if(job.automationPart)input=await automation.partInput(job.automationPart);
         else if(job.testPart)input=await store.json(job.testPart.input);
         else if(job.part)input={project_name:snapshot.project.name,...await store.json(job.part.input)};
         else if(job.stage.agent==='evaluation')input=await evaluation.inputFor(job.run.id);
@@ -158,8 +158,9 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         const definition = job.part ? {schema:PART_SCHEMA} : ['automation','evaluation'].includes(job.stage.agent) ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
         const grounded=job.stage.agent==='requirements' && job.stage.context?.citation_mode==='catalog/v1' ? citationRequest(input,definition.schema) : null;
         if(grounded)input=grounded.input;
-        const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction,
-          instruction_version:job.stage.instruction_version,schema:grounded?.schema || (job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema),input };
+        const isAutomation=job.stage.agent==='automation';
+        const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction+(isAutomation ? ' '+AUTOMATION_COVERAGE_GUARD : ''),
+          instruction_version:job.stage.instruction_version+(isAutomation ? '+coverage-guard/1' : ''),schema:grounded?.schema || (job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema),input };
         inputRef = await store.put(request);
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
@@ -178,18 +179,22 @@ export function createProcessor({ pool, store, generate, executorClient }) {
             timer = setTimeout(() => { controller.abort(); reject(new Error('Prazo de 95 segundos excedido na chamada ao modelo.')); },95000);
           })]);
           metadata = result.metadata;
-          let resolved=false;
+          let resolved=false,automationErrors=[];
           try {
           assertComplete(result.metadata);
           output = JSON.parse(result.raw);
           if(grounded)output=resolveCitations(output,input,request.schema);
           if(job.part)validatePart(output,input);
-          else if(job.stage.agent==='automation')validateAutomation(output,input);
+          else if(job.stage.agent==='automation') {
+            const checked=partitionAutomation(output,input);output=checked.output;automationErrors=checked.errors;automationValidated=true;
+            assert(!automationErrors.length,automationErrors.map(item=>`${input.test_cases.find(row=>row.id===item.test_case_id)?.content.code || item.test_case_id}: ${item.reason}`).join(' '),422);
+          }
           else if(job.stage.agent==='evaluation')validateEvaluation(output,input);
           else if(job.stage.agent!=='execution')validateOutput(job.stage.agent,output,input);
           if(job.stage.agent==='tests')assertTestCoverage(output.test_cases,input.requirements);
           resolved=Boolean(grounded);
-          } finally {outputRef=await store.put({raw:result.raw,...(resolved ? {validated_output:output,citation_method:'source-catalog/v1'} : {})});}
+          } finally {outputRef=await store.put({raw:result.raw,...(resolved ? {validated_output:output,citation_method:'source-catalog/v1'} : {}),
+            ...(automationValidated ? {validated_output:output,validation_errors:automationErrors} : {})});}
         } finally { clearTimeout(timer);clearInterval(monitor); }
       } catch (cause) {
         // Não persistir objetos do SDK, cabeçalhos ou credenciais recebidos em erros remotos.
@@ -198,7 +203,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           cause.name === 'AbortError' || cause.message?.includes('Prazo') ? 'Tempo limite da chamada ao modelo excedido.' :
           'Falha de processamento. Verifique disponibilidade do provedor, modelo, credenciais e armazenamento.';
       }
-      try{await finish(job,{inputRef,outputRef,metadata,output,error,elapsed:Date.now()-started});}
+      try{await finish(job,{inputRef,outputRef,metadata,output,error,automationValidated,elapsed:Date.now()-started});}
       catch(cause){await finish(job,{inputRef,outputRef,metadata,output,error:cause.statusCode===422 ? cause.message.slice(0,1000) : 'Falha ao consolidar/persistir resultados; confira o armazenamento e o banco.',elapsed:Date.now()-started});}
       return true;
     },

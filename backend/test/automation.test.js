@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {buildScope,validateAutomation,generatedPath} from '../src/research/automation-contract.js';
+import {buildScope,validateAutomation,generatedPath,partitionAutomation} from '../src/research/automation-contract.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 const version={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)};
@@ -32,6 +32,17 @@ test('scripts rejeitam imports inventados, alteração de caminho e casos omitid
     assert.throws(()=>validateAutomation({artifacts:[{...artifact,files:[{...artifact.files[0],code}]}],unsupported_cases:[],warnings:[]},input));
   }
   assert.throws(()=>validateAutomation({artifacts:[{...artifact,files:[{path:'src/calc.js',code:'fake'}]}],unsupported_cases:[],warnings:[]},input),/Caminho/);
+});
+
+test('erro em um artefato preserva os válidos sem corrigir silenciosamente o esperado',async()=>{
+  const {artifact,input}=await nodeFixture(),secondId=randomUUID();
+  const second={...artifact,test_case_id:secondId,files:[{...artifact.files[0],path:generatedPath(secondId,'node-test/v2').path}],expected_result:'Esperado inventado.'};
+  const context={...input,test_cases:[...input.test_cases,{...input.test_cases[0],id:secondId}]};
+  const response={artifacts:[artifact,second],unsupported_cases:[],warnings:[]};
+  const checked=partitionAutomation(response,context);
+  assert.equal(checked.output.artifacts.length,1);assert.equal(checked.errors[0].test_case_id,secondId);
+  assert.match(checked.errors[0].reason,/preservar/);assert.equal(response.artifacts[1].expected_result,'Esperado inventado.');
+  assert.throws(()=>partitionAutomation({...response,artifacts:[artifact,artifact]},context),/Cada caso/);
 });
 test('Java seleciona fechamento local, recusa Swing/SQL/dependências externas',async()=>{
   const fixture=repositoryFixture({'pom.xml':'<project/>','src/main/java/sample/Value.java':'package sample; public class Value {public int get(){return 1;}}',
