@@ -119,3 +119,10 @@
 - Recursos/rede/UID/seccomp/cgroups verificados por probe confiável. Entradas copiadas para tmpfs com permissões sem escrita para testes; sem bind mounts/socket. Timeout/cancelamento passam por remoção do contêiner; falha de limpeza bloqueia serviço.
 - `executor/npm test`: cinco testes aprovados usando Docker injetado; sintaxe do runner/servidor validada. Nenhum repositório ou teste gerado foi executado no host.
 - Limitação: imagens/probe/piloto real não puderam ser validados no ambiente sem VM/daemon. A disponibilidade real continua bloqueada; detalhes de provisionamento em `executor/README.md`.
+
+## Continuação — integração do agente 3
+
+- Autorização independente após revisão dos scripts, com bundle imutável, hash, SHA, versões dos scripts e recibo de política/imagem persistidos. API/worker comunicam somente por HTTPS autenticado, sem credenciais do banco/Gemini no bundle.
+- Migração 012 guarda trabalhos, evidências de origem executor e resultados individuais, incluindo falha de teste/compilação/infraestrutura, timeout, cancelamento e inconclusivo. Transporte/recibo inválido não produz evidência.
+- Worker determinístico integra o serviço, monitora cancelamento/lease e não executa projeto no host. Trabalho remoto é idempotente; repetição de transporte usa mesmo UUID/hash.
+- Suíte backend ampliada: 30 testes aprovados; integração específica confere bloqueio sem VM, autorização, rejeição de duplicação e rastreabilidade de resultado/evidência com executor injetado. Fixtures não são resultados reais da pesquisa.

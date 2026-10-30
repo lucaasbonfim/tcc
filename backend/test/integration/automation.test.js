@@ -8,6 +8,9 @@ import {migrate} from '../../src/research/migrate.js';
 import {createArtifactStore} from '../../src/research/artifacts.js';
 import {createAutomationService} from '../../src/research/automation.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
+import {createExecutionService} from '../../src/research/execution.js';
+import {createProcessor} from '../../src/research/processor.js';
+import {fixtureResult} from '../../../shared/execution-fixture.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 test('automação exige revisão textual, preserva scripts e audita edição/aprovação', {skip:!url},async()=>{
@@ -34,5 +37,19 @@ test('automação exige revisão textual, preserva scripts e audita edição/apr
     assert.ok(exported.reviews.some(r=>r.entity_type==='automated_test' && r.before_value.files.sha256!==r.after_value.files.sha256));
     assert.equal(exported.status,'completed');
     assert.equal((await services.projects.detail(project.id)).versions[0].inspection.inspection_version,'2.0.0');
+    const blocked=createExecutionService({pool,store,client:{health:async()=>({ready:false,reason:'Sem VM de teste.'})}});
+    await assert.rejects(blocked.authorize(run.id,{justification:'Testar indisponibilidade.'}),/Sem VM/);
+    const receipt={ready:true,deployment_id:'integration-fixture',policy_sha256:'a'.repeat(64),images:{'node-test/v2':{image_id:'sha256:'+'b'.repeat(64)}}};
+    const executorClient={health:async()=>receipt,execute:async bundle=>{const result=fixtureResult(bundle,'failed');result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
+    const execution=createExecutionService({pool,store,client:executorClient});
+    await execution.authorize(run.id,{justification:'Autorização sintética para testar integração, sem execução real.'});
+    await assert.rejects(execution.authorize(run.id,{justification:'Duplicar trabalho.'}),/Conclua/);
+    await createProcessor({pool,store,generate:services.generate,executorClient}).processOne();
+    const finished=await services.runs.detail(run.id);
+    assert.equal(finished.execution_jobs[0].status,'completed');
+    assert.equal(finished.test_results[0].status,'failed');
+    assert.equal(finished.test_results[0].automated_test_id,script.id);
+    assert.equal(finished.evidence[0].origin,'executor');
+    assert.equal(finished.requirements[0].review_status,'approved');
   }finally{await pool.end();await rm(directory,{recursive:true,force:true});}
 });

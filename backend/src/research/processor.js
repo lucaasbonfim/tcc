@@ -3,9 +3,11 @@ import { AGENTS, validateOutput } from './agents.js';
 import { transaction } from './errors.js';
 import { createAutomationService } from './automation.js';
 import { validateAutomation } from './automation-contract.js';
+import {createExecutionService} from './execution.js';
 
-export function createProcessor({ pool, store, generate }) {
+export function createProcessor({ pool, store, generate, executorClient }) {
   const automation=createAutomationService({pool,store});
+  const execution=createExecutionService({pool,store,client:executorClient});
   async function claim() {
     return transaction(pool, async db => {
       const run = (await db.query(`SELECT r.* FROM research.runs r WHERE r.status='pending'
@@ -32,7 +34,8 @@ export function createProcessor({ pool, store, generate }) {
         return;
       }
       if (!error) {
-        if(job.stage.agent==='automation') await automation.persist(db,job,output);
+        if(job.stage.agent==='execution')await execution.persist(db,job,output);
+        else if(job.stage.agent==='automation') await automation.persist(db,job,output);
         else {
         const items = job.stage.agent === 'requirements' ? output.requirements : output.test_cases;
         const table = job.stage.agent === 'requirements' ? 'requirements' : 'test_cases';
@@ -44,12 +47,14 @@ export function createProcessor({ pool, store, generate }) {
         }
         }
       }
+      if(error && job.stage.agent==='execution')await db.query("UPDATE research.execution_jobs SET status='failed',error=$2,finished_at=now() WHERE id=$1",[job.stage.context.job_id,error]);
       await db.query(`UPDATE research.attempts SET status=$2,input=$3,output=$4,provider_metadata=$5,error=$6,finished_at=now(),duration_ms=$7 WHERE id=$1`,
         [job.attemptId,error ? 'failed' : 'completed',inputRef,outputRef,metadata,error,elapsed]);
       const unsupported=job.stage.agent==='automation' && !error && output.artifacts.length===0;
+      const executed=job.stage.agent==='execution' && !error;
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
-        [job.stage.id,error ? 'failed' : unsupported ? 'not_supported' : 'awaiting_review',error || (unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
-      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : unsupported ? 'completed' : 'awaiting_review']);
+        [job.stage.id,error ? 'failed' : executed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
+      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : unsupported || executed ? 'completed' : 'awaiting_review']);
     });
   }
   return {
@@ -65,6 +70,7 @@ export function createProcessor({ pool, store, generate }) {
             await db.query("UPDATE research.stages SET status='failed',message='Worker interrompido. Repetição explícita necessária.',lease_token=NULL,lease_until=NULL WHERE id=$1",[stage.id]);
           }
           await db.query("UPDATE research.runs SET status='failed',finished_at=now() WHERE id=$1",[run.id]);
+          await db.query("UPDATE research.execution_jobs SET status='failed',error='Worker interrompido; consulte o executor antes de repetir.',finished_at=now() WHERE run_id=$1 AND status='running'",[run.id]);
         }
         return expired.length;
       });
@@ -77,7 +83,8 @@ export function createProcessor({ pool, store, generate }) {
       try {
         const snapshot = await store.json(job.run.snapshot);
         let input;
-        if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
+        if(job.stage.agent==='execution')input=await execution.prepare(job);
+        else if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
         else if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
           requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
@@ -88,16 +95,22 @@ export function createProcessor({ pool, store, generate }) {
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
         let timer;
+        let monitoring=false;
+        const monitor=setInterval(async()=>{
+          if(monitoring || controller.signal.aborted)return;monitoring=true;
+          try{const row=(await pool.query('SELECT status,lease_token FROM research.stages WHERE id=$1',[job.stage.id])).rows[0];if(row?.status!=='running' || row.lease_token!==job.token)controller.abort();}
+          catch{controller.abort();}finally{monitoring=false;}
+        },2000);
         try {
-          const result = await Promise.race([generate({...request,signal:controller.signal}),new Promise((_,reject) => {
+          const result = await Promise.race([job.stage.agent==='execution' ? execution.perform(input,controller.signal).then(result=>({raw:JSON.stringify(result),metadata:{provider:'deterministic-executor'}})) : generate({...request,signal:controller.signal}),new Promise((_,reject) => {
             timer = setTimeout(() => { controller.abort(); reject(new Error('Prazo de 95 segundos excedido na chamada ao modelo.')); },95000);
           })]);
           metadata = result.metadata;
           outputRef = await store.put({raw:result.raw});
           output = JSON.parse(result.raw);
           if(job.stage.agent==='automation')validateAutomation(output,input);
-          else validateOutput(job.stage.agent,output,input);
-        } finally { clearTimeout(timer); }
+          else if(job.stage.agent!=='execution')validateOutput(job.stage.agent,output,input);
+        } finally { clearTimeout(timer);clearInterval(monitor); }
       } catch (cause) {
         // Não persistir objetos do SDK, cabeçalhos ou credenciais recebidos em erros remotos.
         error = cause.statusCode === 422 ? cause.message.slice(0,1000) :
