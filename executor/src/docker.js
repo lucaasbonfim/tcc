@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process';
-import {ensure,codePath} from '../../shared/execution-protocol.js';
+import {ensure,validateBundle} from '../../shared/execution-protocol.js';
 
 export const LIMITS=Object.freeze({cpus:1,memory:268435456,pids:64,work_bytes:67108864,tmp_bytes:16777216,timeout_ms:60000,output_bytes:2097152});
 export const immutableImage=value=>typeof value==='string' && /^(?:sha256:[a-f0-9]{64}|[a-zA-Z0-9][a-zA-Z0-9_./:-]*@sha256:[a-f0-9]{64})$/.test(value);
@@ -30,41 +30,21 @@ export function docker(args,{input,timeout=10000,signal,maxBytes=LIMITS.output_b
   });
 }
 
-// Handcrafted regular-file tar: no extraction of untrusted archive metadata, symlinks, devices or permissions.
-export function projectTar(bundle) {
-  const chunks=[];
-  for(const file of [...bundle.source_files,...bundle.generated_tests.flatMap(t=>t.files)]) {
-    codePath(file.path);
-    const content=Buffer.from(file.content ?? file.code,'utf8'),header=Buffer.alloc(512);
-    const name=file.path;
-    ensure(Buffer.byteLength(name)<=255,'Tar path too long');
-    const split=name.lastIndexOf('/');
-    const leaf=Buffer.byteLength(name)<=100 ? name : name.slice(split+1);
-    const prefix=Buffer.byteLength(name)<=100 ? '' : name.slice(0,split);
-    ensure(Buffer.byteLength(leaf)<=100 && Buffer.byteLength(prefix)<=155,'Tar path unsupported');
-    header.write(leaf,0,100,'utf8');header.write('0000444\0',100,8);header.write('0000000\0',108,8);header.write('0000000\0',116,8);
-    header.write(content.length.toString(8).padStart(11,'0')+'\0',124,12);header.write('00000000000\0',136,12);
-    header.fill(32,148,156);header.write('0',156);header.write('ustar\0',257,6);header.write('00',263,2);header.write(prefix,345,155,'utf8');
-    const checksum=header.reduce((n,b)=>n+b,0);header.write(checksum.toString(8).padStart(6,'0')+'\0 ',148,8);
-    chunks.push(header,content,Buffer.alloc((512-content.length%512)%512));
-  }
-  chunks.push(Buffer.alloc(1024));
-  return Buffer.concat(chunks);
-}
-
 export async function executeContainer(bundle,image,{runDocker=docker,signal}={}) {
+  validateBundle(bundle);
   const name=`research-${bundle.job_id}`;
   let created=false;
   try {
     const creation=await runDocker(containerArguments(name,image));
     ensure(creation.code===0 && !creation.terminated,'Container creation failed');created=true;
-    // Trusted runner waits for its bounded stdin. Sources are copied into a root-owned tmpfs,
-    // never a host mount; the non-root test process has no write permission to files/parents.
+    // Root filesystem stays read-only. A fixed initializer only writes validated data to
+    // the project tmpfs, then seals permissions before the non-root runner receives input.
     const started=await runDocker(['start',name]);
     ensure(started.code===0,'Container startup failed');
-    const copied=await runDocker(['cp','-',`${name}:/project`],{input:projectTar(bundle)});
+    const input=JSON.stringify(bundle)+'\n';
+    const copied=await runDocker(['exec','--user','0:0','--workdir','/','-i',name,'/usr/local/bin/node','/opt/research/install.mjs'],{input,signal});
     ensure(copied.code===0 && !copied.terminated,'Read-only project preparation failed');
-    const result=await runDocker(['attach','--sig-proxy=false',name],{input:JSON.stringify(bundle),timeout:LIMITS.timeout_ms,signal});
+    const result=await runDocker(['attach','--sig-proxy=false',name],{input,timeout:LIMITS.timeout_ms,signal});
     if(result.terminated)return {status:signal?.aborted ? 'cancelled' : 'timeout',stdout:result.stdout,stderr:result.stderr};
     ensure(result.code===0,'Trusted runner failed');
     return {status:'reported',report:JSON.parse(result.stdout)};
