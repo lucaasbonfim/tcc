@@ -159,10 +159,38 @@
 ## Continuação — geração real no piloto escolhido
 
 - `npm run smoke:automation`: fonte pública real `jonschlinkert/is-number`, SHA `98e8ff1da1a89f93d1397a24d7413ed15421c139`, oráculo técnico sintético. Gemini gerou um script que passou no contrato/AST, sem casos omitidos ou avisos.
-- Provedor informou 1900 tokens de entrada, 484 de saída, 2384 totais; custo nulo por ausência de informação. Nenhum código gerado foi executado/compilado nem houve gravação de resultados experimentais.
+- Provedor informou 1900 tokens de entrada, 484 de saída, 2384 totais; custo não informado (`null`). Nenhum código gerado foi executado/compilado nem houve gravação de resultados experimentais.
 - Piloto/procedimentos/controles documentados em `PILOTO_EXECUCAO.md`. Execução real permanece pendente da VM; testes com fixtures não satisfazem esse critério.
 
 ## Continuação — fechamento de módulos
 
 - Revisão de monorepos: alvos pertencem ao manifesto mais próximo; escopos preservam manifestos ancestrais para manter semântica CJS/ESM. Limite técnico de 16 fontes/manifestos por bundle.
 - Inspeção deixa de iniciar novas leituras após 30 s, com omissões explícitas; uma consulta já iniciada conserva seu timeout de 12 s. Testes de módulos aninhados e orçamento temporal aprovados.
+
+## Continuação — verificação final e banco configurado
+
+- Backend: **36 testes aprovados, zero falhas/ignorados**, com PostgreSQL separado em `tcc_test_research`. Inclui geração/revisão de scripts, executor injetado, avaliação, rastreabilidade e retomada de documentos extensos. Após ajustar metadados iniciais dos agentes v2, os seis testes do pipeline persistente também passaram.
+- Serviço executor: seis testes aprovados com transporte Docker injetado; imagem, probes e piloto reais continuam pendentes. Nenhum projeto externo foi executado no host/backend.
+- Frontend: lint/build aprovados e um E2E Chromium aprovado, incluindo revisão até avaliação, exportação e modo móvel. Fixtures permanecem em `tcc_test_browser`/artefatos temporários; não são dados experimentais.
+- API e worker agora verificam todas as migrações/checksums antes de iniciar. Integração cobre ausência de migração e checksum divergente, com rollback no banco de teste.
+- Aplicadas 010–014 ao banco configurado, sob transação. Antes/depois: zero projetos/execuções; dez tabelas no schema público preservadas. Depois: zero trabalhos/evidências de execução. Reaplicação não fez alterações; checksums conferidos.
+- Smoke autenticado da aplicação: health, projetos, histórico, resumo e capacidades retornaram HTTP 200; consulta sem sessão retornou 401. Capacidade real de execução `ready=false`, por ausência de VM/executor configurado; avaliação desabilitada sem evidências. Worker iniciou corretamente com fila vazia, sem consumo Gemini.
+- Documentação de arquitetura, modelo/fluxos Mermaid, operação, API, migrações, reprodução e piloto atualizada para distinguir implementação, validação com fixtures e validação real pendente. Arquivo local `atual.java` preservado, fora dos commits.
+- Dez documentos conferidos, 21 links locais válidos e `git diff --check` sem erros. Cluster PostgreSQL temporário da suíte encerrado ao final; serviço/banco configurado da aplicação preservado.
+
+### Commits por etapa desta continuação
+
+| Etapa | Commits principais |
+| --- | --- |
+| Diagnóstico | `01b5ccc` |
+| Inspeção no SHA e monorepos | `836ed19`, `be08bf4` |
+| Scripts gerados/revisados | `02d9809` |
+| Serviço executor e revisão dos controles | `7fabb9c`, `35e1afc`, `6c19130` |
+| Agente 3 e persistência | `2bca391` |
+| Agente 4 e revisão humana | `c9ffdbf` |
+| Documentos extensos/checkpoints | `612cad1` |
+| Interface e E2E integrado | `33f8343` |
+| Geração real/piloto documentado | `95de535` |
+| Inicialização/migrações e definições v2 | `f1053ee`, `7512965` |
+
+O critério de execução real de ponta a ponta não foi atingido neste ambiente. Resta provisionar a VM, validar as imagens/probes/limpeza e executar os controles do piloto, conforme [PILOTO_EXECUCAO.md](PILOTO_EXECUCAO.md). A limitação permanece explícita na interface e não foi contornada com dados fictícios.

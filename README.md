@@ -1,4 +1,4 @@
-﻿# Requisita — Plataforma Multiagente de Análise de Requisitos e Testes
+# Requisita — Plataforma Multiagente de Análise de Requisitos e Testes
 
 Base funcional do TCC **“Análise de Requisitos e Testes de Software com Inteligência Artificial Generativa: Uma Abordagem Multiagente”**.
 
@@ -12,12 +12,15 @@ A aplicação existente foi evoluída mantendo React/Vite/Tailwind/Router, Expre
 - Agente de casos de teste textuais, a partir de requisitos aprovados, com vínculos persistidos e revisão.
 - Worker assíncrono, estados por agente, prevenção de duplicação, até três tentativas e recuperação de interrupções.
 - Histórico, entradas/saídas, parâmetros, instruções versionadas, tokens informados pelo provedor e exportação JSON/CSV.
+- Inspeção de módulos/fontes no SHA e geração de scripts Node/JUnit a partir de casos aprovados, com revisão de código e versões preservadas.
+- Processamento incremental de documentos extensos com checkpoints, referências por página e consolidação auditável.
+- Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 
-**Execução de código externo e avaliação de divergências estão desabilitadas.** O adaptador inicial apenas inspeciona manifestos no SHA e identifica candidatos Node; não executa comandos. Sem infraestrutura isolada validada, não são produzidos resultados de testes nem defeitos fictícios.
+**A execução real depende de uma VM dedicada com isolamento validado.** O serviço, runners e integração estão implementados, mas as imagens e o piloto real ainda não puderam ser validados neste ambiente. Sem recibo válido do executor, a autorização permanece bloqueada; o agente 4 não produz análises sem evidências independentes. Testes da plataforma com fixtures não são resultados da pesquisa.
 
 ## Requisitos de desenvolvimento
 
-Node.js 20.19+ (validado com 20.20; prefira uma versão LTS suportada), npm, PostgreSQL 17+ e acesso HTTPS ao GitHub/Gemini. Docker não é necessário para esta base. Backend e worker precisam compartilhar banco e diretório de artefatos.
+Node.js 20.19+ para API/frontend (validado com 20.20; prefira uma versão LTS suportada), npm, PostgreSQL 17+ e acesso HTTPS ao GitHub/Gemini. Backend e worker compartilham banco/diretório de artefatos. O executor usa Node 22.13+, em **VM separada**, com Docker rootless/cgroups e imagens pré-provisionadas. Ele não é necessário para análise/geração/revisão.
 
 ## Instalação
 
@@ -113,7 +116,24 @@ Os artefatos ficam por padrão em `backend/artifacts`, fora dos arquivos públic
 5. Autorize a geração de casos; confira passos, esperado e requisitos relacionados, revisando cada caso.
 6. Conclua a geração textual e exporte o JSON/CSV em Relatórios ou Histórico.
 
-Uma nova análise cria outra execução. Edições no projeto e novos documentos não alteram os snapshots anteriores. “Concluída” significa conclusão da geração/revisão textual; os agentes de execução e avaliação continuam explicitamente não suportados.
+Para continuar: na aba **Scripts**, inspecione fontes do mesmo SHA, escolha módulo/alvos/casos aprovados, gere os testes e revise seu código/esperado. Conclua a revisão; a aba **Execução** exige justificativa e disponibilidade verificada do serviço. Após resultados independentes, o agente 4 propõe análises para confirmação/rejeição/inconclusiva, com justificativa. Exportações v2 incluem scripts, bundles, resultados, evidências e revisões.
+
+Uma nova análise cria outra execução. Edições no projeto/documentos não alteram snapshots anteriores. Confira o estado de cada agente: uma execução pode estar concluída somente no fluxo textual ou de scripts, sem testes executados. Após autorização, os agentes 3/4 registram seus estados e evidências reais separadamente.
+
+Documentos acima de 24 mil caracteres são divididos em partes com sobreposição/checkpoints. O limite de seleção passou de 100 mil para 4,1 milhões de caracteres, até 512 partes/2000 requisitos e 12 MiB por artefato. Upload/extração por documento conservam seus limites; páginas vazias/diagramas exigem conferência. Duplicidades/contradições sinalizadas não são resolvidas semanticamente sem revisão.
+
+## Serviço executor (implantação separada)
+
+Siga [executor/README.md](executor/README.md) na VM dedicada. Não inicie projetos ou testes gerados diretamente no host/backend. Após provisionar imagens, passar pelos probes e validar o piloto, configure **na API e no worker**:
+
+```dotenv
+EXECUTOR_URL=https://executor.administrativo.exemplo
+EXECUTOR_TOKEN=segredo_compartilhado_de_transporte
+EXECUTOR_DEPLOYMENT_ID=identificador_da_VM
+EXECUTOR_POLICY_SHA256=hash_da_politica_validada
+```
+
+O backend verifica HTTPS, identidade, política, validade e imagens do recibo. Sem essa configuração/validação, a interface informa a indisponibilidade. Não há npm install, execução de scripts npm/Maven ou acesso à internet dentro dos testes. Node é o primeiro adaptador; Java/JUnit é inicial e limitado a classes JDK/locais sem Swing/banco. Veja [piloto e controles](docs/PILOTO_EXECUCAO.md).
 
 ## Testes
 
@@ -147,12 +167,15 @@ npm run test:e2e
 
 Crie antes `tcc_test_browser` com `createdb`. O Playwright inicia Vite/API de teste nas portas 5178/3101, usa PostgreSQL real e respostas GitHub/Gemini injetadas e identificadas como fixtures. Verifica cadastro, importação, correção/revisão, rastreabilidade exportada e viewport móvel. Não acessa o modelo pago. Opcionalmente indique um Chromium já instalado por `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
 
-Validação **manual e paga** dos dois contratos com o Gemini configurado (texto sintético, sem gravação de resultados da pesquisa):
+Validação **manual e paga** dos contratos com o Gemini configurado (texto sintético, sem gravação de resultados da pesquisa):
 
 ```powershell
 cd backend
 npm run smoke:gemini
+npm run smoke:automation
 ```
+
+O segundo comando inspeciona fonte pública e valida geração real de um script Node com oráculo técnico sintético, **sem executar código nem gravar resultados experimentais**. Testes do serviço executor, também sem Docker/projetos externos, ficam em `executor`: `npm test`.
 
 ## Documentação
 
@@ -160,6 +183,7 @@ npm run smoke:gemini
 - [Arquitetura, entidades, estados, segurança e limitações](docs/ARQUITETURA_PESQUISA.md).
 - [Procedimento de repetição e critérios de avaliação](docs/PROTOCOLO_REPRODUCAO.md).
 - [Validações realizadas e resultados técnicos](docs/VALIDACAO.md).
+- [Evolução dos agentes 3/4](docs/EVOLUCAO_EXECUCAO.md) e [piloto de execução](docs/PILOTO_EXECUCAO.md).
 - [API e operação](backend/README.md), [banco](database/README.md) e [frontend](frontend/README.md).
 
 Documentos e scripts SQL exclusivos do experimento encerrado foram removidos. Suas versões anteriores permanecem disponíveis no histórico do Git.

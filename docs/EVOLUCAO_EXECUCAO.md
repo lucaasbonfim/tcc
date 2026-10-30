@@ -26,3 +26,9 @@ O GitHub público Vai&Volta foi consultado no commit `9afa820038de42c134c8c69c2b
 - As quatro responsabilidades lógicas continuam separadas. Uma etapa interna `automation` pertence ao agente 2; geração textual concluída pode ser estendida explicitamente, preservando execuções anteriores.
 
 Validações e commits serão registrados em `VALIDACAO.md`; esta decisão não altera as migrações já aplicadas nem dados existentes.
+
+## Estado entregue nesta continuação
+
+As sete etapas acima foram implementadas, com migrações 010–014, contratos/serviço executor independentes, API/worker, interface e exportação v2. A arquitetura atual está em [ARQUITETURA_PESQUISA.md](ARQUITETURA_PESQUISA.md); o diagnóstico inicial acima é histórico. Inspeção real do Vai&Volta e geração real Gemini no piloto Node foram verificadas sem executar código externo no host.
+
+Persistência e fluxo completo foram testados com fixtures em bancos separados. **Ainda falta provisionar/validar imagens e isolamento na VM dedicada e executar o piloto real.** O serviço permanece indisponível na configuração atual, e não há resultados experimentais fabricados. Procedimento e controles pendentes: [PILOTO_EXECUCAO.md](PILOTO_EXECUCAO.md).
