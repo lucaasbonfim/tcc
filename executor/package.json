@@ -1,0 +1,8 @@
+{
+  "name":"tcc-isolated-executor",
+  "private":true,
+  "version":"1.0.0",
+  "type":"module",
+  "scripts":{"start":"node src/server.js","test":"node --test test"},
+  "engines":{"node":">=22.13.0"}
+}

@@ -1,0 +1,8 @@
+{
+  "dedicated_vm": true,
+  "deployment_id": "PREENCHA-identificador-da-VM-dedicada",
+  "images": {
+    "node-test/v2": "sha256:SUBSTITUA_PELO_ID_IMUTAVEL_DA_IMAGEM_PROVISIONADA"
+  },
+  "java_junit_provisioned": false
+}

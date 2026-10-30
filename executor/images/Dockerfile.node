@@ -1,0 +1,9 @@
+ARG NODE_BASE
+FROM ${NODE_BASE}
+USER root
+RUN mkdir -p /opt/research /project && touch /opt/research/container-only && chmod 0555 /project
+COPY executor/runner/ /opt/research/
+COPY shared/execution-protocol.js /opt/research/protocol.mjs
+USER 1000:1000
+WORKDIR /project
+ENTRYPOINT ["/usr/local/bin/node", "/opt/research/run.mjs"]
