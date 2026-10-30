@@ -54,3 +54,8 @@
 - Novo layout reutiliza Tailwind e os componentes existentes, com navegação responsiva, estados em português, cliente de API autenticado e hook com cancelamento e polling limitado a etapas ativas.
 - `npm run build` e `npm run lint`: aprovados, sem avisos de lint após correção dos estados derivados.
 - Auditoria também identificou Vite vulnerável já instalado; atualização compatível para 8.3.5 validada no build (lockfile incluído com a infraestrutura E2E).
+
+## Telas de projetos
+
+- Dashboard com contagens consultadas do banco, cadastro/edição com resolução de SHA, seleção de documentos/versões, upload, consulta de páginas extraídas e histórico por projeto.
+- Build/lint aprovados. Fluxos de cadastro/importação exercitados no Chromium contra API e PostgreSQL isolados.
