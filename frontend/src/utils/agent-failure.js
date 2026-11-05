@@ -1,0 +1,8 @@
+export function describeAgentFailure(failure) {
+  const diagnostic=failure?.diagnostic,status=diagnostic?.http_status;
+  if(diagnostic?.phase==='model_turn' && [502,503,504].includes(status))return {title:'O serviço do modelo está indisponível',description:`A chamada ao modelo retornou HTTP ${status}. Esta tarefa foi interrompida antes de produzir uma saída válida.`,next:'Tente retomar esta etapa mais tarde. A tentativa anterior e os registros de consumo serão mantidos; a disponibilidade do provedor pode continuar instável.'};
+  if(diagnostic?.phase==='model_turn' && status===429)return {title:'O provedor recusou a chamada por limite de uso',description:'A resposta foi HTTP 429. Confira os limites e a cota da API configurada.',next:'Retome a etapa depois de verificar o limite. As tentativas anteriores permanecem registradas.'};
+  if(diagnostic?.phase==='model_turn' && [401,403].includes(status))return {title:'Acesso ao modelo recusado',description:`O provedor retornou HTTP ${status}. Confira as credenciais e as permissões do modelo.`,next:'Corrija a configuração antes de retomar esta etapa.'};
+  if(failure?.stop_reason==='budget_exhausted')return {title:'O agente atingiu seu limite',description:'A tarefa terminou sem uma saída válida dentro do orçamento de chamadas, ferramentas ou tempo.',next:'Confira a trajetória antes de decidir por outra execução. Retomar não repõe o orçamento já consumido.'};
+  return {title:'A execução foi interrompida',description:'Uma etapa não pôde ser concluída. Abra o evento de falha para conferir o registro preservado.',next:'Revise o ponto de parada antes de retomar. Falha de processamento não demonstra defeito no projeto analisado.'};
+}

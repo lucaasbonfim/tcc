@@ -424,6 +424,14 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Documentação e limites:** plano, arquitetura, protocolo e READMEs atualizados. A avaliação das saídas de cada etapa pode ocorrer toda ao final; observar só o diálogo não demonstra qualidade dos artefatos. Propostas de revisão continuam rascunhos sem aplicação/reexecução automática. Os testes novos usam fixtures, sem modelo ou execução real de fontes. Aplicação reiniciada pelo launcher local com API/worker/executor/frontend; frontend e `/api/health` responderam HTTP 200. Falta o piloto conjunto com LLM real; avaliador/referência/rubrica ainda não definidos, protocolo não congelado e sem coleta principal. Rastreabilidade: commit `[AH-04]`. Próxima atividade científica: fixar recorte e referência, executar piloto separado da coleta e depois congelar condições.
 
+## 05/11/2026 — MV-01: falha do VVV identificada e apresentada
+
+**Estado:** concluído. Base `dee0570`. Leitura da análise `25b7fcf7-d615-4c96-b252-2abf4304962b`: A1, dois turnos solicitados e uma ferramenta, diagnóstico preservado `ApiError`, `phase=model_turn`, HTTP 503. Não houve execução de código nessa tentativa. O registro seguro não guarda o corpo de transporte, portanto não permite distinguir sobrecarga de outra indisponibilidade do provedor. A documentação oficial descreve 503 como indisponibilidade/sobrecarga temporária, sem provar um incidente específico.
+
+**Mudança:** API de histórico expõe diagnóstico seguro vinculado à análise/tentativa, inclusive no stream/exportação. A interface explica indisponibilidade, limite de uso, acesso recusado ou orçamento, sem exigir leitura de JSON para saber o que falhou. Retomada permanece explícita e usa o orçamento/histórico existentes; não foram adicionadas chamadas automáticas, troca de modelo ou novas autorizações. Nenhuma tentativa do VVV foi reexecutada.
+
+**Verificação:** 12 testes de histórico/runtime aprovados em banco novo `tcc_test_agents_mv01`, incluindo 503 sem vazamento de mensagem sensível e sem retry automático. O banco de fixtures anterior tinha tarefas residuais que disputavam os claims; a execução isolada resolveu a interferência, sem tocar dados da pesquisa. Lint/build aprovados. Leitura do registro real pelo serviço novo devolveu A1/model_turn/503 e os mesmos 11 eventos. Rastreabilidade: commit `[MV-01]`. Próxima tarefa: MV-02, diagrama e reformulação visual.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

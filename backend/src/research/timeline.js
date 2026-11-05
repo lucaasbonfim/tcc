@@ -5,6 +5,13 @@ function cursor(value='0'){const s=String(value);assert(/^\d{1,19}$/.test(s)&&Bi
 export function createTimelineService({pool,store}) {
   async function run(id){const row=(await pool.query('SELECT * FROM research.runs WHERE id=$1',[id])).rows[0];assert(row,'Análise não encontrada.',404);return row;}
   async function durable(id){return (await pool.query("SELECT payload->>'timeline_version' AS version FROM research.run_events WHERE run_id=$1 AND source_key='run:created'",[id])).rows[0]?.version==='1';}
+  async function failure(runId,attemptId=null) {
+    const session=(await pool.query(`SELECT id,attempt_id,agent,status,stop_reason,output FROM research.agent_sessions WHERE run_id=$1 AND parent_session_id IS NULL
+      AND status IN ('failed','exhausted','interrupted') AND ($2::uuid IS NULL OR attempt_id=$2) ORDER BY started_at DESC,id LIMIT 1`,[runId,attemptId])).rows[0];
+    if(!session)return null;
+    let diagnostic=null;if(session.output){try{const value=await store.json(session.output);if(value.kind==='agent_diagnostic')diagnostic={kind:value.kind,phase:value.phase,http_status:value.http_status,error_code:value.error_code};}catch(error){if(error.code!=='ENOENT')throw error;}}
+    const {output,...safe}=session;return {...safe,diagnostic};
+  }
   async function legacy(runId) {
     const result=[],add=(key,kind,occurred_at,extra={})=>{if(occurred_at)result.push({id:legacyId(key),run_id:runId,kind,occurred_at,actor:'system',legacy:true,payload:{},...extra});};
     const [attempts,messages,calls,reviews,evidence,assessments]=await Promise.all([
@@ -31,7 +38,7 @@ export function createTimelineService({pool,store}) {
     async list(runId,query={}) {
       const current=await run(runId),after=cursor(query.after),limit=Number(query.limit??100);assert(Number.isSafeInteger(limit)&&limit>0&&limit<=200,'Limite de eventos inválido.',422);
       const recorded=await durable(runId),rows=recorded?(await pool.query('SELECT * FROM research.run_events WHERE run_id=$1 AND sequence>$2::bigint ORDER BY sequence LIMIT $3',[runId,after,limit+1])).rows:(await legacy(runId)).filter(e=>BigInt(e.sequence)>BigInt(after)).slice(0,limit+1);
-      return {events:rows.slice(0,limit).map(({_ref,_data,...e})=>e),cursor:rows.length?rows.slice(0,limit).at(-1).sequence:after,has_more:rows.length>limit,status:current.status,workflow_mode:current.workflow_mode,history_mode:recorded?'recorded':'legacy',summary:await summary(runId)};
+      return {events:rows.slice(0,limit).map(({_ref,_data,...e})=>e),cursor:rows.length?rows.slice(0,limit).at(-1).sequence:after,has_more:rows.length>limit,status:current.status,workflow_mode:current.workflow_mode,history_mode:recorded?'recorded':'legacy',summary:await summary(runId),failure:current.status==='failed'?await failure(runId):null};
     },
     async detail(runId,eventId) {
       await run(runId);const recorded=await durable(runId),event=recorded?(await pool.query('SELECT * FROM research.run_events WHERE run_id=$1 AND id=$2',[runId,eventId])).rows[0]:(await legacy(runId)).find(e=>e.id===eventId);assert(event,'Evento não encontrado nesta análise.',404);
@@ -41,6 +48,7 @@ export function createTimelineService({pool,store}) {
       else if(event.kind==='model_turn_requested'){const request=await store.json(event.payload.request);data={model:request.model,instruction_version:request.instruction_version,parameters:request.parameters,tools:(request.tools||[]).map(t=>t.name)};}
       else if(['model_turn_completed','model_response_late'].includes(event.kind)){const response=await store.json(event.payload.response);data={calls:response.calls,metadata:response.metadata};}
       else for(const key of ['arguments','observation','manifest','snapshot'])if(event.payload[key]?.key){data=await store.json(event.payload[key]);break;}
+      if(event.kind==='attempt_failed' && event.attempt_id)data={...data,failure:await failure(runId,event.attempt_id)};
       const {_ref,_data,...visible}=event;return {event:visible,snapshot,data,history_mode:recorded?'recorded':'legacy'};
     },
     async export(runId) {
@@ -48,14 +56,14 @@ export function createTimelineService({pool,store}) {
       const snapshots=(await pool.query('SELECT * FROM research.artifact_snapshots WHERE run_id=$1 ORDER BY created_at,id',[runId])).rows;
       for(const snapshot of snapshots)snapshot.data=await store.json(snapshot.artifact);
       const records=[];for(const event of events)records.push({...event,detail:(await service.detail(runId,event.id)).data});
-      return {run_events:records,artifact_snapshots:snapshots,timeline_summary:page.summary,history_mode:page.history_mode};
+      return {run_events:records,artifact_snapshots:snapshots,timeline_summary:page.summary,history_mode:page.history_mode,failure:page.failure};
     },
     async stream(req,res,runId) {
       await run(runId);let after=cursor(req.get('Last-Event-ID')||req.query.after||'0');
       res.status(200).set({'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform',Connection:'keep-alive','X-Accel-Buffering':'no'});res.flushHeaders();
       let stopped=false,timer=null;req.on('close',()=>{stopped=true;clearTimeout(timer);});
       const send=(name,data,id)=>res.write(`${id?`id: ${id}\n`:''}event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
-      async function poll(){if(stopped)return;try{const page=await service.list(runId,{after,limit:100});for(const event of page.events){if(stopped)return;send('run_event',event,event.sequence);after=event.sequence;}send('state',{status:page.status,workflow_mode:page.workflow_mode,history_mode:page.history_mode,summary:page.summary,cursor:after});
+      async function poll(){if(stopped)return;try{const page=await service.list(runId,{after,limit:100});for(const event of page.events){if(stopped)return;send('run_event',event,event.sequence);after=event.sequence;}send('state',{status:page.status,workflow_mode:page.workflow_mode,history_mode:page.history_mode,summary:page.summary,failure:page.failure,cursor:after});
         if(page.has_more){timer=setTimeout(poll,0);return;}if(page.history_mode==='legacy'||['completed','failed','cancelled'].includes(page.status)){send('settled',{status:page.status,cursor:after});stopped=true;res.end();return;}res.write(': heartbeat\n\n');timer=setTimeout(poll,1500);
       }catch{if(!stopped){send('stream_error',{message:'Conexão interrompida; reconecte pelo último evento.'});stopped=true;res.end();}}}
       await poll();
