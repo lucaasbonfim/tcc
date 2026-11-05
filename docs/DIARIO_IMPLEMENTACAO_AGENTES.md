@@ -488,3 +488,7 @@ Leitura das páginas/componentes atuais, serviços, contratos de preparação/re
 
 Estilos compartilhados padronizam fontes, botões, tabelas e espaçamento, sem biblioteca adicional. Conferidos screenshots em 1280 e 390 px; sem transbordamento horizontal. E2E novo cobre cadastro na branch padrão, documentos, início sem configurar agentes, snapshot/modo preservados, bloqueio por análise ativa e rotas legadas. Um teste E2E aprovado; lint e build aprovados (importação ociosa identificada no primeiro lint foi removida). Sem alterações no banco de pesquisa.
 
+# RT-02 — 05/11/2026 — Prazo durante o backoff
+
+No teste ampliado, a espera cancelável precisava propagar o motivo original do AbortController: o prazo total deve terminar como `exhausted`, e não como interrupção genérica. Ajustado o tratamento e acrescentado controle de HTTP 502 seguido de orçamento de tempo esgotado, sem novo envio. Suíte completa em banco local isolado: 135 testes aprovados, nenhum ignorado.
+
