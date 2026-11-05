@@ -4,6 +4,7 @@ import {CLASSIFICATION_LABELS} from '../utils/research';
 import Card from './Card';
 import Button from './Button';
 import ResearchStatus from './ResearchStatus';
+import ResearchPosteriorAssessment from './ResearchPosteriorAssessment';
 
 function Finding({finding,run,editable,busy,action}) {
   const [reason,setReason]=useState(''),[classification,setClassification]=useState('');
@@ -17,7 +18,7 @@ function Finding({finding,run,editable,busy,action}) {
     {editable && <div className="research-form review-controls"><label>Classificação humana (opcional)<select value={classification} onChange={event=>setClassification(event.target.value)}><option value="">Manter proposta ao confirmar; sem alternativa ao rejeitar</option>{Object.entries(CLASSIFICATION_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label>Justificativa da decisão humana<textarea rows={3} maxLength={5000} value={reason} onChange={event=>setReason(event.target.value)}/></label><div className="inline-actions"><Button disabled={busy || !reason.trim()} onClick={()=>review('confirmed')}>Confirmar classificação</Button><Button variant="secondary" disabled={busy || !reason.trim()} onClick={()=>review('rejected')}>Rejeitar classificação</Button><Button variant="secondary" disabled={busy || !reason.trim()} onClick={()=>review('inconclusive')}>Marcar inconclusiva</Button></div></div>}
   </article>;
 }
-export default function ResearchEvaluationPanel({run,busy,action}) {
+export default function ResearchEvaluationPanel({run,busy,action,onChange}) {
   const [reason,setReason]=useState('');
   const stage=run.stages.find(s=>s.agent==='evaluation'),findings=run.findings || [];
   const autonomous=run.workflow_mode==='autonomous/v1',editable=!autonomous && run.status==='awaiting_review' && stage?.status==='awaiting_review' || autonomous && run.status==='completed' && stage?.status==='completed';
@@ -25,6 +26,7 @@ export default function ResearchEvaluationPanel({run,busy,action}) {
     {!findings.length && <p className="notice">{run.evidence?.length ? 'Evidências recebidas. Aguarde a análise ou consulte a falha no histórico.' : 'Sem evidências independentes de execução, nenhuma divergência é proposta. Gere/revise scripts e utilize um executor validado.'}</p>}
     <p className="muted">Um teste reprovado não prova um defeito. Um teste aprovado sustenta apenas o cenário observado, sem comprovar todos os requisitos.</p>
     {findings.map(finding=><Finding key={`${finding.id}-${finding.revision}`} finding={finding} run={run} editable={editable} busy={busy} action={action}/>)}
-    {editable && !autonomous && <div className="research-form stage-approval"><label>Justificativa da conclusão da avaliação<textarea rows={2} maxLength={5000} value={reason} onChange={event=>setReason(event.target.value)}/></label><Button disabled={busy || !reason.trim() || !findings.length || findings.some(f=>f.review_status==='pending') || run.execution_proposals?.some(p=>p.phase==='diagnosis' && p.review_status==='pending') || run.agent_messages?.some(m=>m.kind==='script_review' && (m.status!=='answered' || m.review_status==='pending'))} onClick={()=>action(()=>research.post(`/runs/${run.id}/evaluation/approve`,{justification:reason}))}>Concluir revisão da avaliação</Button></div>}
+    {editable && !autonomous && <div className="research-form stage-approval"><label>Justificativa da conclusão da avaliação<textarea rows={2} maxLength={5000} value={reason} onChange={event=>setReason(event.target.value)}/></label><Button disabled={busy || !reason.trim() || !findings.length || findings.some(f=>f.review_status==='pending') || run.execution_proposals?.some(p=>p.phase==='diagnosis' && p.review_status==='pending') || run.agent_messages?.some(m=>m.kind==='script_review' && (m.status!=='answered' || m.review_status==='pending'))} onClick={()=>action(()=>research.post(`/runs/${run.id}/evaluation/approve`,{justification:reason}))}>Concluir revisão da avaliação</Button>{run.execution_proposals?.some(p=>p.phase==='diagnosis'&&p.review_status==='pending')&&<p className="muted">Revise também o diagnóstico técnico do A3 para concluir.</p>}</div>}
+    <details className="secondary-section"><summary>Avaliação humana da análise</summary><ResearchPosteriorAssessment run={run} onSaved={onChange}/></details>
   </Card>;
 }

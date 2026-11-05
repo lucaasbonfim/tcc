@@ -10,6 +10,7 @@ import {preservedOutput} from './citations.js';
 import {createTestParts,testCoverage} from './test-parts.js';
 import {automationCoverage} from './automation-parts.js';
 import {createAgentPolicy,agentMode} from './agent-policy.js';
+import {operationalReason,recordOperation} from './operational-record.js';
 import {createAgentHistoryService} from './agent-history.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
 import {REQUIREMENTS_AGENT} from './requirements-agent.js';
@@ -258,7 +259,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
       });
     },
     async completeTests(runId,input) {
-      const justification=text(input.justification,'Justificativa',5000,true);
+      const justification=operationalReason(input,'Complementação solicitada para requisitos sem casos, preservando os resultados anteriores.');
       return transaction(pool,async db=>{
         const run=await get(runId,db,true);
         assert(run.workflow_mode!=='autonomous/v1','Complementação manual não integra a execução autônoma; avalie a saída preservada.',409);
@@ -274,12 +275,13 @@ export function createRunService({ pool, store, executorClient, configuration = 
         await db.query("UPDATE research.test_parts SET status='cancelled',error=COALESCE(error,'Substituído por complementação explícita dos requisitos sem cenário.') WHERE run_id=$1 AND sequence<=(SELECT COALESCE(max(sequence),0)-$2 FROM research.test_parts WHERE run_id=$1) AND status IN ('pending','failed')",[runId,planned.parts]);
         await db.query("UPDATE research.stages SET status='pending',message='Complementando requisitos sem casos; respostas anteriores preservadas.',lease_token=NULL,lease_until=NULL WHERE id=$1",[stage.id]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-        await review(db,runId,stage.id,'stage',stage.id,'retry',justification,{status:stage.status},{status:'pending',mode:'complete-unlinked',...planned});
+        if(input.operation_record==='system/v1')await recordOperation(db,{run_id:runId,stage_id:stage.id,operation:'complete_tests',description:justification,payload:{before_status:stage.status,...planned}});
+        else await review(db,runId,stage.id,'stage',stage.id,'retry',justification,{status:stage.status},{status:'pending',mode:'complete-unlinked',...planned});
         return {...await get(runId,db),...planned};
       });
     },
     async resume(runId,input) {
-      const justification=text(input.justification,'Justificativa',5000,true),created=[];
+      const justification=operationalReason(input,'Continuação solicitada com os checkpoints e a condição da análise anterior.'),created=[];
       try{return await transaction(pool,async db=>{
         const source=await get(runId,db,true);
         assert(source.workflow_mode!=='autonomous/v1','Para outra tentativa autônoma, crie nova análise com autorização inicial própria.',409);
@@ -311,12 +313,13 @@ export function createRunService({ pool, store, executorClient, configuration = 
           await db.query(`INSERT INTO research.requirement_parts(id,run_id,sequence,status,input,output,segments,character_count,attempt_count,reused_from_part_id)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[randomUUID(),id,part.sequence,part.status,ref,part.output || null,JSON.stringify(part.segments),part.character_count,part.attempt_count,part.reused_from_part_id]);
         }
-        await review(db,id,requirementStage,'run',id,'retry',justification,{source_run_id:runId},{reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length});
+        if(input.operation_record==='system/v1')await recordOperation(db,{run_id:id,stage_id:requirementStage,operation:'resume_analysis',description:justification,payload:{source_run_id:runId,reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length}});
+        else await review(db,id,requirementStage,'run',id,'retry',justification,{source_run_id:runId},{reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length});
         return {...await get(id,db),reused_parts:parts.filter(p=>p.reused_from_part_id).length,total_parts:parts.length};
       });}catch(error){for(const ref of created)await store.remove(ref);throw error;}
     },
     async retry(runId, input) {
-      const justification = text(input.justification,'Justificativa',5000,true);
+      const justification=operationalReason(input,'Retomada solicitada após falha, mantendo os registros e limites cumulativos.');
       return transaction(pool, async db => {
         const run = await get(runId, db, true);
         assert(!run.workflow_error,'A condição autônoma foi recusada; crie outra análise com autorização inicial própria.',409);
@@ -326,7 +329,8 @@ export function createRunService({ pool, store, executorClient, configuration = 
         assert(stage && stage.attempt_count < 3,'Limite de três tentativas atingido. Crie uma nova execução.',409);
         await db.query("UPDATE research.stages SET status='pending',message=NULL,lease_token=NULL,lease_until=NULL WHERE id=$1",[stage.id]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-        await review(db,runId,stage.id,'stage',stage.id,'retry',justification,{status:'failed'},{status:'pending'});
+        if(input.operation_record==='system/v1')await recordOperation(db,{run_id:runId,stage_id:stage.id,operation:'retry_stage',description:justification});
+        else await review(db,runId,stage.id,'stage',stage.id,'retry',justification,{status:'failed'},{status:'pending'});
         return get(runId, db);
       });
     },

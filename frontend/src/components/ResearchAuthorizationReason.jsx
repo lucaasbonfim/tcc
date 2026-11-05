@@ -1,0 +1,7 @@
+import {useState} from 'react';
+
+export default function ResearchAuthorizationReason({label,onChange,disabled}) {
+  const [purpose,setPurpose]=useState(''),[detail,setDetail]=useState('');
+  function update(nextPurpose,nextDetail){setPurpose(nextPurpose);setDetail(nextDetail);onChange(!nextPurpose?'':nextPurpose==='other'?nextDetail.trim():[nextPurpose,nextDetail.trim()].filter(Boolean).join(' '));}
+  return <><label>{label}<select disabled={disabled} value={purpose} onChange={e=>update(e.target.value,detail)}><option value="">Selecione a finalidade</option><option value="Autorizo esta execução como piloto técnico para conferir o funcionamento e as evidências.">Piloto técnico</option><option value="Autorizo esta execução para coleta experimental conforme o protocolo definido.">Coleta experimental</option><option value="Autorizo esta execução de diagnóstico para investigar o comportamento dos testes.">Diagnóstico dos testes</option><option value="other">Outra finalidade</option></select></label>{purpose==='other'?<label>Descreva a finalidade<textarea rows={2} disabled={disabled} maxLength={4500} value={detail} onChange={e=>update(purpose,e.target.value)}/></label>:<details><summary>Detalhar a autorização (opcional)</summary><label>Observação da autorização<textarea rows={2} disabled={disabled} maxLength={4500} value={detail} onChange={e=>update(purpose,e.target.value)}/></label></details>}</>;
+}

@@ -8,6 +8,7 @@ import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createEvaluationService} from './evaluation.js';
 import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
+import {operationalReason,recordOperation} from './operational-record.js';
 
 export const EXECUTION_INSTRUCTION='Serviço A3 determinístico v2.2: executar os bundles do plano autorizado com scripts/revisões/hashes aprovados e fontes do SHA, em serviço autenticado com política do perfil validada. Cada bundle tem checkpoint e identidade de transporte estáveis; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
 export function createExecutionService({pool,store,client=createExecutorClient()}) {
@@ -25,7 +26,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
   return {
     capabilities:()=>client.health(),
     async startPlanning(runId,input,{automatic=false}={}) {
-      const justification=text(input.justification,'Justificativa',5000,true),receipt=await client.health();assert(receipt.ready,receipt.reason || 'Executor indisponível para planejamento.',503);
+      const justification=operationalReason(input,'Preparação do plano de testes solicitada. Nenhuma execução de código foi autorizada.'),receipt=await client.health();assert(receipt.ready,receipt.reason || 'Executor indisponível para planejamento.',503);
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status===(automatic?'pending':'completed'),'Conclua as etapas antes do planejamento.',409);
         assert(automatic?run.workflow_mode==='autonomous/v1':run.workflow_mode!=='autonomous/v1','Modo de planejamento diverge da condição.',409);
@@ -37,7 +38,8 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         const captured=await capture(db,runId,receipt),ref=await store.put(captured);
         await db.query("UPDATE research.stages SET status='pending',instruction=$2,instruction_version=$3,context=$4,message='Planejamento A3 enfileirado; execução ainda não autorizada.' WHERE id=$1",[stage.id,definition.instruction,definition.version,{phase:'planning',execution_mode:'agent/v1',agent_definition:definition,schema:definition.schema,planning_input:ref}]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-        if(!automatic)await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor) VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')",[randomUUID(),runId,stage.id,justification]);
+        if(!automatic && input.operation_record==='system/v1')await recordOperation(db,{run_id:runId,stage_id:stage.id,operation:'prepare_execution_plan',description:justification});
+        else if(!automatic)await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor) VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')",[randomUUID(),runId,stage.id,justification]);
         else await appendRunEvent(db,{run_id:runId,stage_id:stage.id,source_key:'planning:requested',kind:'planning_requested',agent:'execution',payload:{grant_id:grant.id,human_approval:false}});
         return {status:'pending',execution_authorized:false};
       });

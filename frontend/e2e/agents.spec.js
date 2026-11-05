@@ -4,8 +4,8 @@ test('A2 consulta A1 e o pesquisador revisa a resposta antes dos casos',async({p
   const post=async(path,data)=>{const r=await page.request.post('http://localhost:3101/api'+path,{data,headers:{Origin:'http://localhost:5178'}});expect(r.ok()).toBeTruthy();return (await r.json()).data;};
   await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
   const project=await post('/research/projects',{name:`Colaboração E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
-  await page.goto(`/admin/projects/${project.id}`);await page.getByLabel('Geração de casos com ferramentas',{exact:true}).check();await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
-  await expect(page.getByRole('heading',{name:'Colaboração E2E: consulta',exact:true})).toBeVisible({timeout:20000});await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
+  await page.goto(`/admin/projects/${project.id}`);await page.getByText('Configurações avançadas da análise',{exact:true}).click();await page.getByLabel('Geração de casos com ferramentas',{exact:true}).check();await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
+  await page.getByRole('button',{name:'Revisar agora',exact:true}).click();await expect(page.getByRole('heading',{name:'Colaboração E2E: consulta',exact:true})).toBeVisible({timeout:20000});await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Mensagens entre agentes',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByRole('button',{name:'Reconhecer esclarecimento',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByRole('button',{name:'Aprovar todos e continuar'})).toBeDisabled();
@@ -20,9 +20,9 @@ test('A2 textual consulta os requisitos e apresenta casos sujeitos à revisão',
   await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
   const project=await post('/research/projects',{name:`A2 textual E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
   await page.goto(`/admin/projects/${project.id}`);
-  await page.getByLabel('Geração de casos com ferramentas',{exact:true}).check();
+  await page.getByText('Configurações avançadas da análise',{exact:true}).click();await page.getByLabel('Geração de casos com ferramentas',{exact:true}).check();
   await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
-  await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible({timeout:20000});
+  await page.getByRole('button',{name:'Revisar agora',exact:true}).click();await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Cenário para RF-001',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();
@@ -35,7 +35,7 @@ test('A1 consulta documentos e apresenta sua trajetória e citações para revis
   await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
   const project=await post('/research/projects',{name:`A1 E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
   await page.goto(`/admin/projects/${project.id}`);
-  await page.getByLabel('Análise de requisitos com ferramentas',{exact:true}).check();
+  await page.getByText('Configurações avançadas da análise',{exact:true}).click();await page.getByLabel('Análise de requisitos com ferramentas',{exact:true}).check();
   await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
   await page.waitForURL(/\/admin\/runs\//);
   await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();
@@ -68,7 +68,7 @@ for(const variant of ['budget','cancel'])test(`trajetória do agente registra ${
   await page.goto(`/admin/runs/${run.id}?view=history`);
   await expect(page.getByRole('heading',{name:'Trajetória do agente'})).toBeVisible();
   if(variant==='cancel') {
-    await page.getByLabel('Justificativa da ação',{exact:true}).fill('Cancelar controle técnico E2E.');
+    await page.getByText('Retomar ou encerrar análise',{exact:true}).click();await page.getByLabel('Motivo do encerramento').selectOption({label:'Encerrar uma análise de controle'});
     await page.getByRole('button',{name:'Cancelar execução',exact:true}).click();
     await expect(page.locator('.heading-actions .status-cancelled')).toBeVisible();
   }

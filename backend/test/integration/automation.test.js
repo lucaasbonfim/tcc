@@ -21,11 +21,13 @@ test('automação exige revisão textual, preserva scripts e audita edição/apr
     await migrate(pool);
     const services=scenarioServices(pool,store),automation=createAutomationService({pool,store});
     const {project,run,inspection}=await textualScenario(services);
-    const input={inspection_id:inspection.inspection_id,module_root:'',target_paths:['src/calc.js'],justification:'Escopo revisado.'};
+    const input={inspection_id:inspection.inspection_id,module_root:'',target_paths:['src/calc.js'],operation_record:'system/v1'};
     await automation.start(run.id,input);
+    const operations=(await services.runs.events(run.id)).events.filter(e=>e.kind==='operation_requested');assert.equal(operations.length,1);assert.equal(operations[0].payload.human_approval,false);assert.equal(operations[0].payload.justification_origin,'system');assert.equal(operations[0].actor,'system');
     await assert.rejects(automation.start(run.id,input),/Conclua/);
     await services.processor.processOne();
     const [script]=await automation.list(run.id);
+    await assert.rejects(automation.approve(run.id,{operation_record:'system/v1'}),/Justificativa/);
     assert.equal(script.compatibility,'compatible');
     assert.equal(script.test_case_id,(await services.runs.detail(run.id)).test_cases[0].id);
     await assert.rejects(automation.approve(run.id,{justification:'Tentar sem revisão.'}),/Revise todos/);
