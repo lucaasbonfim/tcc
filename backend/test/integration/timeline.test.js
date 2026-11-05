@@ -15,6 +15,7 @@ async function env(action){const pool=new pg.Pool({connectionString:url}),dir=aw
 async function prepare(pool,store,options={}){const services=scenarioServices(pool,store,options),project=await services.projects.create({name:'Histórico preservado',repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve somar dois números.'}),run=await services.runs.create(project.id);return {services,run};}
 test('eventos paginados abrem versões preservadas após edição humana, com escopo e exportação',{skip:!url},()=>env(async({pool,store})=>{
   const {services,run}=await prepare(pool,store);await services.processor.processOne();
+  await assert.rejects(services.runs.assess(run.id,{verdict:'correct',justification:'Ainda não terminou.'}),e=>e.statusCode===409);
   const detail=await services.runs.detail(run.id),req=detail.requirements[0],events=[];let after='0',page;
   do{page=await services.runs.events(run.id,{after,limit:2});events.push(...page.events);after=page.cursor;}while(page.has_more);
   assert.equal(new Set(events.map(e=>e.id)).size,events.length);assert.equal(page.history_mode,'recorded');

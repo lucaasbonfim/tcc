@@ -30,10 +30,14 @@ test('todos os agentes e consultas avançam autonomamente e preservam candidatos
   assert.equal(history.history_mode,'recorded');assert.equal(history.timeline_summary.requests,2);assert.equal(history.timeline_summary.completed_cycles,2);assert.equal(history.timeline_summary.technical_retries,0);
   for(const message of detail.agent_messages){const events=history.run_events.filter(e=>e.message_id===message.id && ['message_request','message_response'].includes(e.kind));assert.equal(events.length,2);assert.ok(events.every(e=>e.snapshot_id));assert.equal(events[0].correlation_id,events[1].correlation_id);assert.equal(events[0].agent,events[1].recipient);}
   assert.ok(history.artifact_snapshots.some(s=>s.data.artifacts?.some(a=>a.files_data)));
+  const originalSnapshot=history.artifact_snapshots.find(s=>s.data.artifacts?.some(a=>a.files_data)),before=JSON.stringify(detail.automated_tests);
+  const judgment=await services.runs.assess(run.id,{snapshot_id:originalSnapshot.id,verdict:'partial',justification:'Julgamento de controle sobre a saída original.',reference_note:'Fixture; não é referência científica.'});assert.equal(judgment.actor,'admin');assert.equal(judgment.snapshot_id,originalSnapshot.id);
+  assert.equal((await services.runs.assessments(run.id)).length,1);assert.equal(JSON.stringify((await services.runs.detail(run.id)).automated_tests),before);assert.equal((await services.runs.detail(run.id)).status,'completed');assert.ok((await services.runs.events(run.id,{limit:200})).events.some(e=>e.kind==='human_assessment'));
 }));
 test('mudança do ambiente após autorização inicial encerra a condição sem enviar código',{skip:!url},async()=>env(async({pool,store})=>{
   const {services,run,receipt,sent}=await prepare(pool,store);receipt.policy_sha256='c'.repeat(64);const detail=await complete(services,run);assert.equal(detail.status,'failed');assert.match(detail.workflow_error,/autorização inicial/);assert.equal(sent.length,0);assert.equal(detail.reviews.length,0);
 }));
 test('cancelar antes do início preserva autorização e não aciona o executor',{skip:!url},async()=>env(async({pool,store})=>{
   const {services,run,sent}=await prepare(pool,store);await services.runs.cancel(run.id,{justification:'Cancelamento de controle.'});await services.processor.processOne();assert.equal((await services.runs.detail(run.id)).status,'cancelled');assert.equal(sent.length,0);
+  await assert.rejects(services.runs.assess(run.id,{snapshot_id:'00000000-0000-4000-8000-000000000001',verdict:'correct',justification:'Snapshot não pertence.'}),e=>e.statusCode===404);
 }));

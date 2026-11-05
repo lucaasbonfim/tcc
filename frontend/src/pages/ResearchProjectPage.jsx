@@ -9,6 +9,7 @@ import Loading from '../components/Loading';
 import ErrorMessage from '../components/ErrorMessage';
 import ResearchStatus from '../components/ResearchStatus';
 import ResearchInspectionView from '../components/ResearchInspectionView';
+import ResearchAutonomySetup from '../components/ResearchAutonomySetup';
 
 export default function ResearchProjectPage() {
   const {projectId} = useParams();
@@ -25,11 +26,13 @@ export default function ResearchProjectPage() {
   const [testsAgent,setTestsAgent] = useState(false);
   const [evaluationAgent,setEvaluationAgent] = useState(false);
   const [executionAgent,setExecutionAgent] = useState(false);
+  const [workflow,setWorkflow]=useState('assisted/v1');
   const version = selectedVersion || project?.versions[0]?.id || '';
   const names = new Set();
   const documents = selectedDocuments ?? (project?.documents || []).filter(doc => {if (names.has(doc.name)) return false; names.add(doc.name); return true;}).map(doc => doc.id);
   async function action(work) {setBusy(true);setActionError('');try {await work();}catch(cause){setActionError(cause.message);}finally{setBusy(false);}}
   const code = project?.versions.find(item => item.id===version);
+  async function start(autonomy){return action(async()=>{const run=await research.post(`/projects/${projectId}/runs`,{code_version_id:version,document_ids:documents,workflow_mode:workflow,...(autonomy?{autonomy}:{}),agent_policy:{modes:{requirements:requirementsAgent?'agent/v1':'fixed/v1',tests:testsAgent?'agent/v1':'fixed/v1',evaluation:evaluationAgent?'agent/v1':'fixed/v1',execution:executionAgent?'agent/v1':'fixed/v1',automation:automationMode}}});navigate(`/admin/runs/${run.id}`);});}
   if (loading && !project) return <Loading>Carregando projeto...</Loading>;
   if (!project) return <ErrorMessage>{error}</ErrorMessage>;
   return <div className="page-stack"><div className="page-heading"><div><Link className="back-link" to="/admin/projects">← Projetos</Link><h1>{project.name}</h1><p>{project.description || 'Projeto sem descrição.'}</p><a className="repository-label" href={project.repository_url} target="_blank" rel="noreferrer">{project.repository_url} ↗</a></div><Link className="secondary-link" to={`/admin/projects/${projectId}/edit`}>Editar projeto</Link></div>
@@ -41,14 +44,14 @@ export default function ResearchProjectPage() {
         {!project.documents.length && <p>Nenhum documento adicionado.</p>}
         {project.documents.map(doc => <label className="checkbox-label" key={doc.id}><input type="checkbox" checked={documents.includes(doc.id)} onChange={event => setDocuments(event.target.checked ? [...documents,doc.id] : documents.filter(id => id!==doc.id))}/><span>{doc.name} · v{doc.version} · {doc.page_count} páginas</span><button type="button" className="text-button" disabled={busy} onClick={() => action(async () => setDocument(await research.get(`/projects/${projectId}/documents/${doc.id}`)))}>Consultar extração</button></label>)}
         {project.complementary_text && <details><summary>Texto complementar incluído</summary><p className="preserve-text">{project.complementary_text}</p></details>}
+        <label>Modo de trabalho<select aria-label="Modo de trabalho" value={workflow} disabled={busy} onChange={event=>{setWorkflow(event.target.value);if(event.target.value==='autonomous/v1'){setRequirementsAgent(true);setTestsAgent(true);setEvaluationAgent(true);setExecutionAgent(true);setAutomationMode('agent/v1');}}}><option value="assisted/v1">Assistido · revisão entre etapas</option><option value="autonomous/v1">Autônomo · avaliação ao final</option></select></label>
         <label className="checkbox-label"><input type="checkbox" checked={requirementsAgent} disabled={busy} onChange={event=>setRequirementsAgent(event.target.checked)}/>Análise de requisitos com ferramentas</label>
         <label className="checkbox-label"><input type="checkbox" checked={testsAgent} disabled={busy} onChange={event=>setTestsAgent(event.target.checked)}/>Geração de casos com ferramentas</label>
         <label className="checkbox-label"><input type="checkbox" checked={evaluationAgent} disabled={busy} onChange={event=>setEvaluationAgent(event.target.checked)}/>Avaliação de evidências com ferramentas</label>
         <label className="checkbox-label"><input type="checkbox" checked={executionAgent} disabled={busy} onChange={event=>setExecutionAgent(event.target.checked)}/>Planejamento de execução com ferramentas</label>
         <label>Geração de scripts<select value={automationMode} disabled={busy} onChange={event=>setAutomationMode(event.target.value)}><option value="fixed/v1">Fluxo com etapas predefinidas</option><option value="agent/v1">Agente com ferramentas</option></select></label>
-        <p className="muted">No modo agente, a IA escolhe quais fontes consultar para elaborar os scripts. A escolha fica registrada nesta análise; os artefatos exigem revisão.</p>
-        <Button disabled={busy || !version || (!documents.length && !project.complementary_text)} onClick={() => action(async () => {const run=await research.post(`/projects/${projectId}/runs`,{code_version_id:version,document_ids:documents,agent_policy:{modes:{requirements:requirementsAgent?'agent/v1':'fixed/v1',tests:testsAgent?'agent/v1':'fixed/v1',evaluation:evaluationAgent?'agent/v1':'fixed/v1',execution:executionAgent?'agent/v1':'fixed/v1',automation:automationMode}}});navigate(`/admin/runs/${run.id}`);})}>{busy ? 'Processando solicitação...' : 'Iniciar análise de requisitos →'}</Button>
-        <small className="muted">Os resultados do primeiro agente deverão ser revisados antes da geração de casos.</small>
+        <p className="muted">No modo agente, a IA escolhe fontes e ferramentas dentro do escopo. A condição de cada papel fica registrada nesta análise.</p>
+        {workflow==='autonomous/v1'?<ResearchAutonomySetup key={version} projectId={projectId} version={version} code={code} busy={busy} action={action} reload={reload} onStart={start} hasInputs={documents.length>0 || Boolean(project.complementary_text)}/>:<><Button disabled={busy || !version || (!documents.length && !project.complementary_text)} onClick={()=>start()}>{busy ? 'Processando solicitação...' : 'Iniciar análise de requisitos →'}</Button><small className="muted">Os resultados do primeiro agente deverão ser revisados antes da geração de casos.</small></>}
       </div>
     </Card>
     <div className="two-columns"><Card><div className="section-heading"><div><h2>Documentos de requisitos</h2><p>PDF com texto, TXT ou MD em UTF-8.</p></div></div><form className="research-form" onSubmit={event => {event.preventDefault();if(file) action(async () => {await research.upload(projectId,file);setFile(null);reload();});}}><label>Selecionar documento<input key={project.documents.length} type="file" accept=".pdf,.txt,.md" required onChange={event => setFile(event.target.files[0])}/><small>Até 10 MiB e 200 páginas por PDF. Mesmo nome cria uma nova versão.</small></label><Button type="submit" disabled={busy || !file}>Adicionar documento</Button></form><p className="muted mt-4">Diagramas e documentos digitalizados exigem conferência e transcrição. OCR indisponível.</p></Card>

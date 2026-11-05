@@ -16,6 +16,9 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 
 ## Funcionalidades disponíveis
 
+- Modo autônomo com escopo autorizado no início, sem aprovações intermediárias, além do modo assistido. Todos os papéis podem usar LLM e ferramentas; a execução material continua controlada.
+- Aba **Agentes ao vivo e histórico**: consultas reais, respostas, ferramentas, falhas, contagens por par e artefatos preservados ao clicar. Avaliação humana posterior separada dos originais. [Planejamento](docs/PLANO_EXECUCAO_AUTONOMA_HISTORICO.md) e [protocolo em preparação](docs/PROTOCOLO_EXPERIMENTO.md).
+
 - Cadastro/edição de projetos públicos do GitHub, com branch/tag/commit resolvido para SHA e versões de código preservadas.
 - Upload versionado de PDF/TXT/MD, download do original, extração textual por página e avisos sobre limitações.
 - Agente de requisitos com contrato estruturado, citações conferidas e revisão/correção humana auditável.

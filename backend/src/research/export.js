@@ -32,6 +32,7 @@ export function exportCsv(data) {
   for(const event of data.run_events || [])add('run_event',event.id,event.kind,'',[event.snapshot_id,event.message_id,event.session_id].filter(Boolean),event);
   for(const snapshot of data.artifact_snapshots || [])add('artifact_snapshot',snapshot.id,snapshot.kind,'',[snapshot.attempt_id].filter(Boolean),snapshot);
   if(data.timeline_summary)add('timeline_summary',data.id,'','',[],{history_mode:data.history_mode,...data.timeline_summary});
+  for(const assessment of data.experiment_assessments || [])add('experiment_assessment',assessment.id,'',assessment.verdict,[assessment.snapshot_id].filter(Boolean),assessment);
   for(const [source_run_id,history] of Object.entries(data.reused_agent_histories || {})) {
     for(const session of history.agent_sessions)add('reused_agent_session',session.id,session.agent,session.status,[source_run_id,session.stage_id,session.attempt_id],session);
     for(const step of history.agent_steps)add('reused_agent_step',step.id,String(step.sequence),step.status,[source_run_id,step.session_id],step);

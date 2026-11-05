@@ -16,9 +16,9 @@ export function useResearch(path, poll = false) {
   const loading = result.path!==path || result.revision!==revision;
   const error = loading ? '' : result.error;
   useEffect(() => {
-    if (!poll || !['pending','running'].includes(data?.status)) return;
+    if (!poll || !(['pending','running'].includes(data?.status) || data?.workflow_mode==='autonomous/v1' && data?.status==='awaiting_review')) return;
     const timer = setInterval(reload,4000);
     return () => clearInterval(timer);
-  },[poll,data?.status,reload]);
+  },[poll,data?.status,data?.workflow_mode,reload]);
   return {data,error,loading,reload};
 }

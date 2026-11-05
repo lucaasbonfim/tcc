@@ -23,10 +23,12 @@ import {SCRIPT_REVIEW_AGENT} from './script-review-agent.js';
 import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
 import {createTimelineService} from './timeline.js';
+import {createAssessmentService} from './assessments.js';
 
 export function createRunService({ pool, store, executorClient, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
   const timeline=createTimelineService({pool,store});
+  const assessments=createAssessmentService({pool,store});
   async function get(id, db = pool, lock = false) {
     const run = (await db.query(`SELECT * FROM research.runs WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [id])).rows[0];
     assert(run, 'Execução não encontrada.', 404);
@@ -40,6 +42,8 @@ export function createRunService({ pool, store, executorClient, configuration = 
     await recordHumanEvent(db,store,{run_id:runId,stage_id:stageId,source_key:`review:${id}`,entity_type:entityType,entity_id:entityId,decision,justification,before,after});
   }
   const service = {
+    assessments:id=>assessments.list(id),
+    assess:(id,input)=>assessments.create(id,input),
     events:(id,query)=>timeline.list(id,query),
     event:(id,eventId)=>timeline.detail(id,eventId),
     streamEvents:(req,res,id)=>timeline.stream(req,res,id),
@@ -390,7 +394,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
         if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
         if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);
       }
-      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId),...await timeline.export(runId),reused_agent_histories:reusedAgentHistories };
+      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId),...await timeline.export(runId),experiment_assessments:await assessments.list(runId),reused_agent_histories:reusedAgentHistories };
     },
   };
   return service;

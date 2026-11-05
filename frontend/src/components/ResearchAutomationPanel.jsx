@@ -14,12 +14,14 @@ function Script({script,editable,busy,action,runId,onDirty}) {
   return <article className="review-item"><div className="section-heading"><div><span className="item-code">{script.content.test_case_id}</span><h3>Script {script.adapter} · versão {script.version}</h3></div><ResearchStatus status={script.review_status}/></div>
     <p>{script.content.rationale}</p><div className="item-tags">{script.content.requirement_codes.map(code=><span key={code}>{code}</span>)}<span>Contrato compatível; compilação/execução ainda exigem validação</span></div>
     <p className="muted mt-3">Esperado: {script.content.expected_result}</p>
+    {script.processing_status==='eligible' && script.review_status==='pending' && <p className="muted">Admitido pela plataforma · sem aprovação humana.</p>}
     <details><summary>Alvos, fontes e limitações</summary><pre className="code-panel">{JSON.stringify({alvos:script.content.targets,fontes:script.content.expected_sources,limitações:script.content.limitations},null,2)}</pre></details>
     <details><summary>Ver ou corrigir código do script</summary>{files.map((file,index)=><div key={file.path}><p className="repository-label">{file.path}</p>{editable ? <label className="justification-label">Código do teste<textarea disabled={busy} className="code-editor" spellCheck={false} rows={12} maxLength={10000} value={file.code} onChange={event=>setFiles(files.map((f,i)=>i===index ? {...f,code:event.target.value} : f))}/></label> : <pre className="code-panel">{file.code}</pre>}</div>)}</details>
     {editable && <div className="review-controls"><details><summary>Adicionar observação da revisão (opcional)</summary><label className="justification-label">Justificativa da revisão do script<textarea rows={2} maxLength={5000} value={reason} onChange={event=>setReason(event.target.value)}/></label></details><div className="inline-actions"><Button disabled={busy || !changed} onClick={()=>review('edited')}>Salvar correção do script</Button><Button variant="secondary" disabled={busy || !changed} onClick={()=>setFiles(script.files_data)}>Descartar alterações</Button><Button variant="secondary" disabled={busy} onClick={()=>review('rejected')}>Rejeitar script</Button></div><p className="muted">Confira a implementação real, asserções e esperado. Use a aprovação de todos no início da lista para seguir.</p></div>}
   </article>;
 }
 export default function ResearchAutomationPanel({run,busy,action,onView}) {
+  const autonomous=run.workflow_mode==='autonomous/v1';
   const isAgent=run.snapshot_data.agent_policy?.modes?.automation==='agent/v1';
   const project=useResearch(`/projects/${run.project_id}`);
   const [selectedRoot,setRoot]=useState(null),[reason,setReason]=useState('');
@@ -31,11 +33,12 @@ export default function ResearchAutomationPanel({run,busy,action,onView}) {
   const module=modules.find(m=>m.root===root),stage=run.stages.find(s=>s.agent==='automation');
   const approved=run.test_cases.filter(t=>t.review_status==='approved');
   const selectedCases=caseIds===null ? approved.map(t=>t.id) : caseIds.filter(id=>approved.some(row=>row.id===id));
-  const editable=run.status==='awaiting_review' && stage?.status==='awaiting_review';
+  const editable=!autonomous && run.status==='awaiting_review' && stage?.status==='awaiting_review';
   const scripts=run.automated_tests || [];
   return <Card><div className="section-heading"><div><h2>Scripts automatizados · agente 2</h2><p>Geração a partir de casos aprovados e de um escopo inspecionado no mesmo SHA.</p></div>{stage && <ResearchStatus status={stage.status}/>}</div><ErrorMessage>{project.error}</ErrorMessage>
     {stage && !scripts.length && ['failed','not_supported'].includes(stage.status) && <div className="notice" role="alert"><strong>Nenhum teste automatizado disponível nesta execução.</strong><p>{stage.status==='failed' ? `A geração falhou: ${stage.message || 'consulte o erro do lote'}` : 'Os cenários foram analisados, mas nenhum script compatível foi gerado.'}</p><p>Casos textuais aprovados não representam cobertura automatizada. Sem scripts, os agentes de execução e análise não podem validar o comportamento do projeto.</p></div>}
-    {!stage && <div className="research-form"><p className="muted">{run.stages.find(item=>item.agent==='tests')?.status==='completed' ? 'Casos aprovados. Escolha o módulo; as fontes serão organizadas automaticamente para a geração.' : 'Conclua a revisão textual antes de iniciar esta subetapa.'}</p>
+    {!stage && autonomous && <p className="notice">A geração usa o módulo da autorização inicial e começa após a admissão dos casos pela plataforma.</p>}
+    {!stage && !autonomous && <div className="research-form"><p className="muted">{run.stages.find(item=>item.agent==='tests')?.status==='completed' ? 'Casos aprovados. Escolha o módulo; as fontes serão organizadas automaticamente para a geração.' : 'Conclua a revisão textual antes de iniciar esta subetapa.'}</p>
       <Button variant="secondary" disabled={busy || !version} onClick={()=>action(async()=>{await research.post(`/projects/${run.project_id}/versions/${run.code_version_id}/inspect`);project.reload();})}>Inspecionar fontes deste commit</Button>
       {inspection?.inspection_version==='2.0.0' && <><label>Módulo<select value={root} onChange={event=>setRoot(event.target.value)}>{modules.map(m=><option key={m.root} value={m.root}>{m.root || '(raiz)'} · {m.stack} · {m.adapter}</option>)}</select></label>
         <p className="notice compact">Módulo inteiro selecionado. {isAgent?'O agente escolhe quais fontes consultar e prepara o escopo dos testes.':'A plataforma organiza as fontes em escopos compatíveis automaticamente.'}</p>
@@ -55,6 +58,6 @@ export default function ResearchAutomationPanel({run,busy,action,onView}) {
     {(run.agent_outputs?.automation?.warnings || []).map((warning,index)=><p className="notice compact" key={index}>{warning}</p>)}
     {(run.agent_outputs?.automation?.unsupported_cases || []).map(item=><p className="notice compact" key={item.test_case_id}><strong>Caso {run.test_cases.find(t=>t.id===item.test_case_id)?.code || item.test_case_id} não automatizado:</strong> {item.reason}</p>)}
     {scripts.map(script=><Script key={`${script.id}-${script.revision}`} script={script} editable={editable} busy={busy} action={action} runId={run.id} onDirty={onDirty}/>)}
-    {stage?.status==='completed' && <p className="notice compact">Scripts aprovados. A autorização de execução é feita na aba Execução e requer executor validado.</p>}
+    {stage?.status==='completed' && <p className="notice compact">{autonomous?'Scripts admitidos pela plataforma. Execução usa a autorização inicial preservada.':'Scripts aprovados. A autorização de execução é feita na aba Execução e requer executor validado.'}</p>}
   </Card>;
 }

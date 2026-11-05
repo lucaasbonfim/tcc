@@ -29,6 +29,7 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 025 | Sessões A3 por fase, propostas imutáveis de plano/diagnóstico e vínculo à autorização |
 | 026 | Consulta A3 → A2 sobre script/versão/resultado, com integridade do vínculo e sessão filha A2 |
 | 027 | Condição autônoma, autorização inicial, elegibilidade técnica separada da revisão e fundação de eventos/snapshots |
+| 028 | Julgamentos humanos posteriores sobre execução ou snapshot, com referência/justificativa e autoria separadas |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
 

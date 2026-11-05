@@ -63,7 +63,7 @@ export function createEvaluationService({pool,store}) {
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='evaluation' FOR UPDATE",[runId])).rows[0];
-        assert((run?.status==='awaiting_review' && stage?.status==='awaiting_review') || (run?.workflow_mode==='autonomous/v1' && run.status==='completed' && stage?.status==='completed'),'Avaliação não está aberta para revisão.',409);
+        assert((run?.workflow_mode!=='autonomous/v1' && run?.status==='awaiting_review' && stage?.status==='awaiting_review') || (run?.workflow_mode==='autonomous/v1' && run.status==='completed' && stage?.status==='completed'),'Avaliação não está aberta para revisão.',409);
         const before=(await db.query('SELECT * FROM research.findings WHERE id=$1 AND run_id=$2 FOR UPDATE',[id,runId])).rows[0];
         assert(before,'Análise não encontrada.',404);
         assert(Number.isInteger(input.revision) && before.revision===input.revision,'Análise alterada por outra revisão.',409);

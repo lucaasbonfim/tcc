@@ -44,7 +44,7 @@ export function createCollaborationService({pool,store}) {
     async review(runId,id,input) {
       const justification=text(input.justification,'Justificativa',5000,true);assert(['acknowledged','rejected','revision_requested'].includes(input.decision),'Decisão da mensagem inválida.',422);
       return transaction(pool,async db=>{
-        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review' || (run?.workflow_mode==='autonomous/v1' && ['completed','failed','cancelled'].includes(run.status)),'Análise não aguarda revisão.',409);
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert((run?.workflow_mode==='autonomous/v1'?['completed','failed','cancelled'].includes(run.status):run?.status==='awaiting_review'),'Análise não aguarda revisão.',409);
         const row=(await db.query('SELECT * FROM research.agent_messages WHERE id=$1 AND run_id=$2 FOR UPDATE',[id,runId])).rows[0];assert(row?.status==='answered' && row.review_status==='pending','Mensagem não está aberta para revisão.',409);
         assert(input.decision!=='acknowledged' || (await store.json(row.response)).status!=='unavailable','Consulta indisponível deve ser rejeitada ou exigir nova análise.',422);
         const after=(await db.query('UPDATE research.agent_messages SET review_status=$3,review_justification=$4,reviewed_at=now() WHERE id=$1 AND run_id=$2 RETURNING *',[id,runId,input.decision,justification])).rows[0];

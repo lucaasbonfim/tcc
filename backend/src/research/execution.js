@@ -69,7 +69,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
     async reviewDiagnosis(runId,id,input) {
       const justification=text(input.justification,'Justificativa',5000,true);assert(['accepted','rejected','revision_requested'].includes(input.decision),'Decisão do diagnóstico inválida.',422);
       return transaction(pool,async db=>{
-        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review' || (run?.workflow_mode==='autonomous/v1' && ['completed','failed','cancelled'].includes(run.status)),'Análise não aguarda revisão.',409);
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert((run?.workflow_mode==='autonomous/v1'?['completed','failed','cancelled'].includes(run.status):run?.status==='awaiting_review'),'Análise não aguarda revisão.',409);
         const row=(await db.query("SELECT * FROM research.execution_proposals WHERE id=$1 AND run_id=$2 AND phase='diagnosis' FOR UPDATE",[id,runId])).rows[0];assert(row?.review_status==='pending','Diagnóstico não está aberto para revisão.',409);
         await db.query('UPDATE research.execution_proposals SET review_status=$2,reviewed_at=now() WHERE id=$1',[id,input.decision]);
         await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor) VALUES($1,$2,$3,'stage',$3,$4,$5,$6,$7,'admin')",[randomUUID(),runId,row.stage_id,input.decision==='accepted'?'approved':input.decision==='rejected'?'rejected':'edited',justification,{proposal_id:id,review_status:'pending'},{proposal_id:id,review_status:input.decision}]);

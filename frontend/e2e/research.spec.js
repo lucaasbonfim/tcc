@@ -32,6 +32,11 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Salvar correção',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Consulta de projetos revisada',exact:true})).toBeVisible();
   await expect(page.locator('.review-item .status-pending')).toBeVisible();
+  await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();
+  await page.locator('.timeline-event').filter({hasText:'Saída preservada'}).filter({hasText:'A1 · Requisitos'}).click();
+  await expect(page.locator('.timeline-detail').getByRole('heading',{name:'RF-001 · Consulta de projetos',exact:true})).toBeVisible();
+  await expect(page.locator('.timeline-detail')).not.toContainText('Consulta de projetos revisada');
+  await page.getByRole('button',{name:'Requisitos',exact:true}).click();
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Consultar projetos cadastrados',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByText('1/1 requisitos com casos vinculados',{exact:true})).toBeVisible();
