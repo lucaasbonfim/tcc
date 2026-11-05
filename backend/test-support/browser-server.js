@@ -59,8 +59,9 @@ const generate=async ({input}) => {
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
 const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
+  if(contents[0].parts[0].text.includes('503-E2E'))throw Object.assign(new Error('fixture-provider-detail-private'),{name:'ApiError',status:503});
   const autonomous=JSON.stringify(contents).includes('Autonomia E2E');
-  if(tools.some(t=>t.name==='respond_clarification') && autonomous && !contents.some(c=>c.parts.some(p=>p.functionResponse)))await new Promise(resolve=>setTimeout(resolve,4000));
+  if(tools.some(t=>t.name==='respond_clarification') && autonomous && !contents.some(c=>c.parts.some(p=>p.functionResponse)))await new Promise(resolve=>setTimeout(resolve,6000));
   if(autonomous && tools.some(t=>t.name==='read_test_requirement'))return collaborationFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='respond_script_review') || JSON.stringify(contents).includes('Revisão A3 E2E'))return scriptReviewFixtureTurn({contents,tools});
   if(tools.some(t=>['submit_execution_plan','submit_execution_diagnostics'].includes(t.name)))return executionAgentFixtureTurn({contents,tools});

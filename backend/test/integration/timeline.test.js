@@ -17,6 +17,7 @@ test('503 preservado aparece no histórico sem mensagem sensível nem nova chama
   let calls=0;const {services,run}=await prepare(pool,store,{generateTurn:async()=>{calls++;throw Object.assign(new Error('private-provider-secret'),{name:'ApiError',status:503});}},{agent_policy:{modes:{requirements:'agent/v1'}}});
   await services.processor.processOne();const page=await services.runs.events(run.id);assert.equal(page.status,'failed');assert.equal(page.failure.diagnostic.http_status,503);assert.equal(page.failure.agent,'requirements');assert.equal(page.failure.diagnostic.phase,'model_turn');
   const event=page.events.find(e=>e.kind==='attempt_failed'),detail=await services.runs.event(run.id,event.id);assert.equal(detail.data.failure.diagnostic.http_status,503);assert.ok(!JSON.stringify(detail).includes('private-provider-secret'));assert.equal(calls,1);assert.equal((await services.runs.detail(run.id)).execution_jobs.length,0);
+  await pool.query("UPDATE research.stages SET status='completed' WHERE run_id=$1 AND agent='requirements'",[run.id]);await pool.query("UPDATE research.runs SET workflow_error='Condição posterior interrompida' WHERE id=$1",[run.id]);assert.equal((await services.runs.events(run.id)).failure,null);assert.equal((await services.runs.event(run.id,event.id)).data.failure.diagnostic.http_status,503);
 }));
 test('eventos paginados abrem versões preservadas após edição humana, com escopo e exportação',{skip:!url},()=>env(async({pool,store})=>{
   const {services,run}=await prepare(pool,store);await services.processor.processOne();

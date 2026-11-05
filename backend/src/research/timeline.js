@@ -6,6 +6,7 @@ export function createTimelineService({pool,store}) {
   async function run(id){const row=(await pool.query('SELECT * FROM research.runs WHERE id=$1',[id])).rows[0];assert(row,'Análise não encontrada.',404);return row;}
   async function durable(id){return (await pool.query("SELECT payload->>'timeline_version' AS version FROM research.run_events WHERE run_id=$1 AND source_key='run:created'",[id])).rows[0]?.version==='1';}
   async function failure(runId,attemptId=null) {
+    if(!attemptId){attemptId=(await pool.query("SELECT a.id FROM research.attempts a JOIN research.stages s ON s.id=a.stage_id WHERE s.run_id=$1 AND s.status='failed' AND a.status IN ('failed','interrupted') ORDER BY a.started_at DESC,a.id LIMIT 1",[runId])).rows[0]?.id;if(!attemptId)return null;}
     const session=(await pool.query(`SELECT id,attempt_id,agent,status,stop_reason,output FROM research.agent_sessions WHERE run_id=$1 AND parent_session_id IS NULL
       AND status IN ('failed','exhausted','interrupted') AND ($2::uuid IS NULL OR attempt_id=$2) ORDER BY started_at DESC,id LIMIT 1`,[runId,attemptId])).rows[0];
     if(!session)return null;
