@@ -2,7 +2,7 @@ import {assert} from './errors.js';
 
 export const AGENT_POLICY_VERSION='1.0.0';
 export const STAGE_NAMES=Object.freeze(['requirements','tests','automation','execution','evaluation']);
-export const DEFAULT_AGENT_LIMITS=Object.freeze({max_model_turns:8,max_tool_calls:16,max_duration_ms:180000,
+export const DEFAULT_AGENT_LIMITS=Object.freeze({max_model_turns:12,max_tool_calls:16,max_duration_ms:180000,
   max_observation_chars:12000,max_context_chars:150000,max_total_tokens:60000});
 export const DEFAULT_RUN_LIMITS=Object.freeze({max_model_turns:128,max_tool_calls:256,max_total_tokens:500000});
 const ceilings={max_model_turns:512,max_tool_calls:1024,max_duration_ms:600000,max_observation_chars:30000,

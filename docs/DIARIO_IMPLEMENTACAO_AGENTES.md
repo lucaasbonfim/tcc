@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-08 concluídas; próxima tarefa: AG-09 |
+| M1 — A2 com ferramentas | Concluído tecnicamente | AG-01–AG-09, com piloto real e falhas preservadas |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -203,6 +203,24 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Próximo passo:** preservar a primeira tentativa dessa segunda análise e usar a repetição explícita na mesma condição, reaproveitando contexto e consumo. Se a falha repetir, o diagnóstico permitirá identificar o impedimento sem expor credenciais.
 
 **Rastreabilidade:** commit `[AG-09b]`.
+
+## 04/11/2026 — AG-09: primeiro marco validado com serviços reais
+
+**Estado:** concluído tecnicamente. Base do piloto retomado: `9b42089`; detalhes em [PILOTO_AGENTES.md](PILOTO_AGENTES.md).
+
+**Resultado observado:** a repetição explícita da análise `d3aa93b7-f139-4f2c-bfda-75d57acd845c` reaproveitou as seis consultas concluídas e produziu dois scripts válidos. A primeira submissão usou `node-test` em vez de `node-test/v2`; após a recusa, o agente consultou capacidades e corrigiu o identificador. Esperados e código final dos testes não foram reescritos pelo assistente. A análise terminou com 11 chamadas ao modelo, dez ferramentas, 37.214 tokens reportados (parciais) e 122.308 ms ativos nas duas tentativas.
+
+**Execução:** job `df7aef28-7d1f-45ff-8c37-5918bd5baf8d`, perfil Docker Desktop local, dois testes realmente aprovados, 367 ms informados pelo executor. A4 propôs compatibilidade para os dois cenários; a conferência técnica foi identificada como revisão pelo assistente, sem alegar julgamento humano independente. Exportação e capturas da aplicação real ficam em `.local/agent-pilot/`; a página apresentou zero erros JavaScript e nenhum overflow horizontal em 390 px.
+
+**Calibração:** padrão de novas sessões passa de oito para 12 turnos, preservando 16 ferramentas/180 segundos e os limites explícitos de snapshots antigos. A interface sugere agente para novas análises; API sem configuração e históricos continuam no fluxo fixo. A estrutura da política permanece versão 1.0.0, com valores efetivos preservados no snapshot.
+
+**Validação final:** 76 testes backend aprovados, nove testes executor aprovados, quatro E2E Chromium aprovados e lint/build frontend aprovados. Backend e navegador usam agora bancos locais separados (`tcc_test_agents_backend` e `tcc_test_agents_browser`). Uma verificação paralela anterior compartilhou o banco por engano e dois controles backend falharam por disputa entre os workers de fixtures; os destinos foram separados e as suítes completas passaram. O helper ganhou `--browser`, exige destino próprio e recusa o mesmo nome de banco para as duas suítes. O banco do piloto real não foi usado por essas fixtures.
+
+**Limites científicos:** biblioteca pública, dois requisitos sintéticos, uma configuração desenvolvida em piloto, falha original e recuperação preservadas, consumo de um turno desconhecido. Não há medição de precisão/recall, cobertura integral ou superioridade causal da autonomia. Mudanças entre as duas análises não constituem comparação controlada. A estimativa preliminar `manual_only` dos casos foi preservada e não é tratada como evidência de inviabilidade.
+
+**Revisão do plano:** próximo marco reutiliza o mecanismo para A1, A2 textual e A4, com perfis e ferramentas próprios, vínculos de sessões adequados a partes e contratos de citação mantidos. Essa decisão foi registrada antes de iniciar AG-10.
+
+**Rastreabilidade:** commit `[AG-09]`. **Próximo passo:** AG-10.
 
 ## Modelo para a próxima entrada
 

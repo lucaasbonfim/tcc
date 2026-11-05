@@ -1,8 +1,8 @@
 # Arquitetura da plataforma multiagente
 
-Estado do código atualizado em 04/11/2026, até AG-08, com validação por fixtures. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
+Estado do código atualizado em 04/11/2026, até AG-09, com fixtures e piloto técnico real do A2. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Evolução dos agentes:** A2/automação já admite `agent/v1` no snapshot, com ferramentas de consulta, ciclo persistido e escopo escolhido pelo modelo. As demais etapas e snapshots antigos usam o fluxo fixo. A interface permite escolher o modo ao criar a análise e consultar a trajetória; a exportação JSON/CSV versão 3 resolve os registros e artefatos. O piloto real está pendente no [plano](PLANO_IMPLEMENTACAO_AGENTES.md). O [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) separa implementação, fixtures e resultados reais. É necessário aplicar a migração 019 antes de reiniciar os serviços com a nova versão.
+**Evolução dos agentes:** A2/automação admite `agent/v1` no snapshot, com ferramentas de consulta, ciclo persistido e escopo escolhido pelo modelo. As demais etapas e snapshots antigos usam o fluxo fixo. A interface sugere o modo agente para novas análises e permite consultar a trajetória; a exportação JSON/CSV versão 3 resolve os registros e artefatos. O [piloto real](PILOTO_AGENTES.md) registrou geração, recusa/correção de contrato, retomada e dois testes executados. O [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) separa essas observações de uma coleta científica. A migração 019 foi aplicada neste ambiente com backup; outros ambientes devem aplicá-la antes de reiniciar.
 
 **Situação operacional:** análise, geração, execução Node/Java e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais; Java/JUnit passou nos mesmos controles e em sete cenários. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Swing, banco, bibliotecas Java externas e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
@@ -54,7 +54,7 @@ Instruções, versões e contratos estão em `agents.js`, `automation-contract.j
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–018 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–019 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 ```mermaid
 erDiagram
@@ -67,6 +67,10 @@ erDiagram
   documents ||--o{ run_documents : preserva
   runs ||--|{ stages : coordena
   stages ||--o{ attempts : registra
+  attempts ||--o| agent_sessions : investiga
+  automation_parts ||--o{ agent_sessions : retoma
+  agent_sessions ||--o{ agent_steps : solicita
+  agent_steps ||--o{ agent_tool_calls : fundamenta
   runs ||--o{ requirement_parts : divide
   requirement_parts ||--o{ attempts : processa
   runs ||--o{ requirements : identifica

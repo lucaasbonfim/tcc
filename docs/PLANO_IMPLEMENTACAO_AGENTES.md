@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: implementação em andamento; AG-00–AG-08 concluídas.**
+**Estado: M1 concluído com piloto real; AG-00–AG-09 e subtarefas AG-09a/AG-09b concluídas. Próximo marco: M2.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -101,7 +101,7 @@ O M1 mantém os limites de um bundle: até 20 scripts e 16 arquivos-fonte. A ses
 
 ### Orçamento e retomada
 
-No piloto de engenharia, propõe-se começar com no máximo oito interações com o modelo, 16 chamadas de ferramentas e 180 segundos por sessão, com observações de até 12 mil caracteres. Esses números são hipóteses operacionais a calibrar em AG-09, não condições científicas já fixadas.
+O piloto começou com oito interações com o modelo. A calibração de AG-09 estabeleceu como padrão de criação 12 interações, mantendo 16 chamadas de ferramentas, 180 segundos por tarefa e observações de até 12 mil caracteres. A trajetória real concluída consumiu 11 chamadas, incluindo uma sem resposta preservada. Esses números são decisões de engenharia apoiadas em um piloto pequeno, não condições científicas já congeladas. Snapshots existentes mantêm seus valores explícitos.
 
 - O prazo por chamada deve respeitar o tempo restante da sessão. O timer atual de uma operação não pode ser reutilizado cegamente para todo o ciclo.
 - Lease/heartbeat e verificação do token de posse devem cobrir o ciclo completo. Nenhum retorno tardio pode reabrir uma tarefa cancelada ou finalizar uma tarefa reivindicada por outro worker.
@@ -181,7 +181,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Verificação: lint/build e E2E com fixtures: consulta → geração → revisão; encerramento por limite e cancelamento, sem chamadas pagas.
   - Commit: `feat(frontend): apresenta modo e historico dos agentes [AG-08]`.
 
-- [ ] **AG-09 — Validar M1 e registrar um piloto técnico real.** Depende de AG-08.
+- [x] **AG-09 — Validar M1 e registrar um piloto técnico real.** Depende de AG-08.
   - [x] **AG-09a — Corrigir classificação de testes legados, esclarecer escopo e fixar catálogo por análise.** Subtarefa surgida no piloto real: leitor 2.2.0, instrução agent/1.0.1 e definição/ferramentas preservadas no snapshot. A primeira tentativa permanece registrada como falha de escopo.
   - [x] **AG-09b — Registrar diagnóstico seguro de falhas de turno.** Subtarefa surgida na segunda análise: preservar fase, tipo e status sem copiar mensagens sensíveis do SDK; consumo desconhecido continua explícito.
   - Arquivos previstos: cenário de controle, documentação do piloto, `VALIDACAO.md`, `ARQUITETURA_PESQUISA.md`, protocolo e diário.
@@ -193,6 +193,8 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
 ### M2 — Outros papéis e colaboração
 
 Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve ser revisto após o piloto de M1. A revisão do plano também deve ser documentada e commitada antes da implementação afetada.
+
+**Revisão após M1:** manter o runtime, a retomada e os catálogos fixados por análise. AG-10 deverá generalizar os vínculos de sessão por parte/etapa com nova migração aditiva, permitir o papel `requirements`, introduzir perfil/ferramentas próprios e integrar a submissão aos contratos de citação e consolidação existentes. O agente consultará as partes atribuídas; a cobertura de leitura deverá ser distinguida da qualidade semântica da extração. AG-11 e AG-12 reutilizarão esse mecanismo para casos e evidências, mantendo limites e validações por papel. Nenhum papel recebe ferramentas de escrita sobre artefatos aprovados. A colaboração de AG-13 produzirá propostas/mensagens versionadas, sem substituir aprovações humanas ou apagar a versão anterior. Essa evolução ainda não está implementada em M1.
 
 - [ ] **AG-10 — Introduzir ferramentas e ciclo no A1.** Depende de AG-09.
   - Entrega: consultas por página/trecho/catálogo, requisitos e incertezas; reaproveitar citações literais, partes e consolidação. Não permitir que a busca omita silenciosamente páginas de documentos extensos.
@@ -281,4 +283,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-09**. O ciclo, histórico e interface estão integrados; falta a validação operacional com Gemini/executor reais.
+Próxima tarefa: **AG-10**. M1 está integrado e validado tecnicamente com Gemini/executor reais; as demais etapas ainda usam o fluxo fixo.

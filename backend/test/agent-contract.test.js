@@ -8,6 +8,8 @@ test('snapshots antigos permanecem fixos; política agentiva é explícita, vali
   const old={documents:[]},before=JSON.stringify(old);
   assert.equal(agentMode(old,'automation'),'fixed/v1');assert.equal(JSON.stringify(old),before);
   const policy=createAgentPolicy({modes:{automation:'agent/v1'}});
+  const oldPolicy=createAgentPolicy({modes:{automation:'agent/v1'},limits:{max_model_turns:8}});
+  assert.equal(resolveAgentPolicy({agent_policy:oldPolicy}).limits.max_model_turns,8);
   assert.equal(resolveAgentPolicy({agent_policy:policy}).modes.automation,'agent/v1');
   assert.throws(()=>{policy.modes.tests='agent/v1';},TypeError);
   for(const input of [{modes:{tests:'agent/v1'}},{modes:{unknown:'agent/v1'}},{limits:{max_model_turns:0}},{limits:{max_duration_ms:Infinity}},{limits:{unknown:1}},{run_limits:{max_model_turns:1}},{version:'99'}])assert.throws(()=>createAgentPolicy(input));
