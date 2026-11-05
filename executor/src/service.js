@@ -20,9 +20,33 @@ export function authorized(header,secret) {
   return a.length===b.length && timingSafeEqual(a,b);
 }
 export function createExecutionService({token,status,policy,root,execute=executeContainer,verify=verifyRepositoryMembership,
+  revalidate,
   cleanup=async id=>ensure((await docker(['rm','-f',`research-${id}`])).code===0,'Orphan cleanup failed')}) {
   ensure(typeof token==='string' && token.length>=32,'Executor authentication token too short');
-  const directory=resolve(root),jobs=new Map();let active=false,closed=false;
+  const directory=resolve(root),jobs=new Map();let active=false,closed=false,blocked=false,renewal=null;
+  function validationCurrent() {
+    const age=Date.now()-Date.parse(status.validated_at);
+    return status.ready && Number.isFinite(age) && age>=-300000 && age<3600000;
+  }
+  async function refreshValidation() {
+    if(!revalidate || closed || blocked)return;
+    const age=Date.now()-Date.parse(status.validated_at);
+    if(validationCurrent() && age<1800000)return;
+    if(renewal)return renewal;
+    renewal=(async()=>{
+      try {
+        // Run the same probes as startup; never extend a receipt by changing its timestamp.
+        const next=await revalidate(policy);
+        ensure(next.ready && next.deployment_id===policy.deployment_id && next.policy_sha256===sha256(policy),'Revalidated policy identity changed');
+        ensure(Object.keys(next.images || {}).length===Object.keys(policy.images || {}).length && Object.entries(policy.images || {}).every(([adapter,image])=>next.images[adapter]?.image_id===image),'Revalidated images changed');
+        if(closed || blocked)return;
+        Object.assign(status,next);delete status.reason;
+      }catch{
+        if(!blocked){status.ready=false;status.reason='Isolation revalidation failed; check Docker, policy and provisioned images';}
+      }
+    })();
+    try{await renewal;}finally{renewal=null;}
+  }
   const environmentFor=image=>({deployment_id:status.deployment_id,policy_sha256:status.policy_sha256,image_id:image.image_id,limits:status.limits,
     isolation_profile:status.isolation_profile || 'dedicated-vm',development_only:status.development_only===true,runtime:status.runtime});
   async function persist(job) {
@@ -37,7 +61,9 @@ export function createExecutionService({token,status,policy,root,execute=execute
       limitations:['Nenhum resultado de infraestrutura constitui prova de defeito funcional.']};
   }
   async function drain() {
-    if(active || closed || !status.ready || Date.now()-Date.parse(status.validated_at)>=3600000)return;
+    if(active || closed || blocked || ![...jobs.values()].some(j=>j.status==='pending'))return;
+    await refreshValidation();
+    if(active || closed || blocked || !validationCurrent())return;
     const job=[...jobs.values()].find(j=>j.status==='pending');if(!job)return;
     active=true;job.status='running';job.controller=new AbortController();
     const started=new Date().toISOString(),image=status.images[job.bundle.adapter];
@@ -63,11 +89,11 @@ export function createExecutionService({token,status,policy,root,execute=execute
       }
       validateExecutionResult(job.result,job.bundle,job.hash);
     } catch(error) {
-      if(error.message?.includes('cleanup')){status.ready=false;status.reason='Cleanup failure; operator intervention required';}
+      if(error.message?.includes('cleanup')){blocked=true;status.ready=false;status.reason='Cleanup failure; operator intervention required';}
       job.result=unavailable(job.bundle,job.cancelled ? 'cancelled' : 'infrastructure_error','Preparação/execução falhou; nenhum defeito funcional foi inferido.',environment,started);
     } finally {
       job.status='finished';job.controller=null;
-      try{await persist(job);}catch{status.ready=false;status.reason='Journal storage failed';}
+      try{await persist(job);}catch{blocked=true;status.ready=false;status.reason='Journal storage failed';}
       active=false;queueMicrotask(drain);
     }
   }
@@ -78,7 +104,7 @@ export function createExecutionService({token,status,policy,root,execute=execute
       for(const file of files.filter(f=>/^[a-f0-9-]{36}\.json$/.test(f))) {
         const job=JSON.parse(await readFile(resolve(directory,file),'utf8'));validateBundle(job.bundle);
         if(job.status!=='finished') {
-          try{await cleanup(job.bundle.job_id);}catch{status.ready=false;status.reason='Orphan container cleanup failed';throw new Error(status.reason);}
+          try{await cleanup(job.bundle.job_id);}catch{blocked=true;status.ready=false;status.reason='Orphan container cleanup failed';throw new Error(status.reason);}
           // On restart, never rerun a previously accepted untrusted job automatically.
           const image=status.images?.[job.bundle.adapter];
           if(!image)continue;
@@ -91,7 +117,11 @@ export function createExecutionService({token,status,policy,root,execute=execute
       response.setHeader('Content-Type','application/json');response.setHeader('Cache-Control','no-store');
       const send=(code,data)=>{response.statusCode=code;response.end(JSON.stringify(data));};
       if(!authorized(request.headers.authorization,token))return send(401,{error:'Unauthorized'});
-      if(request.method==='GET' && request.url==='/v1/health')return send(200,{...status,ready:status.ready && !closed && Date.now()-Date.parse(status.validated_at)<3600000});
+      if(request.method==='GET' && request.url==='/v1/health') {
+        await refreshValidation();
+        if(validationCurrent() && !closed && !blocked)queueMicrotask(drain);
+        return send(200,{...status,ready:validationCurrent() && !closed && !blocked});
+      }
       const match=request.url.match(/^\/v1\/jobs\/([a-f0-9-]{36})$/);
       if(request.method==='GET' && match)return jobs.has(match[1]) ? send(200,{status:jobs.get(match[1]).status,result:jobs.get(match[1]).result || null}) : send(404,{error:'Job not found'});
       if(request.method==='DELETE' && match) {
@@ -101,7 +131,8 @@ export function createExecutionService({token,status,policy,root,execute=execute
         return send(202,{status:'cancellation_requested'});
       }
       if(request.method!=='POST' || request.url!=='/v1/jobs')return send(404,{error:'Not found'});
-      if(!status.ready || closed || Date.now()-Date.parse(status.validated_at)>=3600000)return send(503,{error:'Isolation not validated'});
+      await refreshValidation();
+      if(!validationCurrent() || closed || blocked)return send(503,{error:'Isolation not validated'});
       try {
         const chunks=[];let bytes=0;for await(const chunk of request){bytes+=chunk.length;ensure(bytes<=1100000,'Request too large');chunks.push(Buffer.from(chunk));}
         const {bundle,request_sha256}=JSON.parse(Buffer.concat(chunks).toString('utf8'));validateBundle(bundle);const hash=sha256(bundle);ensure(hash===request_sha256,'Request hash mismatch');
