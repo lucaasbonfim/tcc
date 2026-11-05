@@ -1,0 +1,35 @@
+import {test,expect} from '@playwright/test';
+
+for(const variant of ['budget','cancel'])test(`trajetória do agente registra ${variant==='budget'?'limite atingido':'cancelamento'} sem afirmar execução`,async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const post=async(path,data)=>{
+    const response=await page.request.post('http://localhost:3101/api'+path,{data,headers:{Origin:'http://localhost:5178'}});
+    expect(response.ok()).toBeTruthy();return (await response.json()).data;
+  };
+  await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
+  const project=await post('/research/projects',{name:`${variant==='cancel'?'Cancelar agente E2E':'Orçamento agente E2E'} ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
+  const run=await post(`/research/projects/${project.id}/runs`,{agent_policy:{modes:{automation:'agent/v1'},...(variant==='budget'?{limits:{max_model_turns:1}}:{})}});
+  const detail=async()=>{const response=await page.request.get(`http://localhost:3101/api/research/runs/${run.id}`);return (await response.json()).data;};
+  await expect.poll(async()=>(await detail()).status,{timeout:20000}).toBe('awaiting_review');let current=await detail();
+  await post(`/research/runs/${run.id}/approve/requirements`,{approve_pending:true,items:current.requirements.map(({id,revision})=>({id,revision})),justification:'Revisão técnica E2E.'});
+  await expect.poll(async()=>(await detail()).test_cases.length,{timeout:20000}).toBe(1);current=await detail();
+  await post(`/research/runs/${run.id}/approve/tests`,{approve_pending:true,items:current.test_cases.map(({id,revision})=>({id,revision})),justification:'Casos da fixture.'});
+  const inspection=await post(`/research/projects/${project.id}/versions/${run.code_version_id}/inspect`,{});
+  await post(`/research/runs/${run.id}/automation`,{inspection_id:inspection.inspection_id,module_root:'',justification:'Controle de limite/cancelamento.'});
+  if(variant==='budget')await expect.poll(async()=>(await detail()).status,{timeout:20000}).toBe('failed');
+  else await expect.poll(async()=>(await detail()).agent_summary.sessions,{timeout:20000}).toBe(1);
+  await page.goto(`/admin/runs/${run.id}?view=history`);
+  await expect(page.getByRole('heading',{name:'Trajetória do agente'})).toBeVisible();
+  if(variant==='cancel') {
+    await page.getByLabel('Justificativa da ação',{exact:true}).fill('Cancelar controle técnico E2E.');
+    await page.getByRole('button',{name:'Cancelar execução',exact:true}).click();
+    await expect(page.locator('.heading-actions .status-cancelled')).toBeVisible();
+  }
+  await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
+  await expect(page.getByText(variant==='budget'?'Orçamento da tarefa esgotado':'Cancelada pelo pesquisador',{exact:true})).toBeVisible();
+  current=await detail();expect(current.automated_tests).toEqual([]);expect(current.execution_jobs).toEqual([]);
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+  await page.screenshot({path:testInfo.outputPath(`agent-${variant}-mobile.png`),fullPage:true});
+  expect(errors).toEqual([]);
+});

@@ -17,6 +17,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByLabel('Repositório público do GitHub').fill('https://github.com/example/repo');
   await page.getByRole('button',{name:'Salvar projeto e registrar SHA'}).click();
   await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
+  await page.getByRole('combobox',{name:'Geração de scripts',exact:true}).selectOption('agent/v1');
   await page.getByLabel('Selecionar documento').setInputFiles({name:'requisitos.txt',mimeType:'text/plain',buffer:Buffer.from('O sistema deve permitir consultar projetos.')});
   await page.getByRole('button',{name:'Adicionar documento',exact:true}).click();
   await expect(page.getByText('requisitos.txt · v1 · 1 páginas')).toBeVisible();
@@ -66,6 +67,14 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^research-.*\.json$/);
   const exported = JSON.parse(await readFile(await file.path(),'utf8'));
+  expect(exported.snapshot_data.agent_policy.modes.automation).toBe('agent/v1');
+  expect(exported.agent_steps).toHaveLength(3);
+  expect(exported.agent_tool_calls).toHaveLength(6);
+  await expect(page.getByRole('heading',{name:'Trajetória do agente'})).toBeVisible();
+  await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
+  await expect(page.getByText('Artefatos submetidos para revisão',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Ver observação',exact:true}).first().click();
+  await expect(page.getByRole('heading',{name:'Observação da ferramenta',exact:true})).toBeVisible();
   expect(exported.requirements[0].content.title).toBe('Consulta de projetos revisada');
   expect(exported.traceability).toHaveLength(1);
   expect(exported.test_coverage.missing_approved).toEqual([]);

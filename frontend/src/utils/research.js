@@ -1,6 +1,7 @@
 export const STATUS_LABELS = {
   pending:'Pendente',running:'Em andamento',awaiting_review:'Aguardando revisão',completed:'Concluída',failed:'Falhou',
   cancelled:'Cancelada',blocked:'Aguardando etapa anterior',not_supported:'Não suportada',approved:'Aprovado',rejected:'Rejeitado',interrupted:'Interrompida',confirmed:'Confirmada',inconclusive:'Inconclusiva',
+  exhausted:'Limite atingido',requested:'Solicitada',
 };
 export const AGENT_LABELS = {requirements:'Análise de requisitos',tests:'Geração de casos de teste',automation:'Automação de casos (agente 2)',execution:'Execução de testes',evaluation:'Avaliação de evidências'};
 export const CLASSIFICATION_LABELS={compatible:'Comportamento compatível no cenário',possible_functional_divergence:'Possível divergência funcional',test_problem:'Problema no teste gerado',environment_failure:'Falha de ambiente',inconclusive:'Resultado inconclusivo'};

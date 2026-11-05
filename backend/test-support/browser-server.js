@@ -20,6 +20,7 @@ import {repositoryFixture} from './repository-fixture.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {generatedPath} from '../src/research/automation-contract.js';
 import {fixtureResult} from '../../shared/execution-fixture.js';
+import {fixtureTurn} from './agent-scenario.js';
 import {requireAdmin} from '../src/middlewares/auth.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -39,14 +40,30 @@ const runs = createRunService({pool,store,configuration:() => ({model:'e2e-fixtu
 let executorEnabled=false;
 const receipt={ready:true,protocol_version:1,deployment_id:'e2e-fixture-only',policy_sha256:'a'.repeat(64),images:{'node-test/v2':{image_id:'sha256:'+'b'.repeat(64)}}};
 const executorClient={health:async()=>executorEnabled ? receipt : {ready:false,reason:'Fixture E2E: executor indisponível até habilitação exclusiva do teste.'},execute:async bundle=>{const result=fixtureResult(bundle);result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
-const processor = createProcessor({pool,store,executorClient,generate:async ({input}) => {
+const generate=async ({input}) => {
   if(input.results)return {raw:JSON.stringify({findings:input.results.map(result=>({test_result_id:result.id,test_case_id:result.test_case_id,automated_test_id:result.automated_test_id,requirement_code:'RF-001',classification:'compatible',expected_behavior:input.test_cases[0].content.expected_result,observed_behavior:result.observed_excerpt,evidence_quote:result.observed_excerpt,justification:'Fixture E2E somente; não é resultado da pesquisa.',limitations:['Fixture técnica.']})),warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
   if(input.scope)return {raw:JSON.stringify({artifacts:input.test_cases.map(row=>({test_case_id:row.id,requirement_codes:['RF-001'],adapter:'node-test/v2',commit_sha:'a'.repeat(40),files:[{path:generatedPath(row.id,'node-test/v2').path,code:"import test from 'node:test';import assert from 'node:assert/strict';import {consultarProjetos} from '../src/projects.js';test('consulta',()=>assert.deepEqual(consultarProjetos(),[]));"}],targets:[{path:'src/projects.js',symbols:['consultarProjetos']}],rationale:'Fixture E2E de geração.',expected_result:row.content.expected_result,expected_sources:[{requirement_code:'RF-001',quote:'consultar projetos'}],limitations:['Fixture, sem compilação/execução real.']})),unsupported_cases:[],warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
   const requirement = {code:'RF-001',title:'Consulta de projetos',description:'O pesquisador pode consultar projetos.',kind:'functional',actors:['Pesquisador'],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{document_id:input.documents?.[0].id || 'complementary-text',page:1,quote:'consultar projetos'}]};
   const testCase = {code:'CT-001',title:'Consultar projetos cadastrados',objective:'Verificar consulta de projetos.',requirement_codes:['RF-001'],preconditions:[],input_data:[],steps:['Consultar projetos cadastrados.'],expected_result:'Projetos cadastrados são exibidos.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Fixture E2E; código não executado.'}};
+  if(input.project_name?.startsWith('Cancelar agente E2E'))testCase.title='Controle de cancelamento agentivo';
   if(input.source_catalog)requirement.sources=[{source_id:input.source_catalog[0].source_id}];
   const cases=input.project_name?.startsWith('Lote E2E') ? Array.from({length:104},(_,i)=>({...testCase,code:`CT-${String(i+1).padStart(3,'0')}`})) : [testCase];
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
+};
+const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents})=>{
+  const task=JSON.parse(contents[0].parts[0].text).untrusted_task;
+  if(task.case_catalog[0].title==='Controle de cancelamento agentivo')await new Promise(resolve=>setTimeout(resolve,5000));
+  const responses=contents.flatMap(c=>c.parts).filter(p=>p.functionResponse).map(p=>p.functionResponse);
+  if(!responses.length)return fixtureTurn([
+    ...task.case_catalog.map(row=>({id:'case-'+row.id,name:'get_approved_case',args:{case_id:row.id}})),
+    ...task.requirement_codes.map(code=>({id:'req-'+code,name:'get_approved_requirement',args:{requirement_code:code}})),
+    {id:'manifest',name:'list_sources',args:{offset:0,limit:20}}]);
+  if(!responses.some(r=>r.name==='prepare_automation_scope'))return fixtureTurn([
+    {id:'read',name:'read_source',args:{path:'src/projects.js',offset:0,length:1000}},
+    {id:'scope',name:'prepare_automation_scope',args:{target_paths:['src/projects.js']}}]);
+  const cases=responses.filter(r=>r.name==='get_approved_case').map(r=>r.response);
+  const output=JSON.parse((await generate({input:{scope:{commit_sha:task.commit_sha},test_cases:cases}})).raw);
+  return fixtureTurn([{id:'submit',name:'submit_automation',args:{scope_id:responses.find(r=>r.name==='prepare_automation_scope').response.scope_id,output}}]);
 }});
 const app = express();
 app.use(cors({origin:process.env.FRONTEND_URL,credentials:true}));
