@@ -14,7 +14,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });
   router.param('projectId', (_request, _response, next, value) => { uuid(value); next(); });
   router.param('documentId', (_request, _response, next, value) => { uuid(value); next(); });
-  for (const name of ['runId','itemId','attemptId','versionId','sessionId','artifactId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
+  for (const name of ['runId','itemId','attemptId','versionId','sessionId','artifactId','eventId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
   router.use((req,_res,next) => {
     if (['POST','PUT'].includes(req.method) && !req.path.endsWith('/documents')) {
       assert(req.body && typeof req.body === 'object' && !Array.isArray(req.body),'Envie um objeto JSON.');
@@ -49,6 +49,9 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.post('/projects/:projectId/runs', imports, async (req,res) => res.status(202).json({data:await runs.create(req.params.projectId,req.body)}));
   router.get('/runs', handler(() => runs.list()));
   router.get('/runs/:runId', handler(req => runs.detail(req.params.runId)));
+  router.get('/runs/:runId/events',handler(req=>runs.events(req.params.runId,req.query)));
+  router.get('/runs/:runId/events/stream',async(req,res,next)=>{try{await runs.streamEvents(req,res,req.params.runId);}catch(error){if(res.headersSent)res.end();else next(error);}});
+  router.get('/runs/:runId/events/:eventId',handler(req=>runs.event(req.params.runId,req.params.eventId)));
   router.get('/runs/:runId/agent-sessions',handler(req=>runs.agentSessions(req.params.runId,req.query)));
   router.post('/runs/:runId/agent-messages/:itemId/review',handler(req=>runs.reviewMessage(req.params.runId,req.params.itemId,req.body)));
   router.get('/runs/:runId/agent-sessions/:sessionId',handler(req=>runs.agentSession(req.params.runId,req.params.sessionId,req.query)));

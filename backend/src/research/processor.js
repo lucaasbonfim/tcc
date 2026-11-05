@@ -24,6 +24,8 @@ import {createExecutionPlanningTools,validateExecutionProposal} from './executio
 import {createExecutionDiagnosisTools,validateExecutionDiagnostics} from './execution-diagnostics.js';
 import {createScriptReviewService} from './script-review-agent.js';
 import {createAutonomyController} from './autonomy.js';
+import {appendRunEvent} from './run-events.js';
+import {recordAttemptInput,recordAttemptOutput} from './attempt-snapshots.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -61,6 +63,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       await db.query("UPDATE research.runs SET status='running' WHERE id=$1",[run.id]);
       const number=(await db.query('SELECT COALESCE(max(number),0)+1 AS n FROM research.attempts WHERE stage_id=$1',[stage.id])).rows[0].n;
       await db.query("INSERT INTO research.attempts(id,stage_id,number,status,requirement_part_id,test_part_id,automation_part_id,execution_job_id) VALUES($1,$2,$3,'running',$4,$5,$6,$7)",[attemptId,stage.id,number,part?.id || null,testPart?.id || null,automationPart?.id || null,executionJob?.id || null]);
+      await appendRunEvent(db,{run_id:run.id,source_key:`attempt:${attemptId}:started`,kind:'attempt_started',agent:stage.agent,stage_id:stage.id,attempt_id:attemptId,job_id:executionJob?.id,payload:{number,phase:stage.context?.phase,part_sequence:checkpoint?.sequence}});
       return {run,stage,token,attemptId,part,testPart,automationPart,executionJob};
     });
   }
@@ -72,6 +75,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
         // Preserve a resposta tardia para auditoria, sem reabrir a execução cancelada/interrompida.
         await db.query(`UPDATE research.attempts SET input=COALESCE(input,$2),output=COALESCE(output,$3),provider_metadata=COALESCE(provider_metadata,$4),duration_ms=COALESCE(duration_ms,$5)
           WHERE id=$1`,[job.attemptId,inputRef,outputRef,metadata,elapsed]);
+        await recordAttemptOutput(db,store,job,{inputRef,outputRef,output,error,late:true});
         return;
       }
       let partial=false;
@@ -132,6 +136,8 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       }
       await db.query(`UPDATE research.attempts SET status=$2,input=$3,output=$4,provider_metadata=$5,error=$6,finished_at=now(),duration_ms=$7 WHERE id=$1`,
         [job.attemptId,error ? 'failed' : 'completed',inputRef,outputRef,metadata,error,elapsed]);
+      await recordAttemptOutput(db,store,job,{inputRef,outputRef,output,error});
+      await appendRunEvent(db,{run_id:job.run.id,source_key:`attempt:${job.attemptId}:finished`,kind:error?'attempt_failed':'attempt_finished',actor:job.executionJob?'executor':'agent',agent:job.stage.agent,stage_id:job.stage.id,attempt_id:job.attemptId,job_id:job.executionJob?.id,payload:{phase:job.stage.context?.phase,status:error?'failed':'completed',error:error||null,elapsed_ms:elapsed,partial}});
       const unsupported=job.stage.agent==='automation' && !error && !partial && !(await db.query('SELECT id FROM research.automated_tests WHERE run_id=$1 LIMIT 1',[job.run.id])).rowCount;
       const diagnosed=job.stage.agent==='execution' && job.stage.context.phase==='diagnosis' && !error;
       const executed=job.stage.agent==='execution' && !['planning','diagnosis'].includes(job.stage.context.phase) && !error && !partial;
@@ -157,6 +163,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             await db.query("UPDATE research.agent_sessions SET status='interrupted',stop_reason='worker_interrupted',finished_at=now(),usage_unknown=usage_unknown OR EXISTS(SELECT 1 FROM research.agent_steps p WHERE p.session_id=research.agent_sessions.id AND p.status='requested') WHERE stage_id=$1 AND status='running'",[stage.id]);
           }
           await db.query("UPDATE research.runs SET status='failed',finished_at=now() WHERE id=$1",[run.id]);
+          await appendRunEvent(db,{run_id:run.id,source_key:`worker:interrupted:${stages.map(s=>s.id).join(':')}`,kind:'worker_interrupted',payload:{stage_ids:stages.map(s=>s.id),reason:'Worker interrompido ou prazo excedido; resposta não presumida.'}});
           await db.query("UPDATE research.execution_jobs SET status='failed',error='Worker interrompido; consulte o executor antes de repetir.',finished_at=now() WHERE run_id=$1 AND status='running'",[run.id]);
           await db.query("UPDATE research.requirement_parts SET status='failed',error='Worker interrompido; parte requer repetição.' WHERE run_id=$1 AND status='running'",[run.id]);
           await db.query("UPDATE research.test_parts SET status='failed',error='Worker interrompido; lote requer repetição.' WHERE run_id=$1 AND status='running'",[run.id]);
@@ -193,6 +200,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
           instruction_version:job.stage.instruction_version+(isAutomation ? '+coverage-guard/1' : ''),schema:grounded?.schema || (job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema),input };
         if(job.run.workflow_mode==='autonomous/v1') {request.instruction='Condição autonomous/v1: entradas de outros agentes foram admitidas por verificações automáticas, sem revisão ou aprovação humana. Não alegue julgamento humano das entradas. '+request.instruction;request.instruction_version+='+autonomous/v1';}
         inputRef = await store.put(request);
+        await transaction(pool,async db=>{await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);await recordAttemptInput(db,job,inputRef);});
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
         let timer;

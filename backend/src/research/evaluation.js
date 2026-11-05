@@ -3,6 +3,7 @@ import {assert,text,transaction} from './errors.js';
 import {EVALUATION,CLASSIFICATIONS} from './evaluation-contract.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {recordHumanEvent} from './run-events.js';
 
 export function createEvaluationService({pool,store}) {
   const service={
@@ -70,6 +71,7 @@ export function createEvaluationService({pool,store}) {
         const after=(await db.query('UPDATE research.findings SET review_status=$3,human_classification=$4,revision=revision+1 WHERE id=$1 AND run_id=$2 RETURNING *',[id,runId,input.decision,classification])).rows[0];
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'finding',$4,$5,$6,$7,$8,'admin')`,[randomUUID(),runId,stage.id,id,input.decision,justification,JSON.stringify(before),JSON.stringify(after)]);
+        await recordHumanEvent(db,store,{run_id:runId,stage_id:stage.id,source_key:`finding:${id}:review:${after.revision}`,entity_type:'finding',entity_id:id,decision:input.decision,justification,before,after});
         return after;
       });
     },
@@ -87,6 +89,7 @@ export function createEvaluationService({pool,store}) {
         await db.query("UPDATE research.runs SET status='completed',finished_at=now() WHERE id=$1",[runId]);
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor)
           VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')`,[randomUUID(),runId,stage.id,justification]);
+        await recordHumanEvent(db,store,{run_id:runId,stage_id:stage.id,source_key:`stage:${stage.id}:evaluation-approved`,entity_type:'stage',entity_id:stage.id,decision:'approved',justification});
         return {status:'completed'};
       });
     },

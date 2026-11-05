@@ -51,6 +51,7 @@ test('falha do A1 consultado é explícita, sem resposta inventada e sem reconhe
   await services.processor.processOne();const detail=await services.runs.detail(run.id);assert.equal(detail.status,'awaiting_review');const message=detail.agent_messages[0];assert.equal(message.response_data.status,'unavailable');
   await assert.rejects(services.runs.reviewMessage(run.id,message.id,{decision:'acknowledged',justification:'Não pode assumir sucesso.'}),/indisponível/);
   await services.runs.reviewMessage(run.id,message.id,{decision:'rejected',justification:'Resposta indisponível; casos precisam ser julgados pelo humano.'});
+  const history=await services.runs.events(run.id,{limit:200});assert.equal(history.summary.completed_cycles,0);assert.equal(history.summary.unavailable_responses,1);assert.ok(history.events.some(e=>e.kind==='message_unavailable'&&e.actor==='system'));assert.ok(!history.events.some(e=>e.kind==='message_response'));
 }));
 test('consultas entre agentes têm limite global e a terceira solicitação é recusada sem iniciar outra sessão filha',{skip:!url},async()=>environment(async({pool,store})=>{
   const generateTurn=request=>{

@@ -29,6 +29,9 @@ export function exportCsv(data) {
   for(const call of data.agent_tool_calls || [])add('agent_tool_call',call.id,call.name,call.status,[call.session_id,call.step_id],call);
   for(const message of data.agent_messages || [])add('agent_message',message.id,message.kind,message.review_status,[message.source_session_id,message.requirement_id],message);
   if(data.agent_summary)add('agent_summary',data.id,'','',[],data.agent_summary);
+  for(const event of data.run_events || [])add('run_event',event.id,event.kind,'',[event.snapshot_id,event.message_id,event.session_id].filter(Boolean),event);
+  for(const snapshot of data.artifact_snapshots || [])add('artifact_snapshot',snapshot.id,snapshot.kind,'',[snapshot.attempt_id].filter(Boolean),snapshot);
+  if(data.timeline_summary)add('timeline_summary',data.id,'','',[],{history_mode:data.history_mode,...data.timeline_summary});
   for(const [source_run_id,history] of Object.entries(data.reused_agent_histories || {})) {
     for(const session of history.agent_sessions)add('reused_agent_session',session.id,session.agent,session.status,[source_run_id,session.stage_id,session.attempt_id],session);
     for(const step of history.agent_steps)add('reused_agent_step',step.id,String(step.sequence),step.status,[source_run_id,step.session_id],step);
