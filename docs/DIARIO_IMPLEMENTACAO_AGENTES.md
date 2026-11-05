@@ -272,6 +272,26 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-12]`. **Próximo passo:** AG-13, colaboração por mensagens versionadas.
 
+## 05/11/2026 — AG-13: esclarecimento A2 → A1 com mensagens e sessões filhas
+
+**Estado:** concluído. Base: `77b5e41`.
+
+**Decisão:** implementar primeiro o pedido de esclarecimento do A2 textual ao A1, com resposta consultiva. Alterar requisitos aprovados dentro da mesma análise exigiria reconstruir todas as dependências; nesta entrega, solicitar mudança bloqueia aprovação dos casos e exige nova análise, sem reaproveitar aprovações. Essa restrição foi registrada no plano antes do código. Não há patches automáticos ou delegação recursiva.
+
+**Mudança:** A2 decide chamar request_requirement_clarification e recebe a resposta como observação. A1 consultado usa perfil fixado no snapshot e ferramentas próprias para consultar as páginas originais referenciadas pela regra e responder com IDs de fontes. O backend resolve as citações e preserva a pergunta, resposta, requisito/revisão/hash, origem e revisão humana. A resposta não substitui o requisito aprovado. Perfil A2 passa a agent/1.1.0; snapshots anteriores não recebem ferramentas novas retroativamente.
+
+**Persistência/limites:** migração 023 cria mensagens versão 1 e sessões filhas por mensagem/tentativa. Elas compartilham posse e cancelamento da etapa solicitante, com orçamento próprio de no máximo quatro turnos/seis ferramentas e teto global da análise. Até duas solicitações por análise; repetição da mesma pergunta/revisão/unidade é idempotente. Retomada mantém leituras e consumo. Falha do consultado produz indisponibilidade explícita, não esclarecimento inventado. Durações de pai/filha não são somadas em duplicidade; tokens/chamadas de ambos são contabilizados.
+
+**Revisão/interface:** mensagens aparecem na análise e no JSON/CSV. Resposta precisa ser reconhecida, rejeitada ou motivar revisão da regra antes da aprovação dos casos. Resposta indisponível não pode ser reconhecida. Revisão é única e auditada. Pedido de revisão bloqueia a análise anterior, preservando saídas; a interface orienta corrigir a especificação e iniciar outra. A criação seguinte não reaproveita requisitos, casos ou aprovações.
+
+**Verificação:** 97 testes backend aprovados na suíte final, zero falhas/ignorados; sete E2E aprovados, incluindo consulta A2/A1, resposta visível e bloqueio/liberação da aprovação após revisão; lint/build frontend aprovados. Controles verificam fontes, versões, limites, falha, cancelamento e retomada sem repetir consulta/leitura nem zerar o orçamento. Um primeiro E2E usava um rótulo inexistente de botão; o seletor foi corrigido e a suíte completa passou. Provedor/executor injetados e bancos locais separados; nenhuma nova chamada real.
+
+**Ambiente:** migração 023 aplicada após dump/cópia dos artefatos em `.local/agent-pilot/backup-qgQfJG/`; `upgrade-023.json` confirma contagens preservadas. Não se alteraram dados aprovados da pesquisa.
+
+**Limites científicos:** a fixture obriga uma dúvida sobre entradas inválidas e devolve uma resposta programada, verificando o transporte/controle da colaboração. Não demonstra que um LLM real reconhecerá essa dúvida, escolherá consultar A1 ou produzirá esclarecimento correto. O piloto conjunto deverá observar essas decisões sem forçar o sucesso, e os julgamentos continuam dependentes de referência humana independente.
+
+**Rastreabilidade:** commit `[AG-13]`. **Próximo passo:** AG-14, plano de execução/bundles.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

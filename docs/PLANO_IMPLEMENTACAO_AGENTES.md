@@ -211,10 +211,12 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
   - Aceite/verificação: observado copiado da execução real, citações verificadas e classes sustentadas. Cenários conhecidos de teste errado, falha de ambiente, divergência e evidência insuficiente; o agente pode concluir que não sabe.
   - Commit: `feat(evaluation): adiciona investigacao agentiva do A4 [AG-12]`.
 
-- [ ] **AG-13 — Implementar colaboração por mensagens versionadas.** Depende de AG-12.
+- [x] **AG-13 — Implementar colaboração por mensagens versionadas.** Depende de AG-12.
   - Entrega: nova migração aditiva para solicitações/respostas; mensagens tipadas com emissor, destinatário, motivo, artefatos/versões, origem e estado. Primeiro fluxo: A2 pede esclarecimento a A1 ou A4 solicita revisão de um teste.
   - Aceite/verificação: mensagens não sobrescrevem documentos nem saídas aprovadas. Pedido de alteração gera proposta/revisão e invalida aprovações dependentes quando necessário; conclusão anterior continua preservada. Limitar retornos para impedir ciclos infinitos.
   - Commit: `feat(agents): coordena colaboracao com mensagens rastreaveis [AG-13]`.
+
+**Desenho antes de AG-13:** primeiro fluxo A2 textual → A1, para esclarecer uma regra aprovada usando somente suas fontes documentais. Solicitação e resposta são mensagens imutáveis, vinculadas ao requisito/revisão/hash, tentativa e sessões. A1 consultado recebe sessão filha e ferramentas restritas, sem delegação recursiva; chamadas/tokens contam no teto da análise. Máximo de duas solicitações por análise e quatro turnos/seis ferramentas por resposta, sem reiniciar orçamento na retomada. O tempo da sessão principal inclui a espera; somar durações pai/filha seria duplicação e deve ser evitado no resumo. Respostas são propostas com revisão humana obrigatória antes de aprovar os casos. Se a revisão pedir mudança da regra, a análise anterior não pode aprovar seus casos: exige nova análise, sem reutilizar suas aprovações. Esta primeira entrega não aplica patches automáticos em requisitos aprovados. Mensagens e sessões filhas devem aparecer no histórico/exportação.
 
 ### M3 — Planejamento e retorno de execução
 
@@ -283,4 +285,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-13**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A1, A2 textual e A4 foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico. Colaboração por mensagens ainda não implementada.
+Próxima tarefa: **AG-14**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A2 pode consultar A1 por mensagens versionadas, com revisão humana e sessões filhas. A1, A2 textual, A4 e colaboração foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico.

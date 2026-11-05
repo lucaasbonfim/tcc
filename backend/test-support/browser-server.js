@@ -23,6 +23,7 @@ import {fixtureResult} from '../../shared/execution-fixture.js';
 import {fixtureTurn} from './agent-scenario.js';
 import {testCasesFixtureTurn} from './tests-agent-fixture.js';
 import {evaluationFixtureTurn} from './evaluation-agent-fixture.js';
+import {collaborationFixtureTurn} from './collaboration-fixture.js';
 import {requireAdmin} from '../src/middlewares/auth.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -48,11 +49,13 @@ const generate=async ({input}) => {
   const requirement = {code:'RF-001',title:'Consulta de projetos',description:'O pesquisador pode consultar projetos.',kind:'functional',actors:['Pesquisador'],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{document_id:input.documents?.[0].id || 'complementary-text',page:1,quote:'consultar projetos'}]};
   const testCase = {code:'CT-001',title:'Consultar projetos cadastrados',objective:'Verificar consulta de projetos.',requirement_codes:['RF-001'],preconditions:[],input_data:[],steps:['Consultar projetos cadastrados.'],expected_result:'Projetos cadastrados são exibidos.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Fixture E2E; código não executado.'}};
   if(input.project_name?.startsWith('Cancelar agente E2E'))testCase.title='Controle de cancelamento agentivo';
+  if(input.project_name?.startsWith('Colaboração E2E'))requirement.title='Colaboração E2E: consulta';
   if(input.source_catalog)requirement.sources=[{source_id:input.source_catalog[0].source_id}];
   const cases=input.project_name?.startsWith('Lote E2E') ? Array.from({length:104},(_,i)=>({...testCase,code:`CT-${String(i+1).padStart(3,'0')}`})) : [testCase];
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
 const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
+  if(tools.some(t=>t.name==='respond_clarification') || contents[0].parts[0].text.includes('Colaboração E2E'))return collaborationFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='read_evaluation_context'))return evaluationFixtureTurn({contents});
   if(tools.some(t=>t.name==='read_test_requirement'))return testCasesFixtureTurn({contents});
   const task=JSON.parse(contents[0].parts[0].text).untrusted_task;

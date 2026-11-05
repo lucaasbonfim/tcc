@@ -3,8 +3,10 @@ import {assert,transaction} from './errors.js';
 import {assertSessionTransition} from './agent-contract.js';
 
 export function createAgentSessionStore(pool,job) {
-  const unitColumn=job.automationPart?'automation_part_id':job.part?'requirement_part_id':job.testPart?'test_part_id':'stage_id';
-  const unitId=job.automationPart?.id ?? job.part?.id ?? job.testPart?.id ?? job.stage.id;
+  const unitColumn=job.message?'message_id':job.automationPart?'automation_part_id':job.part?'requirement_part_id':job.testPart?'test_part_id':'stage_id';
+  const unitId=job.message?.id ?? job.automationPart?.id ?? job.part?.id ?? job.testPart?.id ?? job.stage.id;
+  const scope=job.message?'':' AND message_id IS NULL';
+  const find=async db=>(await db.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1 AND message_id IS NOT DISTINCT FROM $2::uuid',[job.attemptId,job.message?.id ?? null])).rows[0];
   async function owned(db) {
     const stage=(await db.query('SELECT * FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
     assert(stage?.run_id===job.run.id && stage.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da tarefa expirada ou cancelada.',409);
@@ -14,21 +16,21 @@ export function createAgentSessionStore(pool,job) {
     await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);
     await owned(db);
     const session=(await db.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND run_id=$2 AND stage_id=$3 FOR UPDATE',[id,job.run.id,job.stage.id])).rows[0];
-    assert(session && session.attempt_id===job.attemptId,'Sessão fora da tentativa.',409);
+    assert(session && session.attempt_id===job.attemptId && session.message_id===(job.message?.id ?? null),'Sessão fora da tentativa/unidade.',409);
     return session;
   }
   return {
-    async find() {return (await pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[job.attemptId])).rows[0];},
-    async previous() {return (await pool.query(`SELECT * FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2 AND attempt_id<>$3 ORDER BY started_at DESC LIMIT 1`,[unitId,job.stage.id,job.attemptId])).rows[0];},
+    async find() {return find(pool);},
+    async previous() {return (await pool.query(`SELECT * FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2 AND attempt_id<>$3${scope} ORDER BY started_at DESC LIMIT 1`,[unitId,job.stage.id,job.attemptId])).rows[0];},
     async heartbeat() {return Boolean((await pool.query("UPDATE research.stages SET lease_until=now()+interval '180 seconds' WHERE id=$1 AND run_id=$2 AND status='running' AND lease_token=$3 RETURNING id",[job.stage.id,job.run.id,job.token])).rowCount);},
     async create({task,policy,context}) {
       return transaction(pool,async db=>{
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);await owned(db);
-        const existing=(await db.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[job.attemptId])).rows[0];
+        const existing=await find(db);
         if(existing)return existing;
-        return (await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,test_part_id,agent,mode,status,task,policy,context)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'agent/v1','running',$10,$11,$12) RETURNING *`,
-          [randomUUID(),job.run.project_id,job.run.id,job.stage.id,job.attemptId,job.automationPart?.id ?? null,job.part?.id ?? null,job.testPart?.id ?? null,job.stage.agent,task,policy,context])).rows[0];
+        return (await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,test_part_id,agent,mode,status,task,policy,context,message_id,parent_session_id)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'agent/v1','running',$10,$11,$12,$13,$14) RETURNING *`,
+          [randomUUID(),job.run.project_id,job.run.id,job.stage.id,job.attemptId,job.message?null:job.automationPart?.id ?? null,job.message?null:job.part?.id ?? null,job.message?null:job.testPart?.id ?? null,job.message?.recipient ?? job.stage.agent,task,policy,context,job.message?.id ?? null,job.message?.parent_session_id ?? null])).rows[0];
       });
     },
     async get(id) {return (await pool.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND run_id=$2 AND attempt_id=$3',[id,job.run.id,job.attemptId])).rows[0];},
@@ -37,7 +39,7 @@ export function createAgentSessionStore(pool,job) {
         const session=await locked(db,id);assert(session.status==='running','Sessão encerrada.',409);
         const used=(await db.query(`SELECT COALESCE(sum(model_turns),0)::int AS model_turns,COALESCE(sum(total_tokens),0)::bigint AS total_tokens
           FROM research.agent_sessions WHERE run_id=$1`,[job.run.id])).rows[0];
-        const previous=(await db.query(`SELECT COALESCE(sum(model_turns),0)::int AS turns,COALESCE(sum(total_tokens),0)::bigint AS tokens FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2`,[unitId,job.stage.id])).rows[0];
+        const previous=(await db.query(`SELECT COALESCE(sum(model_turns),0)::int AS turns,COALESCE(sum(total_tokens),0)::bigint AS tokens FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2${scope}`,[unitId,job.stage.id])).rows[0];
         assert(previous.turns<session.policy.limits.max_model_turns && Number(previous.tokens)<session.policy.limits.max_total_tokens && used.model_turns<session.policy.run_limits.max_model_turns && Number(used.total_tokens)<session.policy.run_limits.max_total_tokens,'Orçamento de chamadas/tokens esgotado.',422);
         assert(!(await db.query("SELECT id FROM research.agent_steps WHERE session_id=$1 AND status='requested'",[id])).rowCount,'Turno anterior sem resposta; requer interrupção explícita.',409);
         const sequence=(await db.query('SELECT COALESCE(max(sequence),0)+1 AS n FROM research.agent_steps WHERE session_id=$1',[id])).rows[0].n;
@@ -67,7 +69,7 @@ export function createAgentSessionStore(pool,job) {
         const existing=(await db.query('SELECT * FROM research.agent_tool_calls WHERE step_id=$1 AND call_id=$2',[stepId,call.id])).rows[0];
         if(existing){assert(existing.session_id===id && existing.name===call.name && existing.arguments.sha256===argsRef.sha256,'ID de chamada reutilizado com conteúdo diferente.',409);return existing;}
         const used=(await db.query('SELECT COALESCE(sum(tool_calls),0)::int AS n FROM research.agent_sessions WHERE run_id=$1',[job.run.id])).rows[0].n;
-        const previous=(await db.query(`SELECT COALESCE(sum(tool_calls),0)::int AS n FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2`,[unitId,job.stage.id])).rows[0].n;
+        const previous=(await db.query(`SELECT COALESCE(sum(tool_calls),0)::int AS n FROM research.agent_sessions WHERE ${unitColumn}=$1 AND stage_id=$2${scope}`,[unitId,job.stage.id])).rows[0].n;
         assert(previous<session.policy.limits.max_tool_calls && used<session.policy.run_limits.max_tool_calls,'Orçamento de ferramentas esgotado.',422);
         const row=(await db.query(`INSERT INTO research.agent_tool_calls(id,session_id,step_id,call_id,name,tool_version,arguments,status)
           VALUES($1,$2,$3,$4,$5,'1.0.0',$6,'requested') RETURNING *`,[randomUUID(),id,stepId,call.id,call.name,argsRef])).rows[0];

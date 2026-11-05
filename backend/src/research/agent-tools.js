@@ -14,10 +14,10 @@ export function boundedObservation(value,maxChars) {
 }
 
 export function createAgentToolRegistry({task,handlers,maxObservationChars,validateCall=validateAgentCall}) {
-  return async call=>{
+  return async (call,context={})=>{
     validateCall(call,task);
     const handler=handlers[call.name];assert(handler,'Ferramenta não implementada.',403);
-    const result=await handler(call.args);
+    const result=await handler(call.args,context);
     return {...result,observation:boundedObservation(result.observation,maxObservationChars)};
   };
 }

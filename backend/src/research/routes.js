@@ -50,6 +50,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.get('/runs', handler(() => runs.list()));
   router.get('/runs/:runId', handler(req => runs.detail(req.params.runId)));
   router.get('/runs/:runId/agent-sessions',handler(req=>runs.agentSessions(req.params.runId,req.query)));
+  router.post('/runs/:runId/agent-messages/:itemId/review',handler(req=>runs.reviewMessage(req.params.runId,req.params.itemId,req.body)));
   router.get('/runs/:runId/agent-sessions/:sessionId',handler(req=>runs.agentSession(req.params.runId,req.params.sessionId,req.query)));
   router.get('/runs/:runId/agent-sessions/:sessionId/artifacts/:kind/:artifactId/:type',handler(req=>runs.agentArtifact(req.params.runId,req.params.sessionId,req.params.kind,req.params.artifactId,req.params.type)));
   router.post('/runs/:runId/automation',imports,async(req,res)=>res.status(202).json({data:await automation.start(req.params.runId,req.body)}));

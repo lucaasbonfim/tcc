@@ -9,6 +9,7 @@ import ResearchStatus from './ResearchStatus';
 
 const tools={list_sources:'Consultar fontes',read_source:'Ler fonte',find_symbols:'Buscar símbolos',get_approved_case:'Consultar caso aprovado',get_approved_requirement:'Consultar requisito',get_adapter_capabilities:'Consultar capacidades',prepare_automation_scope:'Preparar fontes do teste',submit_automation:'Submeter scripts para revisão',list_document_sources:'Listar trechos dos documentos',read_document_sources:'Consultar trechos dos documentos',submit_requirements:'Submeter requisitos para revisão',list_test_requirements:'Listar requisitos para os casos',read_test_requirement:'Consultar requisito para os casos',submit_test_cases:'Submeter casos para revisão'};
 Object.assign(tools,{list_evaluation_results:'Listar resultados para avaliação',read_evaluation_context:'Investigar contexto da evidência',submit_evaluation:'Submeter conclusões para revisão'});
+Object.assign(tools,{request_requirement_clarification:'Pedir esclarecimento ao A1',read_clarification_sources:'Consultar fontes para esclarecer',respond_clarification:'Responder ao A2'});
 const agentNumbers={requirements:1,tests:2,automation:2,execution:3,evaluation:4};
 const reasons={submitted:'Artefatos submetidos para revisão',budget_exhausted:'Orçamento da tarefa esgotado',interrupted:'Processamento interrompido',processing_error:'Falha durante o processamento',scope_violation:'Consulta fora do escopo recusada',cancelled_by_researcher:'Cancelada pelo pesquisador',worker_interrupted:'Worker interrompido',lease_lost:'Posse da tarefa perdida'};
 function usePolling(active,reload){const previous=useRef(active);useEffect(()=>{if(previous.current && !active)reload();previous.current=active;if(!active)return;const timer=setInterval(reload,4000);return()=>clearInterval(timer);},[active,reload]);}
@@ -25,6 +26,7 @@ function Session({runId,id,active}) {
   return <div className="mt-4"><ErrorMessage>{loadError || error}</ErrorMessage>
     {!data && !loadError && <p role="status">Carregando trajetória...</p>}
     {data && <><p className="notice compact">{reasons[data.session.stop_reason] || (active?'O agente está trabalhando dentro dos limites registrados.':'Trajetória preservada.')}</p>
+      {data.session.parent_session_id && <p className="muted">Sessão de consulta entre agentes · mensagem {shortId(data.session.message_id)} · sessão solicitante {shortId(data.session.parent_session_id)}.</p>}
       <details><summary>Objetivo e limites da sessão</summary><pre className="code-panel">{JSON.stringify({tarefa:data.session.task,politica:data.session.policy},null,2)}</pre></details>
       {data.steps.map(step=><div key={step.id} className="review-history"><h3>Turno {step.sequence} · <ResearchStatus status={step.status}/></h3>
         {step.provider_metadata?.reused_from_step_id && <p className="muted">Resposta reaproveitada de uma tentativa anterior.</p>}
