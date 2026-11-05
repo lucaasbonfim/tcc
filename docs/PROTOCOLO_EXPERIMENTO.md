@@ -1,10 +1,10 @@
 # Protocolo do experimento — rascunho para fechamento
 
-Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. Implementação até AG-15: A3 usa LLM para planejamento/diagnóstico e pode consultar A2 sobre revisão de script; execução material permanece determinística. Os novos controles foram verificados com fixtures, sem novo piloto conjunto com LLM real. Ainda não há avaliador humano definido, nem recorte/referência fechados. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
+Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. A evolução AH-00–04 acrescenta execução autônoma com autorização inicial, histórico ao vivo e julgamento posterior separado. A3 usa LLM para planejamento/diagnóstico e pode consultar A2 sobre revisão de script; execução material permanece determinística. Os novos controles foram verificados com fixtures, sem novo piloto conjunto com LLM real. Ainda não há avaliador humano definido, nem recorte/referência fechados. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
 
 ## 1. O que será investigado
 
-Avaliar a viabilidade e a qualidade dos artefatos produzidos por agentes que analisam documentos, elaboram casos, propõem scripts e investigam evidências, com revisão humana e execução controlada. Cada agente deve ser descrito pelas decisões e ferramentas efetivamente disponíveis, sem atribuir autonomia a um serviço determinístico.
+Avaliar a viabilidade e a qualidade dos artefatos produzidos por agentes que analisam documentos, elaboram casos, propõem scripts e investigam evidências. Para o recorte autônomo proposto, o pesquisador autoriza inicialmente escopo/ambiente/limites, acompanha a execução sem corrigir as etapas e julga depois os artefatos e as interações preservados. Cada agente deve ser descrito pelas decisões e ferramentas efetivamente disponíveis, sem atribuir autonomia a um serviço determinístico.
 
 Perguntas propostas:
 
@@ -51,10 +51,19 @@ Se houver apenas um julgador, relatar a limitação. Se houver dois, registrar j
 
 ## 4. Condições e unidade de análise
 
+Dois eixos distintos ficam fixados no snapshot: `assisted/v1` ou `autonomous/v1` para a intervenção humana; `fixed/v1` ou `agent/v1` por papel para suas ferramentas/decisões. Autonomia não significa apenas trocar um prompt. No modo autônomo, A1 → A2 textual → scripts → A3 planejamento/execução/diagnóstico → A4 avançam sem aprovação humana intermediária. Requisitos/casos/scripts têm elegibilidade técnica própria e conservam revisão humana pendente. Autorizar no início a execução limitada não é julgar corretos os artefatos ainda não produzidos.
+
+A avaliação humana dos artefatos de **cada etapa** pode ocorrer toda ao final, abrindo os snapshots correspondentes; avaliar só a conversa ou só o PDF final não permite concluir sobre a correção dos requisitos, cenários ou scripts. A referência humana pode ser preparada antes da coleta e usada no julgamento posterior, sem ser fornecida aos agentes. Essa separação evita que correções humanas mudem as entradas da mesma condição autônoma. A conta administrativa registra julgamentos, mas não demonstra independência ou concordância entre avaliadores.
+
+A versão implementada permite consultas limitadas A2 → A1 e A3 → A2. Cada pedido e resposta compartilha uma consulta; duas direções são duas mensagens e um ciclo completo. Não há conversa livre contínua nem delegação recursiva. O rascunho proposto por A2 a pedido de A3 não substitui o script executado e não é reexecutado nesta condição. Portanto, esta entrega não sustenta uma hipótese de autorreparo iterativo. Se isso for estudado depois, exige outra condição, limites de ciclos, controle do esperado e nova validação.
+
+O painel mostra eventos públicos reais, ferramentas e artefatos versionados; não apresenta pensamento interno do modelo como diálogo. Julgamentos posteriores são anexados, com justificativa e referência informada, sem alterar snapshots ou resultado técnico. Execução marcada `completed` significa término do fluxo, inclusive com testes reprovados; não significa correção do software nem êxito científico.
+
 Separar claramente:
 
 - **Saída inicial:** primeira proposta de cada etapa, antes de correções humanas.
 - **Saída assistida:** versão após revisões humanas, com antes/depois, responsável, justificativa e tempo quando medido.
+- **Saída autônoma:** versão admitida tecnicamente e consumida sem correção humana intermediária; julgamento posterior separado. Conservar também saídas recusadas, falhas e cancelamentos.
 - **Tentativa técnica:** transporte, falha de provedor, orçamento ou retomada. Reenvio com mesmo trabalho não é novo ensaio.
 - **Execução experimental:** análise iniciada com condição e entradas fixadas, incluindo seus insucessos.
 
@@ -63,6 +72,8 @@ Unidades: regra de referência, requisito proposto, cenário de referência, cas
 Para a primeira coleta, priorizar descrição do comportamento de uma configuração fixada. Repetições precisam ser definidas antes: proposta inicial de três análises por condição, sujeita à calibração de orçamento em piloto separado. Não usar essas poucas repetições como garantia de significância ou generalização.
 
 Uma comparação fixed/v1 × agent/v1 é opcional. Só incluí-la se for possível explicitar informação disponível, instruções, modelo, orçamento, revisões e ordem das execuções. Diferenças de acesso a código/documentos ou de orçamento impedem atribuir o resultado exclusivamente à agência. Sem esse controle, apresentar viabilidade/qualidade descritivamente.
+
+Para examinar colaboração, relacionar cada consulta a uma dúvida/resultado, resposta, fonte e artefato posterior. Classificar, pela rubrica a definir, se esclareceu algo sustentado ou produziu proposta útil/inconclusiva/incorreta. Número de mensagens, uso de ferramentas, tempo ou tokens descrevem comportamento/custo; isoladamente não demonstram benefício. O resumo da plataforma separa consultas enviadas, ciclos completos, respostas indisponíveis/ausentes e retentativas técnicas. Não tratar cada lote, fase ou turno de modelo como ensaio independente.
 
 ## 5. Rubrica e denominadores
 
@@ -89,9 +100,9 @@ Toda taxa deve trazer numerador, denominador e exclusões. Falhas de orçamento/
 1. Fechar objeto, referência, rubrica, condições e responsáveis; guardar hashes e data de congelamento.
 2. Fazer piloto técnico conjunto dos papéis escolhidos, distinto da coleta. Registrar seleção de ferramentas, eventuais consultas entre agentes, falhas e orçamento; uma troca forçada por fixture não é evidência de decisão espontânea do LLM.
 3. Corrigir apenas problemas de plataforma encontrados no piloto, repetir verificações pertinentes e fixar commit/configuração. Se mudar orçamento, não misturar a execução anterior com a condição nova.
-4. Executar as repetições previstas. Preservar a proposta inicial de cada etapa antes de intervir e registrar todas as correções. Não editar esperado ou implementação para transformar falha em sucesso.
-5. Autorizar somente scripts revisados. Preservar manifesto, bundles e evidências por trabalho. Se houver falha de transporte, repetir o mesmo trabalho; não chamar isso de nova amostra.
-6. Julgar saídas iniciais e assistidas separadamente contra a referência. Preservar conclusão proposta e classificação humana do A4.
+4. Executar as repetições previstas. Na condição autônoma, autorizar o escopo no início e acompanhar sem corrigir artefatos entre etapas; na assistida, preservar a proposta inicial e registrar todas as correções. Não editar esperado ou implementação para transformar falha em sucesso.
+5. No modo assistido, autorizar somente scripts revisados. No autônomo, admitir pelos contratos e executar dentro do escopo inicialmente autorizado, preservando a ausência de julgamento humano intermediário. Preservar manifesto, bundles e evidências por trabalho. Se houver falha de transporte, repetir o mesmo trabalho; não chamar isso de nova amostra.
+6. Depois do término, julgar os artefatos de cada etapa e as consultas contra a referência. Separar saídas iniciais, autônomas e assistidas. Preservar conclusão proposta e classificação humana do A4.
 7. Exportar JSON/CSV de cada análise, planilha humana de julgamento e inventário de falhas. Conferir cadeia documento → requisito/revisão → caso/revisão → script/revisão/hash → plano/bundle → resultado → conclusão/revisão humana.
 8. Relatar números com denominadores e limitações, incluindo limitações do módulo, executor, quantidade de regras/repetições e avaliadores.
 

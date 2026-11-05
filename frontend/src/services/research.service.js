@@ -1,6 +1,7 @@
 import api from './api';
 
 export const research = {
+  events(runId,after){return new EventSource(`${api.defaults.baseURL.replace(/\/$/,'')}/research/runs/${runId}/events/stream?after=${encodeURIComponent(after)}`,{withCredentials:true});},
   async get(path, options) { return (await api.get(`/research${path}`,options)).data.data; },
   async post(path, data = {}) { return (await api.post(`/research${path}`,data)).data.data; },
   async put(path, data) { return (await api.put(`/research${path}`,data)).data.data; },

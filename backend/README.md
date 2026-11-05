@@ -35,6 +35,10 @@ Prefixo: `/api`. Respostas de recursos usam `{data: ...}`; erros, `{error: ...}`
 | POST | `/research/projects/:projectId/runs` | Enfileirar, resposta 202 |
 | GET | `/research/runs` | Até 500 execuções mais recentes |
 | GET | `/research/runs/:runId` | Snapshot, etapas, saídas validadas e histórico |
+| GET | `/research/runs/:runId/events` | Eventos paginados: `after` cursor bigint, `limit` 1–200; resumo de consultas/ciclos/retentativas |
+| GET | `/research/runs/:runId/events/stream` | SSE autenticado; retoma por `Last-Event-ID` ou `after`, encerra na desconexão/término |
+| GET | `/research/runs/:runId/events/:eventId` | Conteúdo preservado do evento/snapshot, vinculado à análise |
+| GET/POST | `/research/runs/:runId/assessments` | Listar/anexar julgamento posterior; POST exige análise terminal, `verdict`, `justification`, `snapshot_id`/`reference_note` opcionais |
 | POST | `/research/runs/:runId/reviews/:kind/:itemId` | Revisar requisito (`requirements`) ou caso (`tests`) |
 | POST | `/research/runs/:runId/approve/:agent` | Aprovar etapa `requirements` ou `tests` |
 | POST | `/research/runs/:runId/tests/complete` | Gerar cenários somente para requisitos sem caso não rejeitado, resposta 202 |
@@ -102,6 +106,8 @@ Exportação JSON/CSV versão 3 acrescenta `agent_sessions`, `agent_steps`, `age
 ## Validação
 
 Condição de trabalho: `workflow_mode` é `assisted/v1` por padrão. `autonomous/v1` exige `autonomy:{authorize_execution:true,inspection_id,module_root,justification}` ao criar a análise. A autorização é conferida pelo servidor e fixa SHA/inspeção/módulo/ambiente e limites, em snapshot/run_grants. Sem `agent_policy` explícita, esse modo usa todos os perfis agentivos. Artefatos são admitidos por `processing_status='eligible'`; `review_status` humano permanece pendente. O worker avança todas as etapas sob a autorização inicial, sem revisões humanas fictícias. Planos indicam `authorization_source='initial_grant'`; propostas não recebem aceite humano automático. Mudança de ambiente/escopo encerra a condição antes do envio. Rascunhos de revisão continuam separados. A avaliação humana posterior não muda o estado técnico já concluído da execução; análises antigas permanecem assistidas.
+
+As aprovações intermediárias descritas a seguir pertencem ao modo assistido. Na condição autônoma, o controlador usa admissão técnica/autorização inicial e as revisões ficam disponíveis após o término.
 
 A3 optativo: `agent_policy.modes.execution='agent/v1'`. Após aprovar scripts, `POST /research/runs/:runId/execution/planning` enfileira o planejamento com ferramentas. O agente consulta capacidades/scripts, valida grupos e submete proposta sem criar jobs. A autorização posterior exige `proposal_id` e justificativa, revisões/casos/fontes e identidade de ambiente iguais aos consultados. O backend recompõe/valida bundles; o transporte/execução permanece determinístico. Propostas, fases das sessões e autorização constam do JSON/CSV.
 

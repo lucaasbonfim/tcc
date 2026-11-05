@@ -52,6 +52,8 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.get('/runs/:runId/events',handler(req=>runs.events(req.params.runId,req.query)));
   router.get('/runs/:runId/events/stream',async(req,res,next)=>{try{await runs.streamEvents(req,res,req.params.runId);}catch(error){if(res.headersSent)res.end();else next(error);}});
   router.get('/runs/:runId/events/:eventId',handler(req=>runs.event(req.params.runId,req.params.eventId)));
+  router.get('/runs/:runId/assessments',handler(req=>runs.assessments(req.params.runId)));
+  router.post('/runs/:runId/assessments',handler(req=>runs.assess(req.params.runId,req.body)));
   router.get('/runs/:runId/agent-sessions',handler(req=>runs.agentSessions(req.params.runId,req.query)));
   router.post('/runs/:runId/agent-messages/:itemId/review',handler(req=>runs.reviewMessage(req.params.runId,req.params.itemId,req.body)));
   router.get('/runs/:runId/agent-sessions/:sessionId',handler(req=>runs.agentSession(req.params.runId,req.params.sessionId,req.query)));

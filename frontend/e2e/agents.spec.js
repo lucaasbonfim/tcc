@@ -75,6 +75,9 @@ for(const variant of ['budget','cancel'])test(`trajetória do agente registra ${
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
   await expect(page.getByText(variant==='budget'?'Orçamento da tarefa esgotado':'Cancelada pelo pesquisador',{exact:true})).toBeVisible();
   current=await detail();expect(current.automated_tests).toEqual([]);expect(current.execution_jobs).toEqual([]);
+  await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();
+  await expect(page.getByText('Histórico preservado',{exact:true})).toBeVisible();
+  await expect(page.locator('.timeline-event').filter({hasText:variant==='cancel'?'Execução cancelada':'Tarefa falhou'})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
   await page.screenshot({path:testInfo.outputPath(`agent-${variant}-mobile.png`),fullPage:true});

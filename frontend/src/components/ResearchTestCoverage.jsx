@@ -5,11 +5,11 @@ export default function ResearchTestCoverage({run,busy,onComplete}) {
   const coverage=run.test_coverage;
   if(!coverage?.total)return null;
   const parts=run.test_parts || [],active=parts.filter(part=>part.status!=='cancelled');
-  const canComplete=coverage.missing.length>0 && ['awaiting_review','completed','failed'].includes(run.status)
+  const canComplete=run.workflow_mode!=='autonomous/v1' && coverage.missing.length>0 && ['awaiting_review','completed','failed'].includes(run.status)
     && run.stages.some(stage=>stage.agent==='requirements' && stage.status==='completed')
     && !run.stages.some(stage=>stage.agent==='automation') && !run.execution_jobs?.length;
   return <div className="notice compact"><strong>{coverage.linked}/{coverage.total} requisitos com casos vinculados</strong>
-    <p>{coverage.missing.length ? `${coverage.missing.length} requisito(s) ainda sem cenário. A aprovação da etapa fica bloqueada até completar os vínculos.` : 'Todos os requisitos aprovados possuem ao menos um caso não rejeitado.'} {coverage.approved_linked} com caso já aprovado.</p>
+    <p>{coverage.missing.length ? `${coverage.missing.length} requisito(s) ainda sem cenário.` : 'Todos os requisitos elegíveis possuem ao menos um caso não rejeitado.'} {coverage.approved_linked} com caso aprovado por pessoa.</p>
     <p>Os vínculos permitem conferir os requisitos contemplados. A qualidade e a abrangência dos cenários precisam de revisão.</p>
     {active.length>0 && <p>{active.filter(part=>part.status==='completed').length}/{active.length} lotes de casos concluídos. Lotes concluídos são preservados após falhas.</p>}
     {canComplete && <Button disabled={busy} onClick={onComplete}>Gerar casos para os requisitos sem cenário</Button>}

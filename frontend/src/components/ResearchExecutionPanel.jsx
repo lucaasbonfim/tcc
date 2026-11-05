@@ -7,6 +7,7 @@ import Button from './Button';
 import ErrorMessage from './ErrorMessage';
 
 export default function ResearchExecutionPanel({run,busy,action}) {
+  const autonomous=run.workflow_mode==='autonomous/v1';
   const capabilities=useResearch('/capabilities'),[reason,setReason]=useState('');
   const ready=capabilities.data?.execution.ready,receipt=capabilities.data?.execution;
   const jobs=run.execution_jobs || [],stage=run.stages.find(s=>s.agent==='execution');
@@ -16,7 +17,8 @@ export default function ResearchExecutionPanel({run,busy,action}) {
   return <Card><div className="section-heading"><div><h2>{!ready && !jobs.length ? 'Execução de testes não suportada' : 'Execução de testes · agente 3'}</h2><p>{stage?.message}</p></div><Button variant="secondary" onClick={capabilities.reload}>Verificar executor</Button></div><ErrorMessage>{capabilities.error}</ErrorMessage>
     {!ready && <p className="notice">{receipt?.reason || 'Verificando disponibilidade. Sem recibo válido de isolamento, nenhum trabalho é autorizado.'}</p>}
     {(run.execution_plans || []).map(plan=><details key={plan.id}><summary>Plano autorizado · {jobs.filter(job=>job.plan_id===plan.id).length} lotes · {RESULT_LABELS[plan.status] || plan.status}</summary><p>Scripts, revisões, hashes e ambiente preservados na autorização. Cada lote mantém sua evidência; repetir transporte conserva a identidade do trabalho.</p><pre className="code-panel">{JSON.stringify(plan.manifest_data,null,2)}</pre></details>)}
-    {!jobs.length && <div className="research-form"><p className="muted">Serão enviados somente scripts aprovados e fontes imutáveis do escopo selecionado. A suíte antiga do repositório não será descoberta/executada automaticamente.</p>
+    {autonomous && <p className="notice">O plano é autorizado pelo escopo inicial, com SHA, módulo e ambiente fixados. Consulte a trajetória para acompanhar planejamento, execução e diagnóstico. Não é necessária outra aprovação entre etapas.</p>}
+    {!jobs.length && !autonomous && <div className="research-form"><p className="muted">Serão enviados somente scripts aprovados e fontes imutáveis do escopo selecionado. A suíte antiga do repositório não será descoberta/executada automaticamente.</p>
       {ready && <p className="notice">{receipt.development_only ? 'Docker Desktop · desenvolvimento local' : 'Executor em ambiente dedicado'}: {receipt.deployment_id}. Política <code>{receipt.policy_sha256}</code>. Adaptadores: {Object.keys(receipt.images).join(', ')}.</p>}
       {native && <p className="notice">A3 propõe os lotes após consultar os scripts. Planejar não executa testes; confira a proposta antes de autorizar.</p>}
       {proposal && <div className="review-history"><h3>Proposta de plano do A3</h3><p>{proposal.output_data.rationale}</p>{proposal.output_data.groups.map((group,i)=><div key={i}><strong>Lote {i+1} · {group.script_ids.length} scripts</strong><p>{group.rationale}</p><p className="muted">{group.script_ids.map(id=>run.test_cases.find(c=>c.id===scripts.find(s=>s.id===id)?.test_case_id)?.code || id).join(', ')}</p></div>)}{proposal.output_data.limitations.map((text,i)=><p key={i} className="muted">{text}</p>)}</div>}
