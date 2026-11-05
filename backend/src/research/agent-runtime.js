@@ -11,7 +11,7 @@ async function abortable(action,signal) {
   })]);}finally{if(listener)signal.removeEventListener('abort',listener);}
 }
 
-export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal}) {
+export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal,instruction=AUTOMATION_AGENT.instruction,instruction_version=AUTOMATION_AGENT.version}) {
   const started=Date.now(),controller=new AbortController();
   const abort=()=>controller.abort(signal?.reason);
   let session=await sessions.find(),checkpoint;
@@ -82,7 +82,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
         for(let i=0;i<parts.length;i++)parts[i].functionResponse.response=await store.json(pending.done[i].observation_ref);
         checkpoint.pending=null;await sessions.checkpoint(session.id,await save(),elapsed());
       }
-      const request={model,parameters,instruction:AUTOMATION_AGENT.instruction,contents:checkpoint.contents,tools:AUTOMATION_AGENT_TOOLS};
+      const request={model,parameters,instruction,instruction_version,contents:checkpoint.contents,tools:AUTOMATION_AGENT_TOOLS};
       assert(JSON.stringify(request).length<=policy.limits.max_context_chars,'Contexto do agente excede o limite.',422);
       const requestRef=await store.put(request),step=await sessions.beginStep(session.id,requestRef);
       controller.signal.throwIfAborted();

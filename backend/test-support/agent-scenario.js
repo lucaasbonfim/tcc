@@ -16,11 +16,11 @@ export async function claimedAutomationScenario(pool,store) {
   const artifact=(await pool.query('SELECT artifact FROM research.inspections WHERE id=$1',[inspection.inspection_id])).rows[0].artifact;
   return {job:{run,stage,token,attemptId,automationPart:part},input,inspection:await store.json(artifact)};
 }
-export function agentFixtureOutput(input) {
+export function agentFixtureOutput(input,targetPath='src/calc.js') {
   const row=input.test_cases[0];
   return {artifacts:[{test_case_id:row.id,requirement_codes:row.content.requirement_codes,adapter:'node-test/v2',commit_sha:input.scope.commit_sha,
-    files:[{path:generatedPath(row.id,'node-test/v2').path,code:"import test from 'node:test';import assert from 'node:assert/strict';import {sum} from '../src/calc.js';test('soma',()=>{assert.equal(sum(2,3),5);});"}],
-    targets:[{path:'src/calc.js',symbols:['sum']}],rationale:'Controle sintético de soma.',expected_result:row.content.expected_result,
+    files:[{path:generatedPath(row.id,'node-test/v2').path,code:`import test from 'node:test';import assert from 'node:assert/strict';import {sum} from '../${targetPath}';test('soma',()=>{assert.equal(sum(2,3),5);});`}],
+    targets:[{path:targetPath,symbols:['sum']}],rationale:'Controle sintético de soma.',expected_result:row.content.expected_result,
     expected_sources:[{requirement_code:row.content.requirement_codes[0],quote:'somar dois números'}],limitations:['Fixture técnica.']}],unsupported_cases:[],warnings:[]};
 }
 export function fixtureTurn(calls) {

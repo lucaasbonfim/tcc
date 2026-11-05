@@ -1,8 +1,8 @@
 # Arquitetura da plataforma multiagente
 
-Estado implementado em 30/10/2026. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
+Estado do código atualizado em 04/11/2026, até AG-06, com validação por fixtures. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Evolução planejada em 04/11/2026:** o [plano de implementação dos agentes](PLANO_IMPLEMENTACAO_AGENTES.md) define a introdução de ferramentas e decisões em ciclos limitados, começando por A2/automação. O [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) registra o que for efetivamente entregue. Esse plano ainda não altera o estado implementado descrito abaixo.
+**Evolução dos agentes:** A2/automação já admite `agent/v1` no snapshot, com ferramentas de consulta, ciclo persistido e escopo escolhido pelo modelo. As demais etapas e snapshots antigos usam o fluxo fixo. Consulta/exportação da trajetória, interface e piloto real estão pendentes no [plano](PLANO_IMPLEMENTACAO_AGENTES.md). O [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) separa implementação, fixtures e resultados reais. É necessário aplicar a migração 019 antes de reiniciar os serviços com a nova versão.
 
 **Situação operacional:** análise, geração, execução Node/Java e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais; Java/JUnit passou nos mesmos controles e em sete cenários. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Swing, banco, bibliotecas Java externas e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
@@ -20,7 +20,7 @@ flowchart LR
   W --> FS
   W --> A1[Agente 1 / requisitos e partes]
   W --> A2[Agente 2 / casos e scripts]
-  A1 --> G[Gateway Gemini sem ferramentas]
+  A1 --> G[Gateway Gemini / JSON fixo ou turnos com ferramentas]
   A2 --> G
   W --> A3[Agente 3 / determinístico]
   A3 -->|HTTP local ou HTTPS dedicado / autenticado| E[Serviço executor / perfil local ou VM dedicada]
@@ -50,7 +50,7 @@ Acorn foi acrescentado para análise estática de JavaScript; não carrega o có
 
 `automation` é uma subetapa interna do agente 2, persistida na posição 5 para compatibilidade com as quatro posições anteriores. A interface mantém quatro cartões lógicos e apresenta scripts numa aba própria. Concluir o fluxo textual não afirma que testes foram executados; estendê-lo para automação exige nova ação justificada na mesma execução.
 
-Instruções, versões e contratos estão em `agents.js`, `automation-contract.js` e `evaluation-contract.js`. As versões usadas ficam registradas no snapshot/etapa/entrada de cada tentativa. O Gemini recebe dados não confiáveis separados da instrução de sistema e não dispõe de ferramentas. A resposta precisa passar pela validação local, além do schema estrutural reduzido enviado ao provedor. Prompt injection não concede permissões de execução ou administração.
+Instruções, versões e contratos estão em `agents.js`, `automation-contract.js`, `evaluation-contract.js` e `agent-contract.js`. As versões usadas ficam registradas no snapshot/etapa/entrada de cada tentativa. No modo `fixed/v1`, o Gemini recebe dados separados da instrução e não dispõe de ferramentas. No modo `agent/v1`, apenas A2/automação recebe consultas autorizadas à inspeção e aos casos/requisitos aprovados, preparação de escopo e submissão final. Não recebe shell nem autorização para executar scripts. A resposta precisa passar pela validação local; prompt injection não concede permissões de execução ou administração.
 
 ## Modelo de dados efetivo
 

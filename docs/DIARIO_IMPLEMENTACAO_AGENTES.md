@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-05 concluídas; próxima tarefa: AG-06 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-06 concluídas; próxima tarefa: AG-07 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -129,6 +129,18 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limite:** os testes demonstram o funcionamento do mecanismo e da retomada com respostas programadas; não medem a capacidade de um LLM real de tomar boas decisões. A ligação ao processador, modos de criação e revisão será entregue em AG-06.
 
 **Rastreabilidade:** commit `[AG-05]`. **Próximo passo:** AG-06.
+
+## 04/11/2026 — AG-06: integração de A2 ao processador
+
+**Estado:** concluído. Base: `d7ea9a8`.
+
+**Mudança implementada:** novas análises preservam política/modos no snapshot. Automação usa o modo fixado e instrução correspondente; no modo agentivo, o modelo consulta o módulo e escolhe o escopo, sem rodízio obrigatório de fontes pelo servidor. O processador executa o runtime e registra a entrada final com `input.scope` efetivo, mantendo os contratos, revisão, autorização e executor existentes. Cancelamento/recuperação encerram sessões relacionadas sem reabrir a análise.
+
+**Verificação:** seis testes focais de integração aprovados (`agent-automation`, `automation` e `automation-parts`). O controle agentivo usa três turnos com respostas injetadas, consulta o manifesto e escolhe `src/other.js` em vez da fonte inicial `src/calc.js`; revisão e bundle recebem exclusivamente o escopo escolhido. Outro controle esgota orçamento, repete a etapa e comprova ausência de nova chamada ou fallback fixo. Os controles legados de 104 cenários, checkpoints parciais e cancelamento permanecem aprovados.
+
+**Limitações:** execução/avaliação desse teste usam fixtures, não observações reais do programa. A integração está disponível pela API/configuração do snapshot; escolha na interface e exportação detalhada serão entregues nas tarefas seguintes. Ambientes existentes precisam aplicar a migração 019 antes de reiniciar a nova versão. O banco da pesquisa ainda não foi migrado nesta tarefa; o piloto operacional está previsto em AG-09.
+
+**Rastreabilidade:** commit `[AG-06]`. **Próximo passo:** AG-07.
 
 ## Modelo para a próxima entrada
 

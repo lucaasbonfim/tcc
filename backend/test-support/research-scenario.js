@@ -6,7 +6,7 @@ import {repositoryFixture} from './repository-fixture.js';
 import {generatedPath} from '../src/research/automation-contract.js';
 
 export function scenarioServices(pool,store,options={}) {
-  const repository=repositoryFixture({'package.json':'{"type":"module"}','src/calc.js':'export function sum(a,b){return a+b;}'});
+  const repository=repositoryFixture(options.repositoryFiles ?? {'package.json':'{"type":"module"}','src/calc.js':'export function sum(a,b){return a+b;}'});
   const projects=createProjectService({pool,store,resolveCode:async(repository_url,requested_ref)=>({repository_url,requested_ref,commit_sha:'a'.repeat(40),inspection:{}}),inspectCode:version=>inspectRepository(version,repository.fetch)});
   const runs=createRunService({pool,store,configuration:()=>({model:'platform-fixture-only',parameters:{temperature:0.2,maxOutputTokens:8192}}),...options});
   const generate=async request=>{
@@ -30,10 +30,10 @@ export function scenarioServices(pool,store,options={}) {
   const processor=createProcessor({pool,store,generate,...options});
   return {projects,runs,processor,generate};
 }
-export async function textualScenario(services) {
+export async function textualScenario(services,runOptions={}) {
   const {projects,runs,processor}=services;
   const project=await projects.create({name:'Fixture de automação',repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve somar dois números.'});
-  const run=await runs.create(project.id);
+  const run=await runs.create(project.id,runOptions);
   await processor.processOne();
   let detail=await runs.detail(run.id);
   await runs.reviewItem(run.id,'requirements',detail.requirements[0].id,{revision:0,decision:'approved',justification:'Fonte conferida em teste da plataforma.'});

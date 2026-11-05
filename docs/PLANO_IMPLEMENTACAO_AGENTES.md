@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: implementação em andamento; AG-00–AG-05 concluídas.**
+**Estado: implementação em andamento; AG-00–AG-06 concluídas.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -160,7 +160,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Verificação: relógio/provedor/ferramentas injetáveis e PostgreSQL de teste. Provar que retomada não apaga falha anterior nem zera o orçamento.
   - Commit: `feat(agents): executa ciclo limitado com checkpoints [AG-05]`.
 
-- [ ] **AG-06 — Integrar A2/automation ao fluxo existente.** Depende de AG-05.
+- [x] **AG-06 — Integrar A2/automation ao fluxo existente.** Depende de AG-05.
   - Arquivos previstos: `runs.js`, `processor.js`, `automation.js`, `automation-parts.js`, contratos e fixtures em `backend/test-support`.
   - Entrega: seleção de modo no snapshot; rota agentiva de automação com casos aprovados; saída e escopo efetivo compatíveis com persistência, revisão e executor existentes.
   - Aceite: as consultas e escolhas do agente substituem a passagem obrigatória por escopos predefinidos no modo agentivo. `fixed/v1` continua com seu comportamento; não há fallback silencioso entre condições.
@@ -279,4 +279,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-06**. O ciclo persistido está implementado e verificado com fixtures; falta integrá-lo ao fluxo normal de automação.
+Próxima tarefa: **AG-07**. O ciclo está integrado e verificado com fixtures; faltam consulta/exportação da trajetória, interface e piloto real.

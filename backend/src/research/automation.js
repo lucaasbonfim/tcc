@@ -4,6 +4,8 @@ import { AUTOMATION, generatedPath, validateAutomation } from './automation-cont
 import {testCoverage} from './test-parts.js';
 import {planAutomationParts} from './automation-parts.js';
 import {planModuleScopes} from './module-scopes.js';
+import {agentMode} from './agent-policy.js';
+import {AUTOMATION_AGENT} from './agent-contract.js';
 
 export function createAutomationService({pool,store}) {
   async function inputFor(runId,stage,db=pool,caseIds=stage.context.case_ids) {
@@ -37,6 +39,8 @@ export function createAutomationService({pool,store}) {
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         assert(run && run.status==='completed','Conclua a revisão textual antes de preparar automação.',409);
+        const mode=agentMode(await store.json(run.snapshot),'automation');
+        assert(input.execution_mode===undefined || input.execution_mode===mode,'Modo fixado no snapshot; crie outra análise para mudar a condição.',422);
         const tests=(await db.query("SELECT status FROM research.stages WHERE run_id=$1 AND agent='tests'",[runId])).rows[0];
         assert(tests?.status==='completed','Casos textuais ainda não aprovados.',409);
         const coverage=testCoverage((await db.query('SELECT code,content,review_status FROM research.requirements WHERE run_id=$1',[runId])).rows,(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1',[runId])).rows);
@@ -55,11 +59,11 @@ export function createAutomationService({pool,store}) {
         assert(cases.length>0 && cases.length<=6000,'Selecione casos aprovados dentro do limite da análise.',422);
         const id=randomUUID(),created=[],scopeRefs=[];let parts;
         try {
-          for(const scope of sourcePlan.scopes){const ref=await store.put(scope);created.push(ref);scopeRefs.push(ref);}
+          for(const scope of mode==='agent/v1' ? sourcePlan.scopes.slice(0,1) : sourcePlan.scopes){const ref=await store.put(scope);created.push(ref);scopeRefs.push(ref);}
           const scopeRef=scopeRefs[0];
           parts=planAutomationParts(await inputFor(runId,{context:{scope:scopeRef,case_ids:cases}},db)).map(part=>({...part,scope_route:{index:0,total:scopeRefs.length}}));
           await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context)
-            VALUES($1,$2,'automation',5,'pending',$3,$4,$5)`,[id,runId,AUTOMATION.version,AUTOMATION.instruction,{scope:scopeRef,scopes:scopeRefs,scope_plan:sourcePlan.summary,inspection_id:inspection.id,case_ids:cases,schema:AUTOMATION.schema}]);
+            VALUES($1,$2,'automation',5,'pending',$3,$4,$5)`,[id,runId,mode==='agent/v1'?AUTOMATION_AGENT.version:AUTOMATION.version,mode==='agent/v1'?AUTOMATION_AGENT.instruction:AUTOMATION.instruction,{execution_mode:mode,scope:scopeRef,scopes:scopeRefs,scope_plan:sourcePlan.summary,inspection_id:inspection.id,case_ids:cases,schema:AUTOMATION.schema}]);
           for(const part of parts) {
             const ref=await store.put(part);created.push(ref);
             await db.query("INSERT INTO research.automation_parts(id,run_id,sequence,status,input,case_ids) VALUES($1,$2,$3,'pending',$4,$5)",[randomUUID(),runId,part.batch.sequence,ref,JSON.stringify(part.batch.case_ids)]);
@@ -83,7 +87,7 @@ export function createAutomationService({pool,store}) {
       }
       const planned=job.automationPart ? await store.json(job.automationPart.input) : null;
       const index=planned?.scope_route?.index ?? 0,scopeRefs=job.stage.context.scopes || [];
-      if(output.unsupported_cases.length && index+1<scopeRefs.length) {
+      if(job.stage.context.execution_mode!=='agent/v1' && output.unsupported_cases.length && index+1<scopeRefs.length) {
         for(const item of output.unsupported_cases)dispositions.push({...item,status:'deferred',scope_index:index});
         const ids=new Set(output.unsupported_cases.map(item=>item.test_case_id));
         const nextInput={...planned,scope:await store.json(scopeRefs[index+1]),test_cases:planned.test_cases.filter(row=>ids.has(row.id))};
