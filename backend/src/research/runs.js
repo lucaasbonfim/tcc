@@ -9,9 +9,10 @@ import {createParts,continuationParts} from './requirement-parts.js';
 import {preservedOutput} from './citations.js';
 import {createTestParts,testCoverage} from './test-parts.js';
 import {automationCoverage} from './automation-parts.js';
-import {createAgentPolicy} from './agent-policy.js';
+import {createAgentPolicy,agentMode} from './agent-policy.js';
 import {createAgentHistoryService} from './agent-history.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
+import {REQUIREMENTS_AGENT} from './requirements-agent.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
@@ -66,7 +67,8 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const length = documents.reduce((sum,doc) => sum + doc.pages.reduce((n,p) => n + p.text.length,0),0);
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:createAgentPolicy(input.agent_policy ?? {}),automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const policy=createAgentPolicy(input.agent_policy ?? {});
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
@@ -74,10 +76,11 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           for (const doc of selected) await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) VALUES($1,$2,$3)',[projectId,id,doc.id]);
           for (const definition of AGENTS) {
             const enabled = ['requirements','tests'].includes(definition.agent);
+            const agentDefinition=definition.agent==='requirements' && policy.modes.requirements==='agent/v1' ? REQUIREMENTS_AGENT : null;
             await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,message,context)
               VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [randomUUID(),id,definition.agent,definition.position,
-              definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',definition.version,definition.instruction,
-              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.',definition.agent==='requirements' ? {citation_mode:'catalog/v1'} : null]);
+              definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',agentDefinition?.version ?? definition.version,agentDefinition?.instruction ?? definition.instruction,
+              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.',definition.agent==='requirements' ? {citation_mode:'catalog/v1',...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})} : null]);
           }
           await createParts(db,id,documents,store);
           return get(id, db);
@@ -244,16 +247,18 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const oldParts=(await db.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[runId])).rows;
         assert(oldParts.some(p=>p.status==='completed') && oldParts.some(p=>p.status!=='completed'),'Não há checkpoints parciais para continuar.',409);
         const parts=await continuationParts(oldParts,store),id=randomUUID();
-        const snapshot=await store.put({...await store.json(source.snapshot),agent_definitions:AGENTS,continuation:{source_run_id:runId,reused_part_ids:oldParts.filter(p=>p.status==='completed').map(p=>p.id),justification}});created.push(snapshot);
+        const sourceSnapshot=await store.json(source.snapshot);
+        const snapshot=await store.put({...sourceSnapshot,agent_definitions:sourceSnapshot.agent_definitions || AGENTS,continuation:{source_run_id:runId,reused_part_ids:oldParts.filter(p=>p.status==='completed').map(p=>p.id),justification}});created.push(snapshot);
         await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,resumed_from_run_id)
           VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`,[id,source.project_id,source.code_version_id,snapshot,source.model,source.parameters,runId]);
         await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) SELECT project_id,$2,document_id FROM research.run_documents WHERE run_id=$1',[runId,id]);
         let requirementStage;
-        for(const definition of AGENTS) {
+        for(const definition of sourceSnapshot.agent_definitions || AGENTS) {
           const stageId=randomUUID();if(definition.agent==='requirements')requirementStage=stageId;
+          const agentDefinition=definition.agent==='requirements' && agentMode(sourceSnapshot,'requirements')==='agent/v1' ? sourceSnapshot.requirements_agent_definition : null;
           await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context,message)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[stageId,id,definition.agent,definition.position,definition.agent==='requirements' ? 'pending' : definition.agent==='tests' ? 'blocked' : 'not_supported',definition.version,definition.instruction,
-            definition.agent==='requirements' ? {citation_mode:'catalog/v1'} : null,definition.agent==='requirements' ? 'Continuando com checkpoints preservados.' : null]);
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[stageId,id,definition.agent,definition.position,definition.agent==='requirements' ? 'pending' : definition.agent==='tests' ? 'blocked' : 'not_supported',agentDefinition?.version ?? definition.version,agentDefinition?.instruction ?? definition.instruction,
+            definition.agent==='requirements' ? {citation_mode:'catalog/v1',...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})} : null,definition.agent==='requirements' ? 'Continuando com checkpoints preservados.' : null]);
         }
         for(const part of parts) {
           let ref=part.input;
@@ -307,6 +312,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     },
     async export(runId) {
       const data = await service.detail(runId);
+      const reusedAgentHistories={};
       for (const stage of data.stages) {
         stage.instruction = (await pool.query('SELECT instruction FROM research.stages WHERE id=$1',[stage.id])).rows[0].instruction;
         if(stage.agent==='automation') {
@@ -325,7 +331,14 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       for(const part of data.requirement_parts) {
         part.input_data=await store.json(part.input);part.output_data=part.output ? await store.json(part.output) : null;
         if(part.reused_from_part_id) {
-          part.reused_attempts=(await pool.query('SELECT * FROM research.attempts WHERE requirement_part_id=$1 ORDER BY number',[part.reused_from_part_id])).rows;
+          const lineage=(await pool.query(`WITH RECURSIVE source AS (
+            SELECT id,run_id,reused_from_part_id,ARRAY[id] AS path FROM research.requirement_parts WHERE id=$1
+            UNION ALL SELECT p.id,p.run_id,p.reused_from_part_id,s.path||p.id FROM research.requirement_parts p JOIN source s ON p.id=s.reused_from_part_id
+            WHERE NOT p.id=ANY(s.path) AND cardinality(s.path)<64) SELECT * FROM source`,[part.reused_from_part_id])).rows;
+          assert(lineage.length && !lineage.at(-1).reused_from_part_id,'Linhagem de checkpoints inválida ou acima de 64 níveis.',409);
+          part.reused_lineage=lineage.map(({id,run_id})=>({part_id:id,run_id}));
+          for(const source of lineage)if(!reusedAgentHistories[source.run_id])reusedAgentHistories[source.run_id]=await agentHistory.export(source.run_id);
+          part.reused_attempts=(await pool.query('SELECT * FROM research.attempts WHERE requirement_part_id=ANY($1::uuid[]) ORDER BY started_at,number',[lineage.map(p=>p.id)])).rows;
           for(const attempt of part.reused_attempts){attempt.input_data=attempt.input ? await store.json(attempt.input) : null;attempt.output_data=attempt.output ? await store.json(attempt.output) : null;}
         }
       }
@@ -333,7 +346,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
         if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);
       }
-      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId) };
+      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId),reused_agent_histories:reusedAgentHistories };
     },
   };
   return service;

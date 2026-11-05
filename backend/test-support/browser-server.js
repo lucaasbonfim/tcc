@@ -50,8 +50,18 @@ const generate=async ({input}) => {
   const cases=input.project_name?.startsWith('Lote E2E') ? Array.from({length:104},(_,i)=>({...testCase,code:`CT-${String(i+1).padStart(3,'0')}`})) : [testCase];
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
-const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents})=>{
+const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
   const task=JSON.parse(contents[0].parts[0].text).untrusted_task;
+  if(tools.some(t=>t.name==='read_document_sources')) {
+    const responses=contents.flatMap(c=>c.parts).filter(p=>p.functionResponse).map(p=>p.functionResponse);
+    const catalog=responses.find(r=>r.name==='list_document_sources')?.response.sources;
+    if(!catalog)return fixtureTurn([{id:'list',name:'list_document_sources',args:{offset:0,limit:50}}]);
+    const sources=responses.filter(r=>r.name==='read_document_sources').flatMap(r=>r.response.sources || []);
+    const missing=catalog.filter(source=>!sources.some(s=>s.source_id===source.source_id));
+    if(missing.length)return fixtureTurn([{id:'read-'+sources.length,name:'read_document_sources',args:{source_ids:missing.slice(0,20).map(s=>s.source_id)}}]);
+    const first=sources[0],output=JSON.parse((await generate({input:{documents:[{id:first.document_id,pages:[{page:first.page,text:first.quote}]}],source_catalog:sources}})).raw);
+    return fixtureTurn([{id:'submit',name:'submit_requirements',args:{output}}]);
+  }
   if(task.case_catalog[0].title==='Controle de cancelamento agentivo')await new Promise(resolve=>setTimeout(resolve,5000));
   const responses=contents.flatMap(c=>c.parts).filter(p=>p.functionResponse).map(p=>p.functionResponse);
   if(!responses.length)return fixtureTurn([

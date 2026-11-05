@@ -26,6 +26,11 @@ export function exportCsv(data) {
   for(const step of data.agent_steps || [])add('agent_step',step.id,String(step.sequence),step.status,[step.session_id],step);
   for(const call of data.agent_tool_calls || [])add('agent_tool_call',call.id,call.name,call.status,[call.session_id,call.step_id],call);
   if(data.agent_summary)add('agent_summary',data.id,'','',[],data.agent_summary);
+  for(const [source_run_id,history] of Object.entries(data.reused_agent_histories || {})) {
+    for(const session of history.agent_sessions)add('reused_agent_session',session.id,session.agent,session.status,[source_run_id,session.stage_id,session.attempt_id],session);
+    for(const step of history.agent_steps)add('reused_agent_step',step.id,String(step.sequence),step.status,[source_run_id,step.session_id],step);
+    for(const call of history.agent_tool_calls)add('reused_agent_tool_call',call.id,call.name,call.status,[source_run_id,call.session_id,call.step_id],call);
+  }
   for(const part of data.requirement_parts || [])add('requirement_part',part.id,String(part.sequence),part.status,[],part);
   for(const part of data.test_parts || [])add('test_part',part.id,String(part.sequence),part.status,part.requirement_codes,part);
   if(data.test_coverage)add('test_coverage',data.id,'','',[],data.test_coverage);

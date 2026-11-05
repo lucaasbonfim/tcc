@@ -11,7 +11,7 @@ async function abortable(action,signal) {
   })]);}finally{if(listener)signal.removeEventListener('abort',listener);}
 }
 
-export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal,instruction=AUTOMATION_AGENT.instruction,instruction_version=AUTOMATION_AGENT.version,toolDefinitions=AUTOMATION_AGENT_TOOLS}) {
+export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal,instruction=AUTOMATION_AGENT.instruction,instruction_version=AUTOMATION_AGENT.version,toolDefinitions=AUTOMATION_AGENT_TOOLS,terminalTool='submit_automation'}) {
   const started=Date.now(),controller=new AbortController();
   const abort=()=>controller.abort(signal?.reason);
   let session=await sessions.find(),checkpoint;
@@ -60,7 +60,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
           const record=await sessions.beginCall(session.id,pending.step_id,call,argsRef);
           let result,rejected=false,fatal=false;
           try {
-            assert(call.name!=='submit_automation' || pending.calls.length===1,'Submissão terminal exige turno separado.',422);
+            assert(call.name!==terminalTool || pending.calls.length===1,'Submissão terminal exige turno separado.',422);
             controller.signal.throwIfAborted();
             result=await abortable(()=>tools.execute(call),controller.signal);
           }catch(error) {

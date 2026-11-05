@@ -1,5 +1,22 @@
 import {test,expect} from '@playwright/test';
 
+test('A1 consulta documentos e apresenta sua trajetória e citações para revisão',async({page})=>{
+  const post=async(path,data)=>{const r=await page.request.post('http://localhost:3101/api'+path,{data,headers:{Origin:'http://localhost:5178'}});expect(r.ok()).toBeTruthy();return (await r.json()).data;};
+  await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
+  const project=await post('/research/projects',{name:`A1 E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
+  await page.goto(`/admin/projects/${project.id}`);
+  await page.getByLabel('Análise de requisitos com ferramentas',{exact:true}).check();
+  await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
+  await page.waitForURL(/\/admin\/runs\//);
+  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();
+  await expect(page.locator('.heading-actions .status-awaiting_review')).toBeVisible({timeout:20000});
+  await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
+  await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
+  await expect(page.getByText('Consultar trechos dos documentos',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Requisitos',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible();
+});
+
 for(const variant of ['budget','cancel'])test(`trajetória do agente registra ${variant==='budget'?'limite atingido':'cancelamento'} sem afirmar execução`,async({page},testInfo)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const post=async(path,data)=>{
