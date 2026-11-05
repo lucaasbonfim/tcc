@@ -33,7 +33,8 @@ export function createTimelineService({pool,store}) {
       byPair.set(key,pair);}
     const attempts=(await pool.query('SELECT a.stage_id,a.requirement_part_id,a.test_part_id,a.automation_part_id,a.execution_job_id,s.execution_phase FROM research.attempts a JOIN research.stages t ON t.id=a.stage_id LEFT JOIN research.agent_sessions s ON s.attempt_id=a.id AND s.message_id IS NULL WHERE t.run_id=$1',[runId])).rows,units=new Map();
     for(const a of attempts){const key=`${a.stage_id}:${a.requirement_part_id||a.test_part_id||a.automation_part_id||a.execution_job_id||a.execution_phase||'whole'}`;units.set(key,(units.get(key)||0)+1);}
-    return {requests:messages.length,responses:messages.filter(m=>m.status==='answered').length,completed_cycles:cycles,pending_requests:messages.filter(m=>m.status!=='answered').length,unavailable_responses:unavailable,unknown_responses:unknown,by_pair:[...byPair.values()],technical_retries:[...units.values()].reduce((n,count)=>n+Math.max(0,count-1),0)};
+    const model_retries=(await pool.query("SELECT count(*)::int AS n FROM research.run_events WHERE run_id=$1 AND kind='model_turn_requested' AND payload ? 'retry_of'",[runId])).rows[0].n;
+    return {requests:messages.length,responses:messages.filter(m=>m.status==='answered').length,completed_cycles:cycles,pending_requests:messages.filter(m=>m.status!=='answered').length,unavailable_responses:unavailable,unknown_responses:unknown,by_pair:[...byPair.values()],model_retries,technical_retries:[...units.values()].reduce((n,count)=>n+Math.max(0,count-1),0)};
   }
   const service={
     async list(runId,query={}) {

@@ -474,3 +474,11 @@ Rastreabilidade Git: ID da tarefa no commit; hashes de dependências quando úte
 O que esta entrega permite afirmar no TCC:
 Próxima tarefa:
 ```
+# RT-01 — 05/11/2026 — Retentativas do provedor
+
+Implementada política `agent_policy` 1.1.0 para novas análises agentivas: até quatro envios por turno, com esperas canceláveis de 5/10/20 segundos para HTTP 429/502/503/504. Cada envio consome orçamento cumulativo e possui `agent_step`; falha registra status seguro, consumo desconhecido e evento, sem corpo/credenciais do transporte. A espera e seu contador ficam no checkpoint; retomada após interrupção preserva o contexto e ferramentas concluídas. Uma retomada manual após falha definitiva inicia nova sequência, sem zerar os limites cumulativos.
+
+Política 1.0.0 e snapshots sem versão continuam sem retentativas. Nenhuma análise anterior foi migrada ou retomada. O caminho `fixed/v1` mantém seu contrato. Não se implementou tratamento de Retry-After: o gateway atual não entrega esse cabeçalho ao runtime. O mapa e a sequência distinguem espera do provedor de comunicação entre agentes; a exportação preserva os eventos e contabiliza reenvios separadamente das tentativas de etapa.
+
+Validação em PostgreSQL local `tcc_test_retry_20261105`: 22 testes de política/runtime/sessões/histórico aprovados; após ampliar o caso de cancelamento para testar retomada, 13 testes de runtime/sessões novamente aprovados. Sete testes de projeção visual, lint e build do frontend aprovados. São controles com fixtures, sem novas chamadas reais ao Gemini e sem executar o VVV original. Ainda falta observar recuperação sob indisponibilidade real do provedor; backoff não garante disponibilidade.
+

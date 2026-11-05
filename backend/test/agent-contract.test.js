@@ -7,6 +7,10 @@ const call=(name,args)=>({id:'call-1',name,args});
 test('snapshots antigos permanecem fixos; política agentiva é explícita, validada e imutável',()=>{
   const old={documents:[]},before=JSON.stringify(old);
   assert.equal(agentMode(old,'automation'),'fixed/v1');assert.equal(JSON.stringify(old),before);
+  assert.equal(resolveAgentPolicy(old).model_retry,undefined);
+  assert.equal(resolveAgentPolicy({agent_policy:{version:'1.0.0'}}).model_retry,undefined);
+  assert.equal(createAgentPolicy().model_retry.max_attempts,4);
+  for(const model_retry of [{max_attempts:5},{initial_delay_ms:0},{unknown:1}])assert.throws(()=>createAgentPolicy({model_retry}));
   const policy=createAgentPolicy({modes:{automation:'agent/v1'}});
   const oldPolicy=createAgentPolicy({modes:{automation:'agent/v1'},limits:{max_model_turns:8}});
   assert.equal(resolveAgentPolicy({agent_policy:oldPolicy}).limits.max_model_turns,8);

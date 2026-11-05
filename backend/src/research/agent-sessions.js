@@ -39,7 +39,7 @@ export function createAgentSessionStore(pool,job) {
       });
     },
     async get(id) {return (await pool.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND run_id=$2 AND attempt_id=$3',[id,job.run.id,job.attemptId])).rows[0];},
-    async beginStep(id,request) {
+    async beginStep(id,request,retryOf=null) {
       return transaction(pool,async db=>{
         const session=await locked(db,id);assert(session.status==='running','Sessão encerrada.',409);
         const used=(await db.query(`SELECT COALESCE(sum(model_turns),0)::int AS model_turns,COALESCE(sum(total_tokens),0)::bigint AS total_tokens
@@ -49,7 +49,17 @@ export function createAgentSessionStore(pool,job) {
         assert(!(await db.query("SELECT id FROM research.agent_steps WHERE session_id=$1 AND status='requested'",[id])).rowCount,'Turno anterior sem resposta; requer interrupção explícita.',409);
         const sequence=(await db.query('SELECT COALESCE(max(sequence),0)+1 AS n FROM research.agent_steps WHERE session_id=$1',[id])).rows[0].n;
         const step=(await db.query("INSERT INTO research.agent_steps(id,session_id,sequence,status,request) VALUES($1,$2,$3,'requested',$4) RETURNING *",[randomUUID(),id,sequence,request])).rows[0];
-        await db.query('UPDATE research.agent_sessions SET model_turns=model_turns+1 WHERE id=$1',[id]);await event(db,session,'model_turn_requested',`step:${step.id}:requested`,{step_id:step.id,sequence:step.sequence,request});return step;
+        await db.query('UPDATE research.agent_sessions SET model_turns=model_turns+1 WHERE id=$1',[id]);await event(db,session,'model_turn_requested',`step:${step.id}:requested`,{step_id:step.id,sequence:step.sequence,request,...(retryOf?{retry_of:retryOf}:{})});return step;
+      });
+    },
+    async failStep(id,stepId,diagnostic,retry,checkpoint,elapsed) {
+      return transaction(pool,async db=>{
+        const session=await locked(db,id);assert(session.status==='running','Sessão encerrada.',409);
+        const result=await db.query("UPDATE research.agent_steps SET status='interrupted',provider_metadata=$3,finished_at=now() WHERE session_id=$1 AND id=$2 AND status='requested' RETURNING id",[id,stepId,{...diagnostic,usage:null,cost:null}]);
+        assert(result.rowCount===1,'Turno fora da sessão ou já encerrado.',409);
+        await db.query('UPDATE research.agent_sessions SET usage_unknown=true,context=$2,elapsed_ms=$3 WHERE id=$1',[id,checkpoint,elapsed]);
+        await event(db,session,'model_turn_failed',`step:${stepId}:failed`,{step_id:stepId,...diagnostic});
+        if(retry)await event(db,session,'model_retry_scheduled',`step:${stepId}:retry`,{step_id:stepId,...retry});
       });
     },
     async completeStep(id,stepId,response,metadata,checkpoint=null,elapsed=0) {
@@ -127,7 +137,7 @@ export function createAgentSessionStore(pool,job) {
     async finish(id,status,reason,output=null,elapsed=0) {
       return transaction(pool,async db=>{
         const session=await locked(db,id);assertSessionTransition(session.status,status);
-        if(status==='interrupted' || status==='failed' || status==='cancelled') {
+        if(['interrupted','failed','cancelled','exhausted'].includes(status)) {
           const interrupted=await db.query("UPDATE research.agent_steps SET status='interrupted',finished_at=now() WHERE session_id=$1 AND status='requested' RETURNING id",[id]);
           if(interrupted.rowCount)await db.query('UPDATE research.agent_sessions SET usage_unknown=true WHERE id=$1',[id]);
         }
