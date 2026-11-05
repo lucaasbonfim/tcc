@@ -80,6 +80,7 @@ export function createEvaluationService({pool,store}) {
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='evaluation' FOR UPDATE",[runId])).rows[0];
         assert(run?.status==='awaiting_review' && stage?.status==='awaiting_review','Avaliação não aguarda revisão.',409);
         assert(!(await db.query("SELECT id FROM research.execution_proposals WHERE run_id=$1 AND phase='diagnosis' AND review_status='pending'",[runId])).rowCount,'Revise o diagnóstico do A3 antes de concluir a avaliação.',409);
+        assert(!(await db.query("SELECT id FROM research.agent_messages WHERE run_id=$1 AND kind='script_review' AND (status<>'answered' OR review_status='pending')",[runId])).rowCount,'Revise as respostas de revisão de script antes de concluir a avaliação.',409);
         const rows=(await db.query('SELECT review_status FROM research.findings WHERE run_id=$1',[runId])).rows;
         assert(rows.length>0 && rows.every(row=>row.review_status!=='pending'),'Revise todas as análises antes de concluir.',409);
         await db.query("UPDATE research.stages SET status='completed',message='Análises revisadas; consulte classificações humanas e evidências.' WHERE id=$1",[stage.id]);

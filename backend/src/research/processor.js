@@ -22,6 +22,7 @@ import {createEvaluationAgentTools} from './evaluation-agent.js';
 import {createCollaborationService} from './agent-collaboration.js';
 import {createExecutionPlanningTools,validateExecutionProposal} from './execution-agent.js';
 import {createExecutionDiagnosisTools,validateExecutionDiagnostics} from './execution-diagnostics.js';
+import {createScriptReviewService} from './script-review-agent.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -209,7 +210,8 @@ export function createProcessor({ pool, store, generate, executorClient, generat
               const isPlanning=job.stage.agent==='execution' && job.stage.context.phase==='planning';
               const isDiagnosis=job.stage.agent==='execution' && job.stage.context.phase==='diagnosis';
               const options={input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars,
-                requestClarification:(args,context)=>createCollaborationService({pool,store}).request({job,input,snapshot,policy,generateTurn,signal:context.signal,...args})};
+                requestClarification:(args,context)=>createCollaborationService({pool,store}).request({job,input,snapshot,policy,generateTurn,signal:context.signal,...args}),
+                requestScriptReview:(args,context)=>createScriptReviewService({pool,store}).request({job,input,snapshot,policy,generateTurn,signal:context.signal,...args})};
               const tools=(isRequirements?createRequirementsAgentTools:isEvaluation?createEvaluationAgentTools:isPlanning?createExecutionPlanningTools:isDiagnosis?createExecutionDiagnosisTools:createTestsAgentTools)(options);
               const task={...tools.task,objective:isRequirements?'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.':isEvaluation?'Investigar as evidências e propor conclusões vinculadas aos cenários executados.':isPlanning?'Planejar lotes de execução dos scripts aprovados, para autorização humana.':isDiagnosis?'Diagnosticar problemas técnicos dos testes executados sem alterar evidências.':'Elaborar cenários de teste sustentados pelos requisitos aprovados.',
                 fingerprint:taskFingerprint({input,schema:request.schema,definition,policy,model:job.run.model,parameters:job.run.parameters})};

@@ -154,6 +154,7 @@ blockquote { border-left: 2px solid #adc5a3; background: #f6f8f3; padding: 12px 
 .attempt-row > div { min-width: 0; }
 .code-panel { font-size: 11px; background: #f3f6ef; color: #607549; padding: 20px; border-radius: 5px; max-height: 500px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .review-history { border-bottom: 1px solid #e2e9da; padding: 7px 0; }
+.artifact-path { display: block; overflow-wrap: anywhere; }
 .review-history > p { font-size: 12px; color: #6d8358; margin: 8px 0; }
 .search-input { max-width: 230px; }
 .code-editor { font-family: ui-monospace,monospace; font-size: 12px; line-height: 1.7; tab-size: 2; }

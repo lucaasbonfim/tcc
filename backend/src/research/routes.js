@@ -5,12 +5,12 @@ import { assert, uuid } from './errors.js';
 import { exportCsv } from './export.js';
 import { trustedOrigin } from '../middlewares/trustedOrigin.js';
 
-export function createResearchRouter({ projects, store, runs, automation,execution,evaluation }) {
+export function createResearchRouter({ projects, store, runs, automation,execution,evaluation,importLimit=30 }) {
   const router = Router();
   router.use(requireAdmin);
   router.use(trustedOrigin);
   router.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, message: { error: 'Limite de requisições atingido. Tente mais tarde.' } }));
-  const imports = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, message: { error: 'Limite de importações atingido. Tente mais tarde.' } });
+  const imports = rateLimit({ windowMs: 15 * 60 * 1000, limit: importLimit, message: { error: 'Limite de importações atingido. Tente mais tarde.' } });
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });
   router.param('projectId', (_request, _response, next, value) => { uuid(value); next(); });
   router.param('documentId', (_request, _response, next, value) => { uuid(value); next(); });
