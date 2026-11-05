@@ -58,7 +58,10 @@ const generate=async ({input}) => {
   const cases=input.project_name?.startsWith('Lote E2E') ? Array.from({length:104},(_,i)=>({...testCase,code:`CT-${String(i+1).padStart(3,'0')}`})) : [testCase];
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
+const retryFixtureCalls=new Map();
 const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
+  const firstText=contents[0].parts[0].text;
+  if(firstText.includes('Retry-E2E')){const sends=(retryFixtureCalls.get(firstText)||0)+1;retryFixtureCalls.set(firstText,sends);if(sends<=2)throw Object.assign(new Error('fixture-transient-private'),{name:'ApiError',status:503});}
   if(contents[0].parts[0].text.includes('503-E2E'))throw Object.assign(new Error('fixture-provider-detail-private'),{name:'ApiError',status:503});
   const autonomous=JSON.stringify(contents).includes('Autonomia E2E');
   if(tools.some(t=>t.name==='respond_clarification') && autonomous && !contents.some(c=>c.parts.some(p=>p.functionResponse)))await new Promise(resolve=>setTimeout(resolve,6000));
@@ -98,7 +101,7 @@ app.use(cookieParser()); app.use(express.json({limit:'256kb'}));
 const {default:authRoutes} = await import('../src/routes/auth.routes.js');
 app.use('/api/auth',authRoutes);
 // All E2E workflows share one loopback IP. Keep their cumulative fixture imports separate from the production default.
-app.use('/api/research',createResearchRouter({projects,runs,store,importLimit:300,automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store,client:executorClient}),evaluation:createEvaluationService({pool,store})}));
+app.use('/api/research',createResearchRouter({projects,runs,store,importLimit:300,requestLimit:10000,automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store,client:executorClient}),evaluation:createEvaluationService({pool,store})}));
 // This route exists only in this test-only server guarded by TEST_DATABASE_URL. Never add it to production app.
 app.post('/__e2e/enable-executor',requireAdmin,(req,res)=>{executorEnabled=req.body?.enabled!==false;res.json({fixture_only:true});});
 app.use(errorHandler);

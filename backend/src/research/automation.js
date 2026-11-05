@@ -8,6 +8,7 @@ import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {admitProduced,assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
+import {operationalReason,recordOperation} from './operational-record.js';
 
 export function createAutomationService({pool,store}) {
   async function inputFor(runId,stage,db=pool,caseIds=stage.context.case_ids) {
@@ -37,7 +38,7 @@ export function createAutomationService({pool,store}) {
     },
     async start(runId,input,{automatic=false}={}) {
       uuid(input.inspection_id);
-      const justification=text(input.justification,'Justificativa',5000,true);
+      const justification=operationalReason(input,'Geração de scripts solicitada para os casos e o módulo selecionados. Não autoriza execução de código.');
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         assert(run && run.status===(automatic?'pending':'completed'),'Conclua a etapa textual antes de preparar automação.',409);
@@ -77,7 +78,8 @@ export function createAutomationService({pool,store}) {
             await db.query("INSERT INTO research.automation_parts(id,run_id,sequence,status,input,case_ids) VALUES($1,$2,$3,'pending',$4,$5)",[randomUUID(),runId,part.batch.sequence,ref,JSON.stringify(part.batch.case_ids)]);
           }
           await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-          if(!automatic)await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,after_value,actor)
+          if(!automatic && input.operation_record==='system/v1')await recordOperation(db,{run_id:runId,stage_id:id,operation:'generate_scripts',description:justification,payload:{inspection_id:inspection.id,scope_plan:sourcePlan.summary,test_case_ids:cases}});
+          else if(!automatic)await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,after_value,actor)
             VALUES($1,$2,$3,'stage',$3,'approved',$4,$5,'admin')`,[randomUUID(),runId,id,justification,{inspection_id:inspection.id,scope_plan:sourcePlan.summary,test_case_ids:cases}]);
           else await appendRunEvent(db,{run_id:runId,stage_id:id,source_key:'automation:prepared',kind:'automation_prepared',payload:{grant_id:grant.id,inspection_id:inspection.id,case_ids:cases,human_approval:false}});
         }catch(error){for(const ref of created)await store.remove(ref);throw error;}

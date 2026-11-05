@@ -20,10 +20,12 @@ Escopo: runtime `agent/v1`, usado no VVV. Chamadas `fixed/v1` conservam o contra
 
 ## UX-02 — Acompanhamento e decisões
 
-- [ ] Próximo passo derivado dos estados reais; progresso resumido e acompanhamento detalhado dos agentes.
-- [ ] Revisão com detalhes sob demanda e proteção de edições; automação progressiva; autorizações e julgamentos humanos preservados.
-- [ ] Remover texto livre obrigatório de operações rotineiras com registro operacional claramente identificado, se o contrato permitir; nunca inventar razão humana.
-- [ ] Refinar resultados, textos, responsividade e estados vazios/erro.
-- [ ] Lint, build e E2E em banco isolado; conferir visual desktop/mobile, documentar limitações e commitar.
+- [x] Próximo passo derivado dos estados reais; progresso resumido e acompanhamento detalhado dos agentes.
+- [x] Revisão com detalhes sob demanda e proteção de edições; automação progressiva; autorizações e julgamentos humanos preservados.
+- [x] Remover texto livre obrigatório de operações rotineiras com registro operacional claramente identificado, se o contrato permitir; nunca inventar razão humana.
+- [x] Refinar resultados, textos, responsividade e estados vazios/erro.
+- [x] Lint, build e E2E em banco isolado; conferir visual desktop/mobile, documentar limitações e commitar.
 
 Invariantes: quatro agentes, scripts no A2, autorização explícita de código, modos assistido/autônomo, snapshots, revisões, evidências e exportações permanecem reais e auditáveis. Nenhum teste destrutivo no banco de pesquisa.
+
+Execução e evidências: [REFATORACAO_UX.md](REFATORACAO_UX.md), entradas RT-01/RT-02/UX-01/UX-02 do [diário](DIARIO_IMPLEMENTACAO_AGENTES.md). LLM real e estudo científico permanecem pendências do piloto/protocolo, fora da validação com fixtures desta implementação.

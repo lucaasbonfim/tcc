@@ -16,6 +16,8 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 
 ## Funcionalidades disponíveis
 
+- Navegação **Início / Projetos / Análises**. Preparação por documentos e modo de trabalho, com opções técnicas adicionais. Cada análise abre em **Resumo**, mostrando a próxima ação e as etapas reais; mapa e sequência permanecem em **Agentes ao vivo e histórico**.
+- Novas análises `agent/v1` usam política 1.1.0 com retentativas limitadas para HTTP 429/502/503/504. Cada envio e espera ficam registrados; análises antigas preservam a política original. [Plano e validação](docs/PLANO_RETENTATIVAS_UX.md).
 - Modo autônomo com escopo autorizado no início, sem aprovações intermediárias, além do modo assistido. Todos os papéis podem usar LLM e ferramentas; a execução material continua controlada.
 - Aba **Agentes ao vivo e histórico**: mapa com quatro agentes, atividade atual e conexões de consultas; histórico em diagrama de sequência, navegação por momento e artefatos preservados ao clicar. Avaliação humana posterior separada dos originais. [Plano visual](docs/PLANO_DIAGRAMA_AGENTES.md), [autonomia](docs/PLANO_EXECUCAO_AUTONOMA_HISTORICO.md) e [protocolo em preparação](docs/PROTOCOLO_EXPERIMENTO.md).
 
@@ -30,7 +32,7 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 - Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 - Escolha entre fluxo predefinido e agente com ferramentas para a geração de scripts; trajetória de consultas, observações, limites e saídas disponível no histórico e na exportação.
 
-A criação pela interface sugere o agente com ferramentas para os scripts. O modo é preservado na análise; históricos e clientes da API sem configuração explícita continuam no fluxo fixo. O [primeiro piloto agentivo real](docs/PILOTO_AGENTES.md) está registrado com suas falhas e limitações; os demais papéis ainda estão no marco seguinte do plano.
+A criação assistida pela interface conserva o agente com ferramentas para os scripts e os demais papéis predefinidos; as escolhas individuais ficam em **Configurações avançadas da análise**. A seleção explícita do modo autônomo sugere ferramentas em todos os papéis e exige autorização inicial. O modo fica preservado por análise; históricos não mudam. O [primeiro piloto agentivo real](docs/PILOTO_AGENTES.md) e o [diagnóstico real do VVV](docs/DIAGNOSTICO_VVV_503.md) registram limites técnicos: a validação conjunta dos quatro papéis com LLM real ainda não constitui experimento científico concluído.
 
 **Há dois perfis de execução:** desenvolvimento local com Docker Desktop, ativado explicitamente pelo comando acima, e ambiente dedicado com VM/rootless/TLS, padrão dos serviços iniciados manualmente. Ambos exigem imagens fixadas, controles verificados e autorização dos scripts. Resultados registram o perfil efetivamente usado. O comando local provisiona Node e Java/JUnit; o adaptador Java continua limitado a classes locais/JDK, sem Swing ou banco. Fixtures técnicas não são resultados da pesquisa.
 
@@ -125,12 +127,14 @@ Os artefatos ficam por padrão em `backend/artifacts`, fora dos arquivos públic
 
 ## Primeiro processamento
 
-1. Cadastre o projeto e confira o SHA retornado pelo GitHub.
+1. Cadastre o projeto com nome e repositório. A branch padrão é resolvida para um commit; outra referência fica nas opções adicionais.
 2. Adicione PDF com camada textual e confira a extração/avisos; complemente lacunas por texto.
-3. Selecione documentos e versão de código e inicie a análise.
-4. Confira fontes e conteúdo; use **Corrigir conteúdo → Salvar correção** quando necessário. Clique em **Aprovar todos e gerar casos de teste** no início da lista. Itens rejeitados ficam excluídos.
+3. Selecione os documentos e o modo assistido; inicie a análise. Opções individuais dos agentes são opcionais e ficam na seção avançada.
+4. No **Resumo**, abra **Revisar agora**. Confira fontes e conteúdo; use **Corrigir conteúdo → Salvar correção** quando necessário. Clique em **Aprovar todos e gerar casos de teste** no início da lista. Itens rejeitados ficam excluídos. A interface bloqueia a navegação quando há correções não salvas.
 5. Confira os casos gerados, passos, esperado e requisitos relacionados. A geração usa lotes pequenos com checkpoints e exige cenário para cada requisito aprovado. A aba Casos mostra a matriz de vínculos e as lacunas; salve correções e clique em **Aprovar todos e continuar** para abrir Scripts. Se uma rejeição/edição deixar um requisito sem caso, use **Gerar casos para os requisitos sem cenário** antes de aprovar.
-6. Exporte o JSON/CSV em Relatórios ou Histórico. Não é necessário aprovar cada requisito/caso individualmente; observações de correção/aprovação são opcionais no painel, e a ação fica registrada no histórico.
+6. Exporte JSON/CSV em **Histórico e configuração**. A rota anterior de Relatórios continua acessível. Não é necessário aprovar cada requisito/caso individualmente; observações de correção/aprovação são opcionais, e a ação fica registrada.
+
+Gerar scripts, preparar o plano e retomar processamento são operações com registros padronizados do sistema, sem inventar justificativa humana. Aprovar conteúdo e autorizar execução continuam decisões distintas. A execução assistida pede escolha explícita da finalidade e confirmação do escopo; autonomia exige a autorização inicial própria. Resultados, propostas da IA e julgamentos humanos permanecem separados. [Registro das mudanças de UX](docs/REFATORACAO_UX.md).
 
 Para continuar: na aba **Scripts**, inspecione fontes do mesmo SHA e escolha o **módulo inteiro**. As fontes são organizadas automaticamente em escopos compatíveis, sem escolher oito arquivos manualmente. Arquivos lidos que dependem de GUI/banco ou bibliotecas ausentes têm restrições apresentadas por caminho. Todos os cenários aprovados ficam selecionados por padrão; você pode selecionar um subconjunto. **Gerar scripts de todos os cenários aprovados** percorre a seleção em lotes automáticos de até dois casos, preservando checkpoints. Cenários sem script em um escopo são considerados nos demais antes da justificativa final. Salve correções necessárias e use **Aprovar todos os scripts e continuar**. A aba **Execução** exige autorização própria e disponibilidade verificada do serviço. Após resultados independentes, o agente 4 propõe análises para confirmação/rejeição/inconclusiva, com justificativa. Exportações v2 incluem inspeção, escopos, lotes, scripts, bundles, resultados, evidências e revisões.
 

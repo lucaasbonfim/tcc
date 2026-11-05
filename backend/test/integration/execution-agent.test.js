@@ -15,9 +15,11 @@ async function environment(action){const pool=new pg.Pool({connectionString:url}
 test('A3 consulta scripts, escolhe ordem/lotes e exige autorização antes do executor determinístico',{skip:!url},async()=>environment(async({pool,store})=>{
   const {services,run,execution,sent}=await executionAgentScenario(pool,store,{count:2});
   await assert.rejects(execution.authorize(run.id,{justification:'Sem plano.'}),/planejamento/);
-  await execution.startPlanning(run.id,{justification:'Solicitar plano técnico.'});await services.processor.processOne();let detail=await services.runs.detail(run.id);
+  await execution.startPlanning(run.id,{operation_record:'system/v1'});await services.processor.processOne();let detail=await services.runs.detail(run.id);
   assert.equal(detail.status,'awaiting_review');assert.equal(detail.execution_jobs.length,0);assert.equal(sent.length,0);
   const proposal=detail.execution_proposals[0];assert.equal(proposal.phase,'planning');assert.equal(proposal.review_status,'pending');
+  const operations=(await services.runs.events(run.id)).events.filter(e=>e.kind==='operation_requested'&&e.payload.operation==='prepare_execution_plan');assert.equal(operations.length,1);assert.equal(operations[0].payload.human_approval,false);
+  await assert.rejects(execution.authorize(run.id,{proposal_id:proposal.id,operation_record:'system/v1'}),/Justificativa/);assert.equal(sent.length,0);
   const expected=proposal.output_data.groups.flatMap(g=>g.script_ids);assert.deepEqual(expected,detail.automated_tests.map(s=>s.id).sort().reverse());
   assert.equal((await services.runs.agentSessions(run.id)).sessions[0].execution_phase,'planning');
   await execution.authorize(run.id,{proposal_id:proposal.id,justification:'Plano conferido; autorizar dois lotes da fixture.'});await services.processor.processOne();await services.processor.processOne();
