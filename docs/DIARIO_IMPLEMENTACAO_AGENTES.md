@@ -528,3 +528,11 @@ Correção: `providerSchema` oferece projeção agentiva `bounds-description/v1`
 
 Suíte completa em `tcc_test_a3_bounds_20261105`: **139 testes aprovados**, sem ignorados. Inclui o pedido de página 20 recusado com intervalo 1–10, consulta com página 10 aceita, descrições do schema efetivamente enviadas ao provedor, enums preservados e schema original imutável. Segundo piloto real separado em andamento, não tratado como amostra científica nem como prova de qualidade.
 
+# PAGES-01 — 05/11/2026 — Leitura parcial com retomada explícita
+
+No segundo piloto isolado (`016a78d9-24e1-411f-b14b-f795160c0486`, `tcc_diag_isnumber_1793912038085`), A1/A2 concluíram, A3 planejou, Docker executou os dois testes e ambos passaram. O diagnóstico falhou antes de A4 porque tentou submeter após ler somente páginas iniciais dos contextos. “Consulte integralmente” não indicava quais IDs/offsets faltavam; repetiu até 63066 tokens na sessão de diagnóstico. Controle preservado: 36 chamadas, 144427 tokens reportados, uma consulta A2→A1, dois scripts, um trabalho/evidência, zero conclusões A4; fonte original inalterada.
+
+Leitores A3/A4 agora informam `next_offset` e `read_complete` no retorno paginado. A rejeição indica registros e offsets pendentes, inclusive lacunas após leituras fora de ordem/restauração. O teto serializado inclui os novos campos; nenhum trecho é descartado nem marcado como lido automaticamente. Novas instruções: planejamento 1.0.1, diagnóstico 1.1.1, avaliação agent/1.0.1. Leitura integral permanece obrigatória e não comprova compreensão semântica.
+
+Suíte completa de backend: **140 testes aprovados**, sem ignorados, em `tcc_test_agent_pages_20261105`. Inclui lacunas, restauração, metadados de continuação, limites serializados, autorização e validação das evidências. Terceiro piloto separado usou esta correção; foi bloqueado por cota 429 do provedor, distinta de paginação, a tratar no marco QUOTA-01. Nenhuma análise de pesquisa foi alterada.
+

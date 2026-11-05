@@ -20,3 +20,20 @@ O primeiro controle real após A2-ID-01 gerou dois scripts válidos e chegou ao 
 - [x] Informar os intervalos permitidos no feedback local de rejeição.
 - [x] Testar regressão de paginação e projeção, registrar a versão da projeção nos metadados e commitar.
 - [ ] Repetir piloto real separado até A4 ou registrar o bloqueio concreto restante.
+
+## PAGES-01 — Retomada de leitura parcial
+
+O segundo piloto passou por planejamento e Docker real (dois resultados), mas o diagnóstico A3 submeteu antes de receber o contexto inteiro. A rejeição genérica não informava quais registros/offsets faltavam; repetiu até o limite de tokens. Corrigir a mesma família de feedback de leitura no A3 e no A4:
+
+- [x] Expor `next_offset` e `read_complete`, incluindo lacunas e restauração, mantendo teto serializado.
+- [x] Rejeição de submissão informa os primeiros IDs/offsets pendentes; leitura integral continua obrigatória.
+- [x] Versionar instruções de leitura dos novos perfis de planejamento/diagnóstico/avaliação.
+- [x] Testes de paginação/restauração e integração (140 aprovados); piloto real independente com limites previamente registrados.
+
+## QUOTA-01 — Espera informada pelo provedor
+
+O terceiro controle chegou ao Docker, mas a API devolveu HTTP 429 na abertura do diagnóstico: cota de 15 requisições por minuto e RetryInfo de aproximadamente 55 segundos. Esperas de 5/10/20 s não atravessam essa janela.
+
+- [ ] Política 1.2.0 para novas análises respeita `google.rpc.RetryInfo`, até 60 s e dentro do prazo total. Políticas anteriores preservadas.
+- [ ] Cada envio continua contado, com espera/razão registradas e corpo/credenciais omitidos.
+- [ ] Validar regressões, repetir piloto completo com a nova política e registrar todas as rodadas.

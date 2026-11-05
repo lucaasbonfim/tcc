@@ -1,5 +1,14 @@
 import {assert} from './errors.js';
 
+export function nextUnreadOffset(spans,total,candidate=null) {
+  let cursor=0;
+  for(const [start,end] of [...(spans || []),...(candidate?[candidate]:[])].sort((a,b)=>a[0]-b[0])){
+    if(start>cursor)break;
+    cursor=Math.max(cursor,end);
+  }
+  return cursor>=total?null:cursor;
+}
+
 // Coverage means complete delivery, not correct interpretation by the model.
 export function createRecordReader({records,maxObservationChars=12000,idField='id'}) {
   const texts=new Map(records.map(({id,data})=>[id,JSON.stringify(data)])),ranges=new Map();
@@ -7,10 +16,10 @@ export function createRecordReader({records,maxObservationChars=12000,idField='i
   function add(id,start,end){const merged=[];for(const span of [...(ranges.get(id) || []),[start,end]].sort((a,b)=>a[0]-b[0])){const last=merged.at(-1);if(last && span[0]<=last[1])last[1]=Math.max(last[1],span[1]);else merged.push([...span]);}ranges.set(id,merged);}
   return {
     complete,characters:id=>texts.get(id)?.length,
-    assertComplete(){assert([...texts.keys()].every(complete),'Consulte integralmente todos os registros atribuídos.',422);},
+    assertComplete(){const pending=[...texts.keys()].filter(id=>!complete(id));assert(!pending.length,'Consulte integralmente todos os registros atribuídos. Retome a leitura destes registros usando offset=next_offset: '+JSON.stringify(pending.slice(0,3).map(id=>({[idField]:id,next_offset:nextUnreadOffset(ranges.get(id),texts.get(id).length),total_characters:texts.get(id).length}))),422);},
     read(id,offset,length) {
       const text=texts.get(id);assert(text!==undefined,'Registro fora da tarefa.',403);assert(offset<text.length,'Offset excede o registro.',422);
-      const make=end=>({[idField]:id,format:'json',offset,end,total_characters:text.length,truncated:end<text.length,text:text.slice(offset,end)});
+      const make=end=>{const next_offset=nextUnreadOffset(ranges.get(id),text.length,[offset,end]);return {[idField]:id,format:'json',offset,end,total_characters:text.length,truncated:end<text.length,next_offset,read_complete:next_offset===null,text:text.slice(offset,end)};};
       let low=offset+1,high=Math.min(offset+length,text.length),best=offset;
       while(low<=high){const middle=Math.floor((low+high)/2);if(JSON.stringify(make(middle)).length<=maxObservationChars){best=middle;low=middle+1;}else high=middle-1;}
       if(best<text.length && /[\uD800-\uDBFF]/.test(text[best-1]))best--;
