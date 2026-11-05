@@ -444,6 +444,14 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **O que permite afirmar:** a trajetória pública e os artefatos preservados podem ser inspecionados em mapa e sequência; estados de falha/provedor ficam mais claros. Não demonstra eficácia dos agentes, espontaneidade de consultas ou qualidade semântica. O erro real observado continua HTTP 503 no A1, antes da execução do projeto; disponibilidade do serviço externo não foi corrigida pela mudança de interface. Protocolo/piloto conjunto/avaliação independente permanecem em preparação. Aplicação reiniciada sem análises ativas: API/worker/executor/frontend operacionais e HTTP 200 em frontend/health. Rastreabilidade: commit `[MV-02]`.
 
+## 05/11/2026 — VVV-DIAG-01: reprodução real e simulação isolada
+
+**Estado:** investigação concluída, sem alteração de comportamento da aplicação. Base `301e798`. O usuário pediu reproduzir a chamada específica e simular o VVV. O [relatório](DIAGNOSTICO_VVV_503.md) registra entradas, isolamento, testes e limites. Reenvios de entradas iguais receberam 503 e depois 200; foi capturado JSON do endpoint do Google com `UNAVAILABLE` e alta demanda. Uma simulação separada da primeira parte concluiu listar/ler/submeter com ferramentas reais. O ensaio do worker/orquestração, em banco local novo, passou do segundo turno e falhou no terceiro, depois esgotou duas retomadas explícitas por novos 503. O terceiro turno preservado respondeu 200 posteriormente.
+
+**Resultado e alcance:** 16 chamadas reais de geração entre controles/ensaios, dez respostas, seis 503 e 23330 tokens reportados; consumo nas falhas é desconhecido. O documento tem 13 partes; a conclusão separada da capa/sumário não é conclusão do A1 inteiro. O fluxo isolado terminou sem concluir a primeira parte e sem chegar a A2–A4 ou executar o código. A análise original manteve status, tentativa única, snapshot e horário de término. Dados completos e scripts de diagnóstico ficaram ignorados em `.local/`; o commit contém apenas documentação técnica. Um relatório intermediário do primeiro ensaio da parte foi sobrescrito pelo segundo; o log/artefatos brutos e essa limitação foram preservados no registro.
+
+**Encaminhamento:** evidência mais forte de intermitência da inferência, sem localizar sua causa interna. Fragilidade local: falha transitória termina imediatamente a tentativa e retomadas rápidas consomem o limite. Proposta futura de backoff limitado/cancelável, com cada envio contado e política fixada; não foi implementada nem introduzida retroativamente. Não há conclusão científica de eficácia nem validação do fluxo completo do VVV. Rastreabilidade: commit `[VVV-DIAG-01]`.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:
