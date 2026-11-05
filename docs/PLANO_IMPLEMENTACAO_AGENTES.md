@@ -228,9 +228,14 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
   - Commit: `feat(execution): organiza planos e bundles versionados [AG-14]`.
 
 - [ ] **AG-15 — Implementar decisões de A3 e retorno de diagnóstico.** Depende de AG-14.
+  - [x] AG-15a: planejamento agentivo validado e autorização separada.
+  - [ ] AG-15b: investigação pós-execução e diagnósticos vinculados.
+  - [ ] AG-15c: retorno ao A2 com proposta de revisão sem substituir aprovados.
   - Entrega: A3 consulta capacidades, propõe agrupamentos válidos e solicita execuções autorizadas; devolve a A2 diagnósticos verificáveis de script. O backend calcula e valida limites concretos antes de executar qualquer bundle.
   - Aceite/verificação: distinguir erro de compilação/teste, ambiente e falha de asserção; nova versão exige revisão e autorização correspondentes. O agente não altera a implementação, o esperado para forçar passagem, dependências ou a política do executor. Sem decisão útil demonstrada, registrar A3 como serviço determinístico e revisar a descrição arquitetural.
   - Commit: `feat(execution): adiciona planejamento e diagnostico do A3 [AG-15]`.
+
+**Decisão do usuário em 05/11/2026:** implementar também A3 com LLM, ampliando o escopo. Não há avaliador humano definido; AG-16 permanece aberto. A entrega AG-15 será dividida em unidades verificáveis/commitadas: (a) planejamento com ferramentas antes da autorização, (b) investigação de evidências com diagnósticos após os bundles e (c) pedido de revisão de script ao A2 com proposta versionada. A execução material permanece determinística. Sessões A3 serão separadas por fase, preservando orçamento na retomada e teto global. Proposta de plano fixa scripts/revisões/hashes; autorização humana valida novamente tudo e materializa apenas bundles aprovados. Diagnóstico não reescreve evidências ou esperados; proposta de correção não substitui script aprovado nem reutiliza autorização anterior. A interface/exportação devem distinguir propostas, aprovação do plano, execução e diagnóstico. Primeiro verificar com fixtures; piloto conjunto com LLM real e julgamentos científicos continuam separados.
 
 ### M4 — Preparar a coleta científica
 

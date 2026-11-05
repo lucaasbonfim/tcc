@@ -1,6 +1,6 @@
 # Protocolo do experimento — rascunho para fechamento
 
-Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. A implementação está até `5c6b2ea` (AG-14). A escolha sobre A3, o recorte do módulo e a referência julgada por humano ainda precisam ser definidos. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
+Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. Base de implementação: `5c6b2ea` (AG-14). O usuário escolheu ampliar o escopo com A3 usando LLM para planejamento/diagnóstico; a implementação está em andamento. Ainda não há avaliador humano definido, nem recorte/referência fechados. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
 
 ## 1. O que será investigado
 

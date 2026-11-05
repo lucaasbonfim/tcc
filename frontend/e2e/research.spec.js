@@ -23,6 +23,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Consultar extração'}).click();
   await expect(page.getByRole('heading',{name:'requisitos.txt · v1'})).toBeVisible();
   await page.getByLabel('Avaliação de evidências com ferramentas',{exact:true}).check();
+  await page.getByLabel('Planejamento de execução com ferramentas',{exact:true}).check();
   await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
   await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Corrigir conteúdo'}).click();
@@ -50,6 +51,9 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.request.post('http://localhost:3101/__e2e/enable-executor');
   await page.getByRole('button',{name:'Verificar executor'}).click();
   await page.getByRole('textbox',{name:'Justificativa da autorização de execução'}).fill('Somente integração E2E, não execução de código.');
+  await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeDisabled();
+  await page.getByRole('button',{name:'Preparar plano com A3',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Proposta de plano do A3',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeEnabled();
   await page.getByRole('button',{name:'Autorizar execução isolada'}).click();
   await expect(page.getByText('Fixture: assert sem falha.',{exact:true})).toBeVisible({timeout:20000});
@@ -69,8 +73,10 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   const exported = JSON.parse(await readFile(await file.path(),'utf8'));
   expect(exported.snapshot_data.agent_policy.modes.automation).toBe('agent/v1');
   expect(exported.snapshot_data.agent_policy.modes.evaluation).toBe('agent/v1');
-  expect(exported.agent_steps).toHaveLength(6);
-  expect(exported.agent_tool_calls).toHaveLength(9);
+  expect(exported.agent_steps).toHaveLength(10);
+  expect(exported.agent_tool_calls).toHaveLength(14);
+  expect(exported.execution_plans[0].planner_mode).toBe('agent/v1');
+  expect(exported.execution_proposals[0].review_status).toBe('accepted');
   expect(exported.agent_tool_calls.some(call=>call.name==='read_evaluation_context')).toBeTruthy();
   await expect(page.getByRole('heading',{name:'Trajetória do agente'})).toBeVisible();
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).first().click();

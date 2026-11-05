@@ -17,6 +17,7 @@ import {TESTS_AGENT} from './tests-agent.js';
 import {EVALUATION_AGENT} from './evaluation-agent.js';
 import {EVALUATION} from './evaluation-contract.js';
 import {CLARIFICATION_AGENT,createCollaborationService} from './agent-collaboration.js';
+import {EXECUTION_PLANNING_AGENT} from './execution-agent.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
@@ -72,7 +73,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
         const policy=createAgentPolicy(input.agent_policy ?? {});
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,execution_agent_definitions:{planning:EXECUTION_PLANNING_AGENT},automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
@@ -133,6 +134,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         automated_tests:automatedTests,automation_parts:automationParts,automation_coverage:automationSummary,
         execution_jobs:await createExecutionService({pool,store}).list(id),
         execution_plans:await createExecutionService({pool,store}).plans(id),
+        execution_proposals:await createExecutionService({pool,store}).proposals(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows,

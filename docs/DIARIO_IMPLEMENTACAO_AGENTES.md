@@ -324,6 +324,22 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-16a]`. **Próximo passo:** resolver o recorte de AG-15 e a referência para finalizar/congelar AG-16.
 
+## 05/11/2026 — AG-15a: planejamento A3 com ferramentas e autorização separada
+
+**Estado:** subetapa concluída; AG-15b/c permanecem abertas. Base: `04970b3`. O usuário escolheu implementar também A3 com LLM e informou que ainda não tem avaliador definido. O recorte foi registrado no plano antes do código; não se congelou AG-16.
+
+**Mudança:** A3 consulta capacidades e catálogo, lê scripts/casos/fontes atribuídos, valida agrupamentos e submete plano proposto. O servidor exige leitura completa e cada script uma única vez, sem elevar os limites do protocolo. A ferramenta de validação devolve recusas que podem orientar nova decisão. Nenhuma ferramenta do planejador executa código ou altera scripts/esperados/autorizações.
+
+**Persistência/autorização:** migração 025 separa sessões A3 por fase e cria propostas vinculadas à tentativa/entrada. Proposta fixa identidade de scripts/revisões/hashes, casos/fontes e ambiente observado. A autorização humana exige a proposta correta, confere as identidades novamente e materializa os agrupamentos validados. Depois disso o worker usa transporte determinístico, embora a configuração da análise tenha A3 agentivo. Histórico mantém chamadas/tokens por fase e teto global; retomada não zera orçamento.
+
+**Interface/API:** opção “Planejamento de execução com ferramentas”; botão para preparar plano, proposta com lotes/justificativas e autorização posterior. Exportação inclui propostas e vínculo ao plano efetivamente autorizado. Perfis são fixados no snapshot e análises antigas mantêm o modo anterior.
+
+**Verificação:** 107 testes backend aprovados, zero falhas/ignorados; sete E2E aprovados; lint/build aprovados. Controles verificam ordem/lotes diferentes da divisão padrão, agrupamento recusado/corrigido, retomada sem repetir leitura, ausência de jobs antes da autorização e recusa de revisão/caso/ambiente alterados. E2E completo percorre preparação, proposta, autorização, execução e A4. Provedor/executor injetados: decisões programadas demonstram controles, não utilidade de agrupamento por LLM real.
+
+**Ambiente:** migração 025 aplicada após backup e conferência das contagens anteriores, incluindo planos e mensagens; relatório local `upgrade-025.json`. Não houve novas chamadas reais ou coleta científica.
+
+**Rastreabilidade:** commit `[AG-15a]`. **Próximo passo:** AG-15b, diagnóstico pós-execução.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

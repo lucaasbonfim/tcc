@@ -12,7 +12,8 @@ test('snapshots antigos permanecem fixos; política agentiva é explícita, vali
   assert.equal(resolveAgentPolicy({agent_policy:oldPolicy}).limits.max_model_turns,8);
   assert.equal(resolveAgentPolicy({agent_policy:policy}).modes.automation,'agent/v1');
   assert.throws(()=>{policy.modes.tests='agent/v1';},TypeError);
-  for(const input of [{modes:{execution:'agent/v1'}},{modes:{unknown:'agent/v1'}},{limits:{max_model_turns:0}},{limits:{max_duration_ms:Infinity}},{limits:{unknown:1}},{run_limits:{max_model_turns:1}},{version:'99'}])assert.throws(()=>createAgentPolicy(input));
+  assert.equal(createAgentPolicy({modes:{execution:'agent/v1'}}).modes.execution,'agent/v1');
+  for(const input of [{modes:{execution:'invalid/v1'}},{modes:{unknown:'agent/v1'}},{limits:{max_model_turns:0}},{limits:{max_duration_ms:Infinity}},{limits:{unknown:1}},{run_limits:{max_model_turns:1}},{version:'99'}])assert.throws(()=>createAgentPolicy(input));
 });
 test('ferramentas validam limites e pertencimento antes de executar',()=>{
   validateAgentCall(call('get_approved_case',{case_id:'case-1'}),task);
