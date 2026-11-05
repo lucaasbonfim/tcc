@@ -101,6 +101,8 @@ Exportação JSON/CSV versão 3 acrescenta `agent_sessions`, `agent_steps`, `age
 
 ## Validação
 
+A autorização de execução congela um plano com scripts/revisões/hashes, recibo e bundles. Até 200 scripts por plano, divididos sem ampliar os limites de 20 scripts/16 fontes/tamanho do protocolo por bundle. Cada trabalho tem ID/hash estável e checkpoint; repetir transporte não cria outro ensaio nem repete trabalhos concluídos. A4 é enfileirado depois de todos os bundles. Cancelamento mantém resultados parciais; alteração posterior de script/revisão bloqueia o envio. A migração 024 vincula trabalhos históricos a planos legados sem reescrever suas evidências. O limite atual de A4 continua sendo 200 resultados individuais, que podem exceder a quantidade de scripts se estes contiverem vários testes.
+
 `npm test` não chama o Gemini nem executa projetos externos. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` e `npm run smoke:automation` são separados e consomem API real, sem gravar resultados de pesquisa ou executar código gerado. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt. Testes do executor ficam em `../executor`; pilotos reais exigem probes e recibo válidos no perfil explicitamente escolhido. Piloto Node local registrado em [PILOTO_EXECUCAO.md](../docs/PILOTO_EXECUCAO.md).
 
 A4 agentivo lista resultados e consulta contextos ou suas seções: requisito/fonte, caso, script e ambiente. A submissão exige todos os contextos lidos e o contrato literal de evidências; classificações permanecem sujeitas à revisão humana. Pode atingir o orçamento em análises extensas, sem omitir pares para concluir.
