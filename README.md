@@ -17,7 +17,7 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 ## Funcionalidades disponíveis
 
 - Navegação **Início / Projetos / Análises**. Preparação por documentos e modo de trabalho, com opções técnicas adicionais. Cada análise abre em **Resumo**, mostrando a próxima ação e as etapas reais; mapa e sequência permanecem em **Agentes ao vivo e histórico**.
-- Novas análises `agent/v1` usam política 1.1.0 com retentativas limitadas para HTTP 429/502/503/504. Cada envio e espera ficam registrados; análises antigas preservam a política original. [Plano e validação](docs/PLANO_RETENTATIVAS_UX.md).
+- Novas análises `agent/v1` usam política 1.2.0 com retentativas limitadas para HTTP 429/502/503/504 e respeito ao RetryInfo do provedor, limitado a 60 segundos e ao prazo restante. Cada envio e espera ficam registrados; análises antigas preservam a política original. [Plano inicial](docs/PLANO_RETENTATIVAS_UX.md) e [validação real conjunta](docs/PILOTO_AGENTES_CONJUNTO.md).
 - Modo autônomo com escopo autorizado no início, sem aprovações intermediárias, além do modo assistido. Todos os papéis podem usar LLM e ferramentas; a execução material continua controlada.
 - Aba **Agentes ao vivo e histórico**: mapa com quatro agentes, atividade atual e conexões de consultas; histórico em diagrama de sequência, navegação por momento e artefatos preservados ao clicar. Avaliação humana posterior separada dos originais. [Plano visual](docs/PLANO_DIAGRAMA_AGENTES.md), [autonomia](docs/PLANO_EXECUCAO_AUTONOMA_HISTORICO.md) e [protocolo em preparação](docs/PROTOCOLO_EXPERIMENTO.md).
 

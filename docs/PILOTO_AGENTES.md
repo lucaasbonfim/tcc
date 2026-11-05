@@ -2,6 +2,8 @@
 
 Data: 04/11/2026. Primeiro marco: A2/automação com ferramentas. As demais etapas ainda usam o fluxo fixo. Registro associado ao [plano](PLANO_IMPLEMENTACAO_AGENTES.md) e ao [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md).
 
+Atualização de 05/11/2026: o [piloto conjunto real](PILOTO_AGENTES_CONJUNTO.md) registra a configuração posterior, com todos os papéis agentivos e execução autônoma. Este documento preserva o primeiro marco e suas condições originais.
+
 ## Finalidade e condições
 
 Verificar o percurso operacional com Gemini, consultas a fontes reais, revisão, executor Docker e avaliação de evidências. Este piloto utiliza requisitos sintéticos sobre uma biblioteca pública. Não é coleta em projetos acadêmicos, avaliação humana independente ou evidência de superioridade multiagente.
