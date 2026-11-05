@@ -11,6 +11,8 @@ import {createExecutionService} from '../../src/research/execution.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
 import {agentFixtureOutput,fixtureTurn} from '../../test-support/agent-scenario.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
+import {createAgentHistoryService} from '../../src/research/agent-history.js';
+import {exportCsv} from '../../src/research/export.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 async function environment(action){const pool=new pg.Pool({connectionString:url}),dir=await mkdtemp(join(tmpdir(),'agent-integration-')),store=createArtifactStore(dir);try{await migrate(pool);await action({pool,store});}finally{await pool.end();await rm(dir,{recursive:true,force:true});}}
@@ -50,6 +52,16 @@ test('modo agentivo integra consultas, escopo escolhido, revisão e execução s
   await services.processor.processOne();detail=await services.runs.detail(run.id);
   assert.equal(detail.findings[0].content.classification,'compatible');assert.equal(detail.test_results[0].status,'passed');
   const session=(await pool.query('SELECT * FROM research.agent_sessions WHERE run_id=$1',[run.id])).rows[0];assert.equal(session.status,'completed');
+  const history=createAgentHistoryService({pool,store});
+  const listing=await history.list(run.id,{limit:1});assert.equal(listing.sessions[0].id,session.id);assert.equal(listing.summary.model_turns,3);
+  const firstPage=await history.detail(run.id,session.id,{limit:1});assert.equal(firstPage.steps.length,1);assert.equal(firstPage.next_offset,1);
+  assert.ok((await history.artifact(run.id,session.id,'call',firstPage.calls[0].id,'arguments')));
+  await assert.rejects(history.detail('10000000-0000-4000-8000-000000000000',session.id),/não encontrada/);
+  await assert.rejects(history.list(run.id,{limit:1000}),/Paginação/);
+  const exported=await services.runs.export(run.id);
+  assert.equal(exported.export_format_version,3);assert.equal(exported.agent_steps.length,3);assert.equal(exported.agent_tool_calls.length,6);
+  assert.ok(exported.agent_steps[0].response_data.content.parts[0].functionCall);
+  assert.match(exportCsv(exported),/agent_tool_call/);
 }));
 test('repetição após esgotamento mantém orçamento e não recorre ao fluxo fixo',{skip:!url},async()=>environment(async({pool,store})=>{
   let turns=0;

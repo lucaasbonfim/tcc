@@ -14,7 +14,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   const handler = action => async (request, response) => response.json({ data: await action(request, response) });
   router.param('projectId', (_request, _response, next, value) => { uuid(value); next(); });
   router.param('documentId', (_request, _response, next, value) => { uuid(value); next(); });
-  for (const name of ['runId','itemId','attemptId','versionId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
+  for (const name of ['runId','itemId','attemptId','versionId','sessionId','artifactId']) router.param(name, (_req,_res,next,value) => { uuid(value); next(); });
   router.use((req,_res,next) => {
     if (['POST','PUT'].includes(req.method) && !req.path.endsWith('/documents')) {
       assert(req.body && typeof req.body === 'object' && !Array.isArray(req.body),'Envie um objeto JSON.');
@@ -49,6 +49,9 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.post('/projects/:projectId/runs', imports, async (req,res) => res.status(202).json({data:await runs.create(req.params.projectId,req.body)}));
   router.get('/runs', handler(() => runs.list()));
   router.get('/runs/:runId', handler(req => runs.detail(req.params.runId)));
+  router.get('/runs/:runId/agent-sessions',handler(req=>runs.agentSessions(req.params.runId,req.query)));
+  router.get('/runs/:runId/agent-sessions/:sessionId',handler(req=>runs.agentSession(req.params.runId,req.params.sessionId,req.query)));
+  router.get('/runs/:runId/agent-sessions/:sessionId/artifacts/:kind/:artifactId/:type',handler(req=>runs.agentArtifact(req.params.runId,req.params.sessionId,req.params.kind,req.params.artifactId,req.params.type)));
   router.post('/runs/:runId/automation',imports,async(req,res)=>res.status(202).json({data:await automation.start(req.params.runId,req.body)}));
   router.get('/runs/:runId/automated-tests',handler(req=>automation.list(req.params.runId)));
   router.post('/runs/:runId/automated-tests/:itemId/review',handler(req=>automation.review(req.params.runId,req.params.itemId,req.body)));

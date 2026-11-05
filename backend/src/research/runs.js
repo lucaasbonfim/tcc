@@ -10,8 +10,10 @@ import {preservedOutput} from './citations.js';
 import {createTestParts,testCoverage} from './test-parts.js';
 import {automationCoverage} from './automation-parts.js';
 import {createAgentPolicy} from './agent-policy.js';
+import {createAgentHistoryService} from './agent-history.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
+  const agentHistory=createAgentHistoryService({pool,store});
   async function get(id, db = pool, lock = false) {
     const run = (await db.query(`SELECT * FROM research.runs WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [id])).rows[0];
     assert(run, 'Execução não encontrada.', 404);
@@ -23,6 +25,9 @@ export function createRunService({ pool, store, configuration = () => { getGemin
     [randomUUID(),runId,stageId,entityType,entityId,decision,justification,before ? JSON.stringify(before) : null,after ? JSON.stringify(after) : null]);
   }
   const service = {
+    agentSessions:(id,query)=>agentHistory.list(id,query),
+    agentSession:(id,sessionId,query)=>agentHistory.detail(id,sessionId,query),
+    agentArtifact:(id,sessionId,kind,artifactId,type)=>agentHistory.artifact(id,sessionId,kind,artifactId,type),
     async summary() {
       return (await pool.query(`SELECT
         (SELECT count(*)::int FROM research.projects) AS projects,
@@ -124,7 +129,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         requirement_parts:(await pool.query('SELECT * FROM research.requirement_parts WHERE run_id=$1 ORDER BY sequence',[id])).rows,
         test_parts:testParts,test_coverage:testCoverage(requirements.rows,tests.rows),
         continuations:(await pool.query('SELECT id,status,created_at FROM research.runs WHERE resumed_from_run_id=$1 ORDER BY created_at DESC LIMIT 10',[id])).rows,
-        consolidation_data:consolidation};
+        consolidation_data:consolidation,agent_summary:await agentHistory.summary(id)};
     },
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
@@ -327,7 +332,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
         if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);
       }
-      return { export_format_version:2,exported_at:new Date().toISOString(),...data };
+      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId) };
     },
   };
   return service;
