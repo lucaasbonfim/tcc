@@ -4,12 +4,16 @@ import {createExecutionService} from './execution.js';
 import {assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent} from './run-events.js';
 import {transaction} from './errors.js';
+export const AUTONOMY_LOCK_PREFIX='autonomy:xact/v1:';
 export function createAutonomyController({pool,store,executorClient}) {
   const runs=createRunService({pool,store,executorClient}),automation=createAutomationService({pool,store}),execution=createExecutionService({pool,store,client:executorClient});
   async function advance(runId) {
-    const lock=await pool.connect();let owned=false;
+    const lock=await pool.connect();let begun=false;
     try {
-      owned=(await lock.query("SELECT pg_try_advisory_lock(hashtext('autonomy:' || $1)) AS owned",[runId])).rows[0].owned;if(!owned)return;
+      // Pin one physical connection through transaction poolers. Session locks
+      // acquired/unlocked in separate statements can strand ownership remotely.
+      await lock.query('BEGIN');begun=true;
+      const owned=(await lock.query('SELECT pg_try_advisory_xact_lock(hashtext($1)) AS owned',[AUTONOMY_LOCK_PREFIX+runId])).rows[0].owned;if(!owned)return;
       for(let count=0;count<8;count++) {
         const run=(await pool.query('SELECT * FROM research.runs WHERE id=$1',[runId])).rows[0];if(run?.workflow_mode!=='autonomous/v1'||['completed','failed','cancelled','running'].includes(run.status))return;
         const stages=(await pool.query('SELECT * FROM research.stages WHERE run_id=$1 ORDER BY position',[runId])).rows;
@@ -33,7 +37,7 @@ export function createAutonomyController({pool,store,executorClient}) {
     }catch(error){await transaction(pool,async db=>{const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];if(!run||['completed','failed','cancelled','running'].includes(run.status))return;
       const message=[403,409,422,503].includes(error.statusCode)?error.message.slice(0,1000):'Falha ao avançar o fluxo autônomo; consulte o histórico.';
       await db.query("UPDATE research.runs SET status='failed',workflow_error=$2,finished_at=now() WHERE id=$1",[runId,message]);await appendRunEvent(db,{run_id:runId,source_key:'workflow:failed',kind:'workflow_failed',payload:{message}});});}
-    finally{if(owned)await lock.query("SELECT pg_advisory_unlock(hashtext('autonomy:' || $1))",[runId]).catch(()=>{});lock.release();}
+    finally{let releaseError;if(begun)try{await lock.query('ROLLBACK');}catch(error){releaseError=error;}lock.release(releaseError);}
   }
   return {advance,async recoverReady(){const rows=(await pool.query("SELECT id FROM research.runs WHERE workflow_mode='autonomous/v1' AND status IN ('pending','awaiting_review') ORDER BY created_at LIMIT 10")).rows;for(const row of rows)await advance(row.id);}};
 }
