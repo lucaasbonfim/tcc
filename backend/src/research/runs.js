@@ -13,6 +13,7 @@ import {createAgentPolicy,agentMode} from './agent-policy.js';
 import {createAgentHistoryService} from './agent-history.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
 import {REQUIREMENTS_AGENT} from './requirements-agent.js';
+import {TESTS_AGENT} from './tests-agent.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
@@ -68,7 +69,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
         const policy=createAgentPolicy(input.agent_policy ?? {});
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
@@ -76,11 +77,11 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           for (const doc of selected) await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) VALUES($1,$2,$3)',[projectId,id,doc.id]);
           for (const definition of AGENTS) {
             const enabled = ['requirements','tests'].includes(definition.agent);
-            const agentDefinition=definition.agent==='requirements' && policy.modes.requirements==='agent/v1' ? REQUIREMENTS_AGENT : null;
+            const agentDefinition=policy.modes[definition.agent]==='agent/v1' ? ({requirements:REQUIREMENTS_AGENT,tests:TESTS_AGENT})[definition.agent] : null;
             await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,message,context)
               VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [randomUUID(),id,definition.agent,definition.position,
               definition.agent === 'requirements' ? 'pending' : enabled ? 'blocked' : 'not_supported',agentDefinition?.version ?? definition.version,agentDefinition?.instruction ?? definition.instruction,
-              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.',definition.agent==='requirements' ? {citation_mode:'catalog/v1',...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})} : null]);
+              enabled ? null : definition.agent === 'execution' ? 'Execução requer scripts aprovados, perfil do executor validado e autorização explícita.' : 'Avaliação aguarda evidências independentes de execução.',{...(definition.agent==='requirements'?{citation_mode:'catalog/v1'}:{}),...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})}]);
           }
           await createParts(db,id,documents,store);
           return get(id, db);
@@ -255,10 +256,10 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         let requirementStage;
         for(const definition of sourceSnapshot.agent_definitions || AGENTS) {
           const stageId=randomUUID();if(definition.agent==='requirements')requirementStage=stageId;
-          const agentDefinition=definition.agent==='requirements' && agentMode(sourceSnapshot,'requirements')==='agent/v1' ? sourceSnapshot.requirements_agent_definition : null;
+          const agentDefinition=agentMode(sourceSnapshot,definition.agent)==='agent/v1' ? ({requirements:sourceSnapshot.requirements_agent_definition,tests:sourceSnapshot.tests_agent_definition})[definition.agent] : null;
           await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context,message)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[stageId,id,definition.agent,definition.position,definition.agent==='requirements' ? 'pending' : definition.agent==='tests' ? 'blocked' : 'not_supported',agentDefinition?.version ?? definition.version,agentDefinition?.instruction ?? definition.instruction,
-            definition.agent==='requirements' ? {citation_mode:'catalog/v1',...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})} : null,definition.agent==='requirements' ? 'Continuando com checkpoints preservados.' : null]);
+            {...(definition.agent==='requirements'?{citation_mode:'catalog/v1'}:{}),...(agentDefinition?{execution_mode:'agent/v1',agent_definition:agentDefinition}:{})},definition.agent==='requirements' ? 'Continuando com checkpoints preservados.' : null]);
         }
         for(const part of parts) {
           let ref=part.input;

@@ -25,7 +25,7 @@ export function createAgentPolicy(input={}) {
   const requested=input.modes ?? {};object(requested,'Modos');
   for(const [stage,mode] of Object.entries(requested)) {
     assert(STAGE_NAMES.includes(stage),'Etapa desconhecida na política.',422);
-    assert(mode==='fixed/v1' || (['automation','requirements'].includes(stage) && mode==='agent/v1'),'Modo não suportado para esta etapa.',422);
+    assert(mode==='fixed/v1' || (['automation','requirements','tests'].includes(stage) && mode==='agent/v1'),'Modo não suportado para esta etapa.',422);
   }
   const modes=Object.freeze(Object.fromEntries(STAGE_NAMES.map(stage=>[stage,requested[stage] ?? 'fixed/v1'])));
   const session=limits(input.limits ?? {},DEFAULT_AGENT_LIMITS,'Limites da sessão');

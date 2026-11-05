@@ -1,6 +1,8 @@
 import {randomUUID} from 'node:crypto';
 import {assert} from './errors.js';
 import {AGENTS} from './agents.js';
+import {agentMode} from './agent-policy.js';
+import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 
 export function testCoverage(requirements,cases) {
   const approved=requirements.filter(row=>row.review_status==='approved');
@@ -42,7 +44,9 @@ export async function createTestParts(db,run,store,{missingOnly=false}={}) {
   const snapshot=await store.json(run.snapshot),version=snapshot.code_version;
   const groups=planTestParts(selected.map(row=>row.content)),offset=(await db.query('SELECT COALESCE(max(sequence),0)::int AS n FROM research.test_parts WHERE run_id=$1',[run.id])).rows[0].n;
   assert(offset+groups.length<=2000,'Execução excede 2000 lotes de casos. Preserve o histórico e crie outra análise.',422);
-  const definition=AGENTS.find(agent=>agent.agent==='tests');
+  const isAgent=agentMode(snapshot,'tests')==='agent/v1';
+  const definition=isAgent?snapshot.tests_agent_definition:(snapshot.agent_definitions || AGENTS).find(agent=>agent.agent==='tests');
+  assert(definition && (!isAgent || definition.contract_version===AGENT_CONTRACT_VERSION),'Definição de A2 textual ausente/incompatível.',422);
   for(let i=0;i<groups.length;i++) {
     const requirement_codes=groups[i].map(item=>item.code),sequence=offset+i+1;
     const input=await store.put({project_name:snapshot.project.name,
@@ -50,7 +54,7 @@ export async function createTestParts(db,run,store,{missingOnly=false}={}) {
       requirements:groups[i],batch:{sequence,total:offset+groups.length,requirement_codes}});
     await db.query("INSERT INTO research.test_parts(id,run_id,sequence,status,input,requirement_codes) VALUES($1,$2,$3,'pending',$4,$5)",[randomUUID(),run.id,sequence,input,JSON.stringify(requirement_codes)]);
   }
-  await db.query("UPDATE research.stages SET instruction=$2,instruction_version=$3,context=$4 WHERE run_id=$1 AND agent='tests'",[run.id,definition.instruction,definition.version,{coverage_mode:'all-requirements/v1'}]);
+  await db.query("UPDATE research.stages SET instruction=$2,instruction_version=$3,context=$4 WHERE run_id=$1 AND agent='tests'",[run.id,definition.instruction,definition.version,{coverage_mode:'all-requirements/v1',...(isAgent?{execution_mode:'agent/v1',agent_definition:definition}:{})}]);
   return {parts:groups.length,requirements:selected.length,already_linked:coverage.linked};
 }
 
