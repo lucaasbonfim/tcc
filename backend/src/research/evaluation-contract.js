@@ -15,6 +15,11 @@ export function evaluationRequestSchema(input) {
   // The provider can only copy approved case expectations, not a similar requirement quote.
   // Pairwise correspondence is still checked locally against the exact test result/case.
   if(expected.length && expected.join('').length<=16000)schema.properties.findings.items.properties.expected_behavior={type:'string',enum:expected};
+  const observed=[...new Set(input.results.map(result=>result.observed_excerpt))];
+  if(observed.length && observed.every(s=>typeof s==='string') && observed.join('').length<=16000)schema.properties.findings.items.properties.observed_behavior={type:'string',enum:observed,description:'Copie literalmente observed_excerpt do resultado. Não substitua pelo esperado nem descreva um valor que o relatório não registra.'};
+  for(const [field,values] of Object.entries({test_result_id:input.results.map(r=>r.id),test_case_id:input.test_cases.map(t=>t.id),automated_test_id:input.automated_tests.map(s=>s.id),requirement_code:input.requirements.map(r=>r.code)})){
+    if(values.length)schema.properties.findings.items.properties[field]={type:'string',enum:[...new Set(values)]};
+  }
   return schema;
 }
 
@@ -32,7 +37,8 @@ export function validateEvaluation(output,input) {
     assert(expected.has(key) && !seen.has(key) && result,'Referência de avaliação ausente, duplicada ou fora da execução.',422);seen.add(key);
     const test=input.test_cases.find(t=>t.id===result.test_case_id);
     assert(finding.test_case_id===result.test_case_id && finding.automated_test_id===result.automated_test_id,'Avaliação referencia teste/script diferente da evidência.',422);
-    assert(finding.expected_behavior===test.content.expected_result && finding.observed_behavior===result.observed_excerpt,'Comportamento esperado/observado foi alterado ou inventado.',422);
+    const literals=JSON.stringify({expected_behavior:test.content.expected_result,observed_behavior:result.observed_excerpt});
+    assert(finding.expected_behavior===test.content.expected_result && finding.observed_behavior===result.observed_excerpt,'Comportamento esperado/observado foi alterado ou inventado. Resultado '+result.id+'. '+(literals.length<=600?'Copie estes campos literalmente: '+literals:'Consulte test_case.content.expected_result e result.observed_excerpt em read_evaluation_context; não reescreva os valores.'),422);
     assert(result.observed_excerpt.replace(/\s+/g,' ').includes(finding.evidence_quote.replace(/\s+/g,' ')),'Citação de evidência não existe no resultado.',422);
     assert(allowed[result.status]?.includes(finding.classification),'Classificação não é sustentada pelo estado de execução.',422);
     if(result.omitted_characters>0)assert(finding.classification==='inconclusive','Observação truncada exige classificação inconclusiva.',422);
