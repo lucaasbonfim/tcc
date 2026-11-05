@@ -20,7 +20,7 @@ export default function ResearchProjectPage() {
   const [selectedVersion,setVersion] = useState('');
   const [selectedDocuments,setDocuments] = useState(null);
   const [file,setFile] = useState(null);
-  const [automationMode,setAutomationMode] = useState('fixed/v1');
+  const [automationMode,setAutomationMode] = useState('agent/v1');
   const version = selectedVersion || project?.versions[0]?.id || '';
   const names = new Set();
   const documents = selectedDocuments ?? (project?.documents || []).filter(doc => {if (names.has(doc.name)) return false; names.add(doc.name); return true;}).map(doc => doc.id);

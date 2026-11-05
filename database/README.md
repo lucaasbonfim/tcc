@@ -26,6 +26,8 @@ API e worker recusam iniciar com migração pendente ou checksum divergente. A a
 
 Para verificar a evolução dos agentes em um banco separado, dentro de `backend`, use `node scripts/test-agents-local.mjs`. Configure `TEST_DATABASE_URL` para um banco existente `tcc_test_*`; opcionalmente salve essa variável em `.local/agent-tests.env` na raiz, ignorado pelo Git. O helper valida o destino, passa a URL ao processo de testes sem exibi-la e não infere nem cria o destino a partir do banco da pesquisa. Aceita caminhos de testes como argumentos. Fixtures permanecem no banco de teste, separado dos dados reais.
 
+Para E2E, use `node scripts/test-agents-local.mjs --browser` e configure `TEST_BROWSER_DATABASE_URL` em **outro banco** `tcc_test_*`. O helper recusa o mesmo nome de banco para as duas suítes: seus workers não podem disputar a mesma fila de fixtures. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` pode selecionar um Chromium já instalado, conforme a configuração do frontend.
+
 Os scripts do experimento anterior foram removidos do repositório e permanecem consultáveis no histórico do Git. A numeração da migração atual foi mantida para preservar os registros e checksums de ambientes já inicializados. Nenhuma tabela existente é apagada ou convertida pela remoção desses arquivos.
 
 As entidades efetivamente criadas, FKs e diagrama estão em [Arquitetura](../docs/ARQUITETURA_PESQUISA.md). Documentos e respostas grandes ficam em armazenamento privado de artefatos; suas referências e hashes ficam no PostgreSQL. Backup somente do banco não preserva os PDFs/extrações/entradas/saídas.

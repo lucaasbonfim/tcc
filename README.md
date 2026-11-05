@@ -27,6 +27,8 @@ Abra **http://localhost:5173**. O comando prepara a imagem, valida o perfil loca
 - Integração dos agentes 3 e 4 com serviço executor independente, evidências e revisão de classificações.
 - Escolha entre fluxo predefinido e agente com ferramentas para a geração de scripts; trajetória de consultas, observações, limites e saídas disponível no histórico e na exportação.
 
+A criação pela interface sugere o agente com ferramentas para os scripts. O modo é preservado na análise; históricos e clientes da API sem configuração explícita continuam no fluxo fixo. O [primeiro piloto agentivo real](docs/PILOTO_AGENTES.md) está registrado com suas falhas e limitações; os demais papéis ainda estão no marco seguinte do plano.
+
 **Há dois perfis de execução:** desenvolvimento local com Docker Desktop, ativado explicitamente pelo comando acima, e ambiente dedicado com VM/rootless/TLS, padrão dos serviços iniciados manualmente. Ambos exigem imagens fixadas, controles verificados e autorização dos scripts. Resultados registram o perfil efetivamente usado. O comando local provisiona Node e Java/JUnit; o adaptador Java continua limitado a classes locais/JDK, sem Swing ou banco. Fixtures técnicas não são resultados da pesquisa.
 
 ## Requisitos de desenvolvimento
@@ -196,6 +198,7 @@ O segundo comando inspeciona fonte pública e valida geração real de um script
 
 - [Plano de implementação dos agentes — tarefas, critérios e commits](docs/PLANO_IMPLEMENTACAO_AGENTES.md).
 - [Diário técnico da implementação — registro para a escrita do TCC](docs/DIARIO_IMPLEMENTACAO_AGENTES.md).
+- [Piloto agentivo real — condições, falhas, retomada e evidências](docs/PILOTO_AGENTES.md).
 - [Diagnóstico e decisões](docs/PLANO_EVOLUCAO.md).
 - [Arquitetura, entidades, estados, segurança e limitações](docs/ARQUITETURA_PESQUISA.md).
 - [Procedimento de repetição e critérios de avaliação](docs/PROTOCOLO_REPRODUCAO.md).
