@@ -132,6 +132,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         agent_messages:await createCollaborationService({pool,store}).list(id),
         automated_tests:automatedTests,automation_parts:automationParts,automation_coverage:automationSummary,
         execution_jobs:await createExecutionService({pool,store}).list(id),
+        execution_plans:await createExecutionService({pool,store}).plans(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
         evidence:(await pool.query('SELECT * FROM research.evidence WHERE run_id=$1 ORDER BY created_at',[id])).rows,
         findings:(await pool.query('SELECT * FROM research.findings WHERE run_id=$1 ORDER BY created_at',[id])).rows,
@@ -306,6 +307,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
           WHERE status='running' AND stage_id IN (SELECT id FROM research.stages WHERE run_id=$1)`,[runId]);
         await db.query("UPDATE research.stages SET status='cancelled',lease_token=NULL,lease_until=NULL WHERE run_id=$1 AND status IN ('blocked','pending','running','awaiting_review','failed')",[runId]);
         await db.query("UPDATE research.execution_jobs SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running')",[runId]);
+        await db.query("UPDATE research.execution_plans SET status='cancelled',finished_at=now() WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.requirement_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.test_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.automation_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);

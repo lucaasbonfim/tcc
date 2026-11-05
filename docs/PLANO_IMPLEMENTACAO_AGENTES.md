@@ -220,7 +220,9 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
 
 ### M3 — Planejamento e retorno de execução
 
-- [ ] **AG-14 — Separar plano de execução, bundles e evidências.** Depende de AG-13.
+**Desenho antes de AG-14:** um plano autorizado por análise, com manifesto imutável de todos os scripts/revisões/hashes, recibo e bundles. Divisão determinística por limites do protocolo (20 scripts, 16 fontes e tamanho máximo por bundle), sem elevar limites do executor. Jobs existentes recebem plano legado por migração; seus IDs, bundles e evidências permanecem. O worker processará um bundle por checkpoint e só enfileirará A4 depois de todos concluírem; repetição de transporte mantém o ID/hash do trabalho e não reexecuta bundles concluídos. Cancelamento preserva evidência parcial. Limite operacional inicial de 200 scripts por plano, com erro explícito acima disso. AG-15 poderá propor agrupamentos sobre o mesmo validador; qualquer ação do agente ficará subordinada à autorização do plano e às revisões fixadas.
+
+- [x] **AG-14 — Separar plano de execução, bundles e evidências.** Depende de AG-13.
   - Entrega: evolução aditiva do atual vínculo único `execution_jobs.run_id`; um plano autorizado com vários bundles, cada qual idempotente e vinculado às revisões/hashes dos scripts. Somente se necessário para o recorte escolhido, sem aumentar os limites individuais do contêiner.
   - Aceite/verificação: uma suíte pode ser dividida sem perder testes ou duplicar resultados; cancelamento/falha parcial preserva evidências válidas. Repetir transporte não cria novo ensaio e nova versão de script não reutiliza aprovação antiga. Exportação mantém formato antigo legível.
   - Commit: `feat(execution): organiza planos e bundles versionados [AG-14]`.
@@ -285,4 +287,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-14**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A2 pode consultar A1 por mensagens versionadas, com revisão humana e sessões filhas. A1, A2 textual, A4 e colaboração foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico.
+Próxima tarefa: **AG-15**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A2 pode consultar A1 por mensagens versionadas, com revisão humana e sessões filhas. Execução possui plano autorizado, manifesto e checkpoints por bundle. A1, A2 textual, A4, colaboração e múltiplos bundles foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico.

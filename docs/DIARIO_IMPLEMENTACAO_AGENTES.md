@@ -292,6 +292,24 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-13]`. **Próximo passo:** AG-14, plano de execução/bundles.
 
+## 05/11/2026 — AG-14: planos autorizados e checkpoints por bundle
+
+**Estado:** concluído. Base: `3a1f561`.
+
+**Problema:** uma análise aceitava somente um trabalho, com até 20 scripts e 16 fontes. A geração em lotes podia produzir mais artefatos do que o envio suportava. O desenho de plano/checkpoints foi registrado antes do código.
+
+**Mudança:** divisão determinística em bundles válidos, com até 200 scripts por plano e sem elevar os limites individuais. Manifesto imutável registra scripts/versões/revisões/hashes, recibo e todos os trabalhos. Scripts/casos não podem ser duplicados ou omitidos; fontes divergentes no mesmo caminho são rejeitadas. Antes de cada envio, o backend confere revisão/aprovação, hashes e vínculo ao manifesto. Mudança exige outra análise, sem reaproveitar o recibo.
+
+**Persistência/worker:** migração 024 cria planos, remove a unicidade de trabalho por análise e liga tentativas ao trabalho. Jobs históricos recebem planos de formato 0 com os próprios IDs/bundles, sem reescrever evidência. Novos planos têm formato 1. Cada bundle é um checkpoint; os três reenvios por trabalho não limitam a suíte a três bundles. Falha/repetição conserva identidade, evidências anteriores e resultados; resposta concluída não pode ser substituída. A4 aguarda todos os trabalhos. Cancelamento preserva evidência parcial.
+
+**Interface/exportação:** manifesto autorizado visível, planos incluídos no JSON/CSV e resultados filtrados pelo respectivo trabalho, evitando repetir a suíte inteira em cada cartão. O agente 3 permanece serviço determinístico nesta entrega.
+
+**Verificação:** 103 testes backend aprovados, zero falhas/ignorados; sete E2E aprovados; lint/build frontend aprovados. Controles específicos usam 81 scripts/cinco bundles, limites de fontes, cobertura única, falha no segundo bundle com repetição do mesmo ID, cancelamento parcial e revisão alterada sem envio. As primeiras fixtures deixaram avaliação pendente e disputaram a fila do teste seguinte; o teste passou a concluir esse processamento e os registros pendentes do banco local de testes foram cancelados antes da suíte final. Isso não envolveu o banco da pesquisa.
+
+**Limites:** múltiplos bundles foram verificados com executor injetado, não executados como coleta científica. O teto atual de A4 é 200 resultados individuais, que não equivale necessariamente a 200 scripts. Resultados parciais cancelados não são tratados como suíte completa. A migração do ambiente existente é registrada em `upgrade-024.json`, após backup e preservação das contagens anteriores.
+
+**Rastreabilidade:** commit `[AG-14]`. **Próximo passo:** AG-15, avaliar decisões úteis de planejamento/diagnóstico sem delegar comandos arbitrários ao LLM.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

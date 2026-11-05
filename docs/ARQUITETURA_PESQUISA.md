@@ -1,6 +1,6 @@
 # Arquitetura da plataforma multiagente
 
-Estado do código atualizado em 05/11/2026, até AG-13, com A1/A2 textual/A4 e colaboração verificados por fixtures e piloto técnico real do A2/automação. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
+Estado do código atualizado em 05/11/2026, até AG-14, com A1/A2 textual/A4, colaboração e planos de vários bundles verificados por fixtures e piloto técnico real do A2/automação. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
 **Evolução dos agentes:** A1, A2 textual/automação e A4 admitem `agent/v1`, com ferramentas e definições fixadas no snapshot. A1 consulta o catálogo documental e submete requisitos com citações verificadas; A2 textual consulta requisitos aprovados e submete cenários; A2/automação escolhe fontes de implementação e submete scripts. A3 permanece determinístico. A4 consulta resultados, regras, trechos originais, casos, scripts e ambientes antes de submeter conclusões verificadas pelo contrato de evidência. A interface oferece opções A1/A2 textual/A4 e sugere agente para scripts. A exportação versão 3 inclui trajetórias e linhagem de checkpoints. O [piloto real](PILOTO_AGENTES.md) valida tecnicamente A2/automação; A1/A2 textual/A4 ainda foram verificados com fixtures. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) separa as naturezas da evidência. Migrações 019–022 aplicadas neste ambiente com backup.
 
@@ -56,7 +56,9 @@ Instruções, versões e contratos estão em `agents.js`, `requirements-agent.js
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–023 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–024 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+
+**Planos de execução:** execution_plans preserva manifesto autorizado com scripts/revisões/hashes e recibo. execution_jobs tem plan_id/sequence e orçamento de tentativas por bundle; attempts identifica o trabalho. A divisão determinística respeita limites do protocolo e fixa todos os scripts uma única vez. Evidências permanecem por trabalho. Falha de transporte/repetição conserva IDs, e A4 só é enfileirado após todos concluírem. Cancelamento conserva o subconjunto executado. Planos legados usam formato 0 e mantêm o bundle histórico; novos planos usam formato 1. O executor continua determinístico.
 
 ```mermaid
 erDiagram
