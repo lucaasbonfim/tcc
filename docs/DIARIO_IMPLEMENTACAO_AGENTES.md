@@ -256,6 +256,22 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-11]`. **Próximo passo:** AG-12, A4 com investigação das evidências.
 
+## 05/11/2026 — AG-12: A4 com investigação de evidências
+
+**Estado:** concluído. Base: `8fb5b7c`.
+
+**Mudança:** A4 pode listar resultados e consultar, em páginas, o contexto de um resultado ou seções específicas: observação, requisitos, trechos documentais originais, caso, script aprovado e ambiente. O servidor exige consulta integral dos contextos atribuídos (ou de todas as suas seções). Leituras parciais têm intervalos restauráveis. A submissão continua validada pelo contrato de avaliação existente: todos os pares resultado/requisito, esperado e observado exatos, citação literal e classificação compatível com o estado. Observação truncada permanece inconclusiva mesmo depois de ler todo o contexto disponível.
+
+**Controle:** perfil, ferramentas e contrato fixados no snapshot; modo optativo `evaluation: agent/v1`, opção “Avaliação de evidências com ferramentas”. Migração 022 permite sessões A4. A fila continua exigindo evidência de origem executor. O agente não altera evidência, esperado ou script; a decisão humana fica separada da proposta original. Novas análises também preservam a definição fixa de avaliação, evitando substituí-la pela definição corrente ao enfileirar.
+
+**Verificação:** 90 testes backend aprovados, zero falhas/ignorados; seis E2E aprovados; lint/build aprovados. Testes incluem estados de execução, recusa de textos inventados, referências externas, pares omitidos, leitura por seções, paginação e retomada após falha sem repetir a consulta concluída. O fluxo completo do navegador seleciona o modo A4, recebe conclusão, revisa e exporta a trajetória. Provedor e executor são fixtures, em bancos locais separados.
+
+**Limites:** o validador restringe referências, literalidade e classes admissíveis; não demonstra que a justificativa interpreta corretamente a regra/script. As classificações conhecidas são controles de software, não acurácia de um modelo. Não houve nova chamada real. Muitas evidências/contextos extensos podem consumir o orçamento da sessão; nesse caso a análise falha explicitamente e não omite resultados para concluir.
+
+**Ambiente:** migração 022 aplicada após novo backup; relatório local `upgrade-022.json` contém caminho, hash do dump e contagens preservadas. A aplicação local foi parada para atualização; fixtures não usaram o banco da pesquisa.
+
+**Rastreabilidade:** commit `[AG-12]`. **Próximo passo:** AG-13, colaboração por mensagens versionadas.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

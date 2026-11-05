@@ -206,7 +206,7 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
   - Aceite/verificação: casos com esperado sustentado, limites/exceções quando aplicáveis, sem preencher ambiguidade como fato; preservar lotes/códigos e revisão. Vínculos não são apresentados como cobertura semântica comprovada.
   - Commit: `feat(tests): adiciona planejamento agentivo dos cenarios [AG-11]`.
 
-- [ ] **AG-12 — Introduzir ferramentas e ciclo no A4.** Depende de AG-11.
+- [x] **AG-12 — Introduzir ferramentas e ciclo no A4.** Depende de AG-11.
   - Entrega: consulta seletiva a documento, requisito, caso, script e evidência, com conclusão terminal pelo contrato atual ou nova versão explicitada.
   - Aceite/verificação: observado copiado da execução real, citações verificadas e classes sustentadas. Cenários conhecidos de teste errado, falha de ambiente, divergência e evidência insuficiente; o agente pode concluir que não sabe.
   - Commit: `feat(evaluation): adiciona investigacao agentiva do A4 [AG-12]`.
@@ -283,4 +283,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-12**. A1 e A2 textual/automação têm perfis com ferramentas. A1 e A2 textual foram verificados com fixtures; A2/automação também com piloto real. A3 e A4 ainda usam o fluxo fixo.
+Próxima tarefa: **AG-13**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A1, A2 textual e A4 foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico. Colaboração por mensagens ainda não implementada.

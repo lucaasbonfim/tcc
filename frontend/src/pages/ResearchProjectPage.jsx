@@ -23,6 +23,7 @@ export default function ResearchProjectPage() {
   const [automationMode,setAutomationMode] = useState('agent/v1');
   const [requirementsAgent,setRequirementsAgent] = useState(false);
   const [testsAgent,setTestsAgent] = useState(false);
+  const [evaluationAgent,setEvaluationAgent] = useState(false);
   const version = selectedVersion || project?.versions[0]?.id || '';
   const names = new Set();
   const documents = selectedDocuments ?? (project?.documents || []).filter(doc => {if (names.has(doc.name)) return false; names.add(doc.name); return true;}).map(doc => doc.id);
@@ -41,9 +42,10 @@ export default function ResearchProjectPage() {
         {project.complementary_text && <details><summary>Texto complementar incluído</summary><p className="preserve-text">{project.complementary_text}</p></details>}
         <label className="checkbox-label"><input type="checkbox" checked={requirementsAgent} disabled={busy} onChange={event=>setRequirementsAgent(event.target.checked)}/>Análise de requisitos com ferramentas</label>
         <label className="checkbox-label"><input type="checkbox" checked={testsAgent} disabled={busy} onChange={event=>setTestsAgent(event.target.checked)}/>Geração de casos com ferramentas</label>
+        <label className="checkbox-label"><input type="checkbox" checked={evaluationAgent} disabled={busy} onChange={event=>setEvaluationAgent(event.target.checked)}/>Avaliação de evidências com ferramentas</label>
         <label>Geração de scripts<select value={automationMode} disabled={busy} onChange={event=>setAutomationMode(event.target.value)}><option value="fixed/v1">Fluxo com etapas predefinidas</option><option value="agent/v1">Agente com ferramentas</option></select></label>
         <p className="muted">No modo agente, a IA escolhe quais fontes consultar para elaborar os scripts. A escolha fica registrada nesta análise; os artefatos exigem revisão.</p>
-        <Button disabled={busy || !version || (!documents.length && !project.complementary_text)} onClick={() => action(async () => {const run=await research.post(`/projects/${projectId}/runs`,{code_version_id:version,document_ids:documents,agent_policy:{modes:{requirements:requirementsAgent?'agent/v1':'fixed/v1',tests:testsAgent?'agent/v1':'fixed/v1',automation:automationMode}}});navigate(`/admin/runs/${run.id}`);})}>{busy ? 'Processando solicitação...' : 'Iniciar análise de requisitos →'}</Button>
+        <Button disabled={busy || !version || (!documents.length && !project.complementary_text)} onClick={() => action(async () => {const run=await research.post(`/projects/${projectId}/runs`,{code_version_id:version,document_ids:documents,agent_policy:{modes:{requirements:requirementsAgent?'agent/v1':'fixed/v1',tests:testsAgent?'agent/v1':'fixed/v1',evaluation:evaluationAgent?'agent/v1':'fixed/v1',automation:automationMode}}});navigate(`/admin/runs/${run.id}`);})}>{busy ? 'Processando solicitação...' : 'Iniciar análise de requisitos →'}</Button>
         <small className="muted">Os resultados do primeiro agente deverão ser revisados antes da geração de casos.</small>
       </div>
     </Card>

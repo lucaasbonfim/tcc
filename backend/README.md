@@ -84,7 +84,7 @@ Avaliação humana: `{decision:'confirmed'|'rejected'|'inconclusive',revision,ju
 
 ### Histórico dos agentes
 
-O modo de cada etapa fica em `snapshot_data.agent_policy`. `requirements`, `tests` e `automation` aceitam `agent/v1`; as demais etapas e snapshots antigos permanecem fixos. Configure `agent_policy` ao criar uma análise, por exemplo `{"modes":{"requirements":"agent/v1","tests":"agent/v1","automation":"agent/v1"}}`. O modo não pode ser trocado ao iniciar automação de uma análise existente. A1 usa catálogo e consultas aos trechos atribuídos, mantendo resolução local das citações. A2 textual consulta integralmente os requisitos aprovados do lote e submete casos sujeitos à revisão humana. A interface oferece opções para esses papéis. Leitura e vínculos não demonstram qualidade semântica.
+O modo de cada etapa fica em `snapshot_data.agent_policy`. `requirements`, `tests`, `automation` e `evaluation` aceitam `agent/v1`; as demais etapas e snapshots antigos permanecem fixos. Configure `agent_policy` ao criar uma análise, por exemplo `{"modes":{"requirements":"agent/v1","tests":"agent/v1","automation":"agent/v1"}}`. O modo não pode ser trocado ao iniciar automação de uma análise existente. A1 usa catálogo e consultas aos trechos atribuídos, mantendo resolução local das citações. A2 textual consulta integralmente os requisitos aprovados do lote e submete casos sujeitos à revisão humana. A interface oferece opções para esses papéis. Leitura e vínculos não demonstram qualidade semântica.
 
 - `GET /research/runs/:runId/agent-sessions?offset=0&limit=25`: sessões e resumo de chamadas, ferramentas, tokens reportados, uso desconhecido e duração.
 - `GET /research/runs/:runId/agent-sessions/:sessionId?offset=0&limit=25`: turnos e chamadas relacionadas; limite de página máximo 100.
@@ -102,3 +102,5 @@ Exportação JSON/CSV versão 3 acrescenta `agent_sessions`, `agent_steps`, `age
 ## Validação
 
 `npm test` não chama o Gemini nem executa projetos externos. `TEST_DATABASE_URL` com banco `tcc_test_...` habilita integração. `npm run smoke:gemini` e `npm run smoke:automation` são separados e consomem API real, sem gravar resultados de pesquisa ou executar código gerado. `scripts/hash-password.js` recebe senha por stdin e imprime somente bcrypt. Testes do executor ficam em `../executor`; pilotos reais exigem probes e recibo válidos no perfil explicitamente escolhido. Piloto Node local registrado em [PILOTO_EXECUCAO.md](../docs/PILOTO_EXECUCAO.md).
+
+A4 agentivo lista resultados e consulta contextos ou suas seções: requisito/fonte, caso, script e ambiente. A submissão exige todos os contextos lidos e o contrato literal de evidências; classificações permanecem sujeitas à revisão humana. Pode atingir o orçamento em análises extensas, sem omitir pares para concluir.

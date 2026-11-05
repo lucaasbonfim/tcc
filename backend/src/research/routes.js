@@ -25,7 +25,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
     requirements:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),requires_worker:true,execution_modes:['fixed/v1','agent/v1']},
     tests:{enabled:Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL),artifact_types:['textual','automated'],requires_review:true,execution_modes:['fixed/v1','agent/v1'],adapters:['node-test/v2','java-junit/v1']},
     execution:executor,
-    evaluation:{implemented:true,enabled:executor.ready,requires_independent_evidence:true,reason:'Análise condicionada a evidências recebidas do executor; conclusões exigem revisão humana.'},
+    evaluation:{implemented:true,enabled:executor.ready,requires_independent_evidence:true,execution_modes:['fixed/v1','agent/v1'],reason:'Análise condicionada a evidências recebidas do executor; conclusões exigem revisão humana.'},
   };}));
   router.get('/projects', handler(() => projects.list()));
   router.get('/summary',handler(() => runs.summary()));

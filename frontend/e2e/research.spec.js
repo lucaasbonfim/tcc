@@ -22,6 +22,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.getByText('requisitos.txt · v1 · 1 páginas')).toBeVisible();
   await page.getByRole('button',{name:'Consultar extração'}).click();
   await expect(page.getByRole('heading',{name:'requisitos.txt · v1'})).toBeVisible();
+  await page.getByLabel('Avaliação de evidências com ferramentas',{exact:true}).check();
   await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
   await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Corrigir conteúdo'}).click();
@@ -67,10 +68,12 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   expect(file.suggestedFilename()).toMatch(/^research-.*\.json$/);
   const exported = JSON.parse(await readFile(await file.path(),'utf8'));
   expect(exported.snapshot_data.agent_policy.modes.automation).toBe('agent/v1');
-  expect(exported.agent_steps).toHaveLength(3);
-  expect(exported.agent_tool_calls).toHaveLength(6);
+  expect(exported.snapshot_data.agent_policy.modes.evaluation).toBe('agent/v1');
+  expect(exported.agent_steps).toHaveLength(6);
+  expect(exported.agent_tool_calls).toHaveLength(9);
+  expect(exported.agent_tool_calls.some(call=>call.name==='read_evaluation_context')).toBeTruthy();
   await expect(page.getByRole('heading',{name:'Trajetória do agente'})).toBeVisible();
-  await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
+  await page.getByRole('button',{name:'Consultar sessão',exact:true}).first().click();
   await expect(page.getByText('Artefatos submetidos para revisão',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Ver observação',exact:true}).first().click();
   await expect(page.getByRole('heading',{name:'Observação da ferramenta',exact:true})).toBeVisible();
