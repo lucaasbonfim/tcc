@@ -20,7 +20,7 @@ import {CLARIFICATION_AGENT,createCollaborationService} from './agent-collaborat
 import {EXECUTION_PLANNING_AGENT} from './execution-agent.js';
 import {EXECUTION_DIAGNOSIS_AGENT} from './execution-diagnostics.js';
 import {SCRIPT_REVIEW_AGENT} from './script-review-agent.js';
-import {prepareWorkflowPolicy} from './workflow-policy.js';
+import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent} from './run-events.js';
 
 export function createRunService({ pool, store, executorClient, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
@@ -159,6 +159,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
       const table = kind === 'requirements' ? 'requirements' : 'test_cases';
       return transaction(pool, async db => {
         const run = await get(runId, db, true);
+        assert(run.workflow_mode!=='autonomous/v1','Artefatos autônomos são preservados para avaliação posterior, sem correção intermediária.',409);
         const stage = (await db.query('SELECT * FROM research.stages WHERE run_id=$1 AND agent=$2 FOR UPDATE',[runId,kind])).rows[0];
         assert(run.status === 'awaiting_review' && stage?.status === 'awaiting_review','Etapa não está aberta para revisão.',409);
         const row = (await db.query(`SELECT * FROM research.${table} WHERE id=$1 AND run_id=$2 FOR UPDATE`,[id,runId])).rows[0];
@@ -169,40 +170,48 @@ export function createRunService({ pool, store, executorClient, configuration = 
         assert(content.code === row.code,'O código do item não pode ser alterado.');
         if (kind === 'requirements') validateRequirement(content,(await store.json(run.snapshot)).documents);
         else {
-          const approved = (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND review_status='approved'",[runId])).rows;
+          const approved = (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status)",[runId])).rows;
           validateTestCase(content,approved);
         }
         const updated = (await db.query(`UPDATE research.${table} SET content=$3,review_status=$4,revision=revision+1 WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,JSON.stringify(content),decision==='edited' ? 'pending' : decision])).rows[0];
         if (kind === 'tests') {
           await db.query('DELETE FROM research.test_requirements WHERE test_case_id=$1',[id]);
           for (const code of content.requirement_codes) await db.query(`INSERT INTO research.test_requirements(run_id,test_case_id,requirement_id)
-            SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND review_status='approved'`,[runId,id,code]);
+            SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND research.artifact_eligible(run_id,review_status,processing_status)`,[runId,id,code]);
         }
         await review(db,runId,stage.id,kind === 'requirements' ? 'requirement' : 'test_case',id,decision,justification,row,updated);
         return updated;
       });
     },
-    async approveStage(runId, agent, input) {
+    async approveStage(runId, agent, input,{automatic=false}={}) {
       assert(['requirements','tests'].includes(agent),'Etapa não suportada.');
       const justification = text(input.justification,'Justificativa',5000,true);
       return transaction(pool, async db => {
         const run = await get(runId, db, true);
+        assert(automatic?run.workflow_mode==='autonomous/v1':run.workflow_mode!=='autonomous/v1','Modo de admissão diverge da condição da análise.',409);
+        if(automatic)await assertInitialGrant(db,run,store);
         const stage = (await db.query('SELECT * FROM research.stages WHERE run_id=$1 AND agent=$2 FOR UPDATE',[runId,agent])).rows[0];
         assert(run.status === 'awaiting_review' && stage?.status === 'awaiting_review','Etapa não aguarda aprovação.',409);
-        if(agent==='tests') {
+        if(agent==='tests' && !automatic) {
           const messages=(await db.query('SELECT status,review_status FROM research.agent_messages WHERE run_id=$1',[runId])).rows;
           assert(messages.every(m=>m.status==='answered' && m.review_status!=='pending'),'Revise as mensagens entre agentes antes de aprovar os casos.',409);
           assert(!messages.some(m=>m.review_status==='revision_requested'),'Revisão de regra solicitada: preserve esta análise e inicie outra sem reutilizar aprovações.',409);
         }
         const table = agent === 'requirements' ? 'requirements' : 'test_cases';
         assert(input.approve_pending===undefined || typeof input.approve_pending==='boolean','Opção de aprovação em lote inválida.');
-        if(input.approve_pending) {
+        if(automatic) {
+          const rows=(await db.query(`SELECT * FROM research.${table} WHERE run_id=$1 ORDER BY code FOR UPDATE`,[runId])).rows;
+          const documents=agent==='requirements'?(await store.json(run.snapshot)).documents:null;
+          const requirements=agent==='tests'?(await db.query('SELECT code FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status)',[runId])).rows:null;
+          for(const row of rows){if(agent==='requirements')validateRequirement(row.content,documents);else validateTestCase(row.content,requirements);}
+          await admitProduced(db,run,stage,table,store);
+        } else if(input.approve_pending) {
           const rows=(await db.query(`SELECT * FROM research.${table} WHERE run_id=$1 ORDER BY code FOR UPDATE`,[runId])).rows;
           assert(Array.isArray(input.items) && input.items.length===rows.length && new Set(input.items.map(item=>item?.id)).size===rows.length,'Lista de itens mudou. Atualize a página antes de aprovar.',409);
           const revisions=new Map(input.items.map(item=>[item?.id,item?.revision]));
           assert(rows.every(row=>Number.isInteger(revisions.get(row.id)) && revisions.get(row.id)===row.revision),'Item alterado por outra revisão. Atualize a página antes de aprovar todos.',409);
           const documents=agent==='requirements' ? (await store.json(run.snapshot)).documents : null;
-          const approved=agent==='tests' ? (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND review_status='approved'",[runId])).rows : null;
+          const approved=agent==='tests' ? (await db.query("SELECT code FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status)",[runId])).rows : null;
           for(const row of rows.filter(row=>row.review_status!=='rejected')) {
             if(agent==='requirements')validateRequirement(row.content,documents);
             else validateTestCase(row.content,approved);
@@ -217,22 +226,23 @@ export function createRunService({ pool, store, executorClient, configuration = 
             [JSON.stringify(entries),runId,stage.id,agent==='requirements' ? 'requirement' : 'test_case',justification]);
           }
         }
-        const counts = (await db.query(`SELECT count(*) FILTER(WHERE review_status='pending')::int AS pending,
-          count(*) FILTER(WHERE review_status='approved')::int AS approved FROM research.${table} WHERE run_id=$1`,[runId])).rows[0];
+        const counts = (await db.query(`SELECT count(*) FILTER(WHERE ${automatic?"review_status='pending' AND processing_status<>'eligible'":"review_status='pending'"})::int AS pending,
+          count(*) FILTER(WHERE ${automatic?'research.artifact_eligible(run_id,review_status,processing_status)':"review_status='approved'"})::int AS approved FROM research.${table} WHERE run_id=$1`,[runId])).rows[0];
         assert(counts.pending === 0 && counts.approved > 0,'Revise todos os itens e aprove pelo menos um antes de continuar.',409);
         if(agent==='tests') {
-          const requirements=(await db.query('SELECT code,content,review_status FROM research.requirements WHERE run_id=$1',[runId])).rows;
-          const cases=(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1',[runId])).rows;
+          const requirements=(await db.query('SELECT code,content,review_status,processing_status FROM research.requirements WHERE run_id=$1',[runId])).rows;
+          const cases=(await db.query('SELECT code,content,review_status,processing_status FROM research.test_cases WHERE run_id=$1',[runId])).rows;
           const coverage=testCoverage(requirements,cases);
-          assert(!coverage.missing_approved.length,`${coverage.missing_approved.length} requisito(s) sem caso aprovado. Complete os cenários antes de continuar.`,409);
+          const missing=automatic?coverage.missing_eligible:coverage.missing_approved;
+          assert(!missing.length,`${missing.length} requisito(s) sem caso ${automatic?'admitido':'aprovado'}. Complete os cenários antes de continuar.`,409);
         }
         await db.query("UPDATE research.stages SET status='completed' WHERE id=$1",[stage.id]);
         if (agent === 'requirements') {
           await createTestParts(db,run,store);
           await db.query("UPDATE research.stages SET status='pending' WHERE run_id=$1 AND agent='tests' AND status='blocked'",[runId]);
           await db.query("UPDATE research.runs SET status='pending' WHERE id=$1",[runId]);
-        } else await db.query("UPDATE research.runs SET status='completed',finished_at=now() WHERE id=$1",[runId]);
-        await review(db,runId,stage.id,'stage',stage.id,'approved',justification,{status:'awaiting_review'},{status:'completed',...(input.approve_pending ? {approval_mode:'bulk'} : {})});
+        } else await db.query(`UPDATE research.runs SET status=$2,finished_at=${automatic?'NULL':'now()'} WHERE id=$1`,[runId,automatic?'pending':'completed']);
+        if(!automatic)await review(db,runId,stage.id,'stage',stage.id,'approved',justification,{status:'awaiting_review'},{status:'completed',...(input.approve_pending ? {approval_mode:'bulk'} : {})});
         return get(runId, db);
       });
     },
@@ -240,6 +250,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
       const justification=text(input.justification,'Justificativa',5000,true);
       return transaction(pool,async db=>{
         const run=await get(runId,db,true);
+        assert(run.workflow_mode!=='autonomous/v1','Complementação manual não integra a execução autônoma; avalie a saída preservada.',409);
         assert(['awaiting_review','completed','failed'].includes(run.status),'Aguarde a geração atual terminar antes de completar os cenários.',409);
         await db.query('SELECT id FROM research.projects WHERE id=$1 FOR UPDATE',[run.project_id]);
         assert(!(await db.query("SELECT id FROM research.runs WHERE project_id=$1 AND id<>$2 AND status IN ('pending','running','awaiting_review')",[run.project_id,runId])).rowCount,'Projeto possui outra execução ativa.',409);
@@ -296,6 +307,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
       const justification = text(input.justification,'Justificativa',5000,true);
       return transaction(pool, async db => {
         const run = await get(runId, db, true);
+        assert(!run.workflow_error,'A condição autônoma foi recusada; crie outra análise com autorização inicial própria.',409);
         assert(run.status === 'failed','Somente execuções com falha podem ser repetidas.',409);
         assert(!(await db.query("SELECT id FROM research.runs WHERE project_id=$1 AND id<>$2 AND status IN ('pending','running','awaiting_review')",[run.project_id,runId])).rowCount,'Projeto já possui outra execução ativa.',409);
         const stage = (await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND status='failed' FOR UPDATE",[runId])).rows[0];

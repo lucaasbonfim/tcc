@@ -43,7 +43,7 @@ export function createCollaborationService({pool,store}) {
     async review(runId,id,input) {
       const justification=text(input.justification,'Justificativa',5000,true);assert(['acknowledged','rejected','revision_requested'].includes(input.decision),'Decisão da mensagem inválida.',422);
       return transaction(pool,async db=>{
-        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review','Análise não aguarda revisão.',409);
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review' || (run?.workflow_mode==='autonomous/v1' && ['completed','failed','cancelled'].includes(run.status)),'Análise não aguarda revisão.',409);
         const row=(await db.query('SELECT * FROM research.agent_messages WHERE id=$1 AND run_id=$2 FOR UPDATE',[id,runId])).rows[0];assert(row?.status==='answered' && row.review_status==='pending','Mensagem não está aberta para revisão.',409);
         assert(input.decision!=='acknowledged' || (await store.json(row.response)).status!=='unavailable','Consulta indisponível deve ser rejeitada ou exigir nova análise.',422);
         const after=(await db.query('UPDATE research.agent_messages SET review_status=$3,review_justification=$4,reviewed_at=now() WHERE id=$1 AND run_id=$2 RETURNING *',[id,runId,input.decision,justification])).rows[0];
@@ -54,7 +54,7 @@ export function createCollaborationService({pool,store}) {
     },
     async request({job,input,snapshot,policy,generateTurn,signal,requirement_code,question}) {
       assert(job.stage.agent==='tests' && input.requirements.some(r=>r.code===requirement_code),'Requisito fora da tarefa de A2.',403);
-      const requirement=(await pool.query("SELECT * FROM research.requirements WHERE run_id=$1 AND code=$2 AND review_status='approved'",[job.run.id,requirement_code])).rows[0];assert(requirement,'Requisito não aprovado.',403);
+      const requirement=(await pool.query("SELECT * FROM research.requirements WHERE run_id=$1 AND code=$2 AND research.artifact_eligible(run_id,review_status,processing_status)",[job.run.id,requirement_code])).rows[0];assert(requirement,'Requisito não aprovado.',403);
       const definition=snapshot.clarification_agent_definition;assert(definition?.contract_version===AGENT_CONTRACT_VERSION,'Perfil de consulta ausente/incompatível.',422);
       const parent=await createAgentSessionStore(pool,job).find();assert(parent?.status==='running','Sessão solicitante indisponível.',409);
       const requestKey=taskFingerprint({stage:job.stage.id,part:job.testPart?.id ?? null,requirement_id:requirement.id,revision:requirement.revision,question});

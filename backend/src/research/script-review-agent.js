@@ -33,7 +33,7 @@ export function createScriptReviewService({pool,store}) {
     assert(result && script && test_case,'Resultado fora da tarefa de diagnóstico.',403);
     assert(['passed','failed','test_error','compilation_error'].includes(result.status) && result.omitted_characters===0,'Evidência insuficiente/técnica de ambiente não autoriza propor correção de script.',422);
     const definition=snapshot.script_review_agent_definition;assert(definition?.contract_version===AGENT_CONTRACT_VERSION,'Perfil de revisão A2 ausente/incompatível.',422);
-    const actual=(await pool.query("SELECT * FROM research.automated_tests WHERE id=$1 AND run_id=$2 AND review_status='approved'",[script.id,job.run.id])).rows[0];
+    const actual=(await pool.query("SELECT * FROM research.automated_tests WHERE id=$1 AND run_id=$2 AND research.artifact_eligible(run_id,review_status,processing_status)",[script.id,job.run.id])).rows[0];
     assert(actual?.version===script.version && actual.revision===script.revision && actual.files.sha256===script.files.sha256,'Versão do script diverge da evidência atribuída.',422);
     const original=(await pool.query('SELECT a.input FROM research.attempts a JOIN research.stages s ON s.id=a.stage_id WHERE a.id=$1 AND s.run_id=$2',[script.generation_attempt_id,job.run.id])).rows[0];assert(original?.input,'Escopo original não preservado.',422);
     const scope=(await store.json(original.input)).input.scope;assert(scope.commit_sha===snapshot.code_version.commit_sha,'SHA do contexto diverge da análise.',422);
