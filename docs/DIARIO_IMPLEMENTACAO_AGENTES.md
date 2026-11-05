@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-03 concluídas; próxima tarefa: AG-04 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-04 concluídas; próxima tarefa: AG-05 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -101,6 +101,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limite:** o gateway executa um turno e não executa ferramentas nem decide permissões. O ciclo e a persistência das observações pertencem às entregas seguintes.
 
 **Rastreabilidade:** commit `[AG-03]`. **Próximo passo:** AG-04, ferramentas de consulta e escopo efetivo.
+
+## 04/11/2026 — AG-04: ferramentas e escopo efetivo do A2
+
+**Estado:** concluído. Base: `691f318`.
+
+**Mudança implementada:** registro de ferramentas e conjunto de consulta/submissão para A2. O manifesto e as leituras vêm da inspeção preservada no SHA da tarefa; módulos aninhados não podem ser consultados como se pertencessem ao módulo pai. Observações longas têm limite serializado e truncamento explícito. Preparar o escopo calcula dependências locais e preserva um artefato com hash; submissões exigem esse escopo e passam pelo contrato anterior, inclusive esperado, interfaces e vínculos.
+
+**Verificação:** `node --test test/automation-agent-tools.test.js test/automation.test.js test/inspection.test.js`: nove testes aprovados, zero falhas/ignorados. Verificam fonte autorizada, recusa de travessia/URL/módulo alheio, dependência externa não provisionada, fechamento local, restauração de escopo e recusa de alteração do esperado. Evidência: fixtures estáticas de repositório e armazenamento temporário; nenhum código alvo foi executado.
+
+**Decisão:** as fontes lidas para entender o projeto não se tornam automaticamente fontes do bundle; a submissão devolve um `input.scope` efetivo para o consumidor atual. A confirmação terminal indica necessidade de revisão, não aprovação ou execução. Capacidades informadas são estáticas/versionadas, sem alegar disponibilidade atual do serviço executor.
+
+**Limitação:** a restauração de escopo está disponível ao runtime, mas o ciclo persistido ainda será integrado na tarefa seguinte.
+
+**Rastreabilidade:** commit `[AG-04]`. **Próximo passo:** AG-05.
 
 ## Modelo para a próxima entrada
 

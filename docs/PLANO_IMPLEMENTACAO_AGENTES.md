@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: implementação em andamento; AG-00–AG-03 concluídas.**
+**Estado: implementação em andamento; AG-00–AG-04 concluídas.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -146,7 +146,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Verificação: SDK injetado com respostas representativas; regressão do gateway atual. Conferir os tipos da versão instalada antes de escolher campos concretos.
   - Commit: `feat(gemini): adiciona turnos com chamadas de ferramentas [AG-03]`.
 
-- [ ] **AG-04 — Implementar as ferramentas de consulta e o escopo efetivo.** Depende de AG-01 e AG-02.
+- [x] **AG-04 — Implementar as ferramentas de consulta e o escopo efetivo.** Depende de AG-01 e AG-02.
   - Arquivos previstos: novos `agent-tools.js` e `automation-agent-tools.js`; reutilizar `inspection.js`, `automation-contract.js`, citações e artefatos sem executar fontes.
   - Entrega: ferramentas da seção 3, respostas limitadas/paginadas, hashes e escopo calculado a partir das dependências reais da inspeção preservada.
   - Aceite: leitura no SHA/inspeção da tarefa, limites de bytes e paths, recusa de itens de outra análise; fontes consultadas separadas das fontes executáveis. Submissão não grava script aprovado.
@@ -279,4 +279,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-04**. Contratos, política, persistência e transporte de ferramentas foram entregues; a integração operacional do agente depende das tarefas seguintes.
+Próxima tarefa: **AG-05**. Ferramentas, escopo, política, persistência e transporte foram entregues; falta o ciclo e sua integração operacional.
