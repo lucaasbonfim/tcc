@@ -94,6 +94,14 @@ test('falha do provedor registra status sem vazar mensagem ou credenciais',{skip
 
 const retryPolicy=(extra={})=>createAgentPolicy({modes:{automation:'agent/v1'},model_retry:{initial_delay_ms:1,max_delay_ms:4},...extra});
 const unavailable=status=>Object.assign(new Error('private-transport'),{name:'ApiError',status});
+test('espera RetryInfo do 429 é registrada e usa o mesmo contexto sem gastar tentativa de etapa',{skip:!url},async()=>environment(async env=>{
+  let sends=0;
+  const error=Object.assign(new Error(JSON.stringify({error:{message:'private-key',details:[{'@type':'type.googleapis.com/google.rpc.RetryInfo',retryDelay:'0.02s'}]}})),{status:429});
+  const before=Date.now();await runAgentTask(config(env,{policy:retryPolicy(),generateTurn:async({contents})=>{if(++sends===1)throw error;return sends===2?fixtureTurn([read,prepare]):finishTurn(contents,env.input);}}));
+  assert.equal(sends,3);assert.ok(Date.now()-before>=20);
+  const rows=(await env.pool.query("SELECT payload FROM research.run_events WHERE run_id=$1 AND kind='model_retry_scheduled'",[env.job.run.id])).rows;
+  assert.equal(rows[0].payload.delay_ms,20);assert.equal(rows[0].payload.delay_reason,'provider_retry_after');assert.ok(!JSON.stringify(rows).includes('private-key'));
+}));
 test('UUID sem hífens é rejeitado com identidade exata; agente corrige sem normalização silenciosa',{skip:!url},async()=>environment(async env=>{
   let turns=0,rawCompact;
   const tools=createAutomationAgentTools({...env,store:env.store});

@@ -34,6 +34,6 @@ O segundo piloto passou por planejamento e Docker real (dois resultados), mas o 
 
 O terceiro controle chegou ao Docker, mas a API devolveu HTTP 429 na abertura do diagnóstico: cota de 15 requisições por minuto e RetryInfo de aproximadamente 55 segundos. Esperas de 5/10/20 s não atravessam essa janela.
 
-- [ ] Política 1.2.0 para novas análises respeita `google.rpc.RetryInfo`, até 60 s e dentro do prazo total. Políticas anteriores preservadas.
-- [ ] Cada envio continua contado, com espera/razão registradas e corpo/credenciais omitidos.
+- [x] Política 1.2.0 para novas análises respeita `google.rpc.RetryInfo`, até 60 s e dentro do prazo total. Políticas anteriores preservadas.
+- [x] Cada envio continua contado, com espera/razão registradas e corpo/credenciais omitidos.
 - [ ] Validar regressões, repetir piloto completo com a nova política e registrar todas as rodadas.

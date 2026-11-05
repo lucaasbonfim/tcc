@@ -536,3 +536,11 @@ Leitores A3/A4 agora informam `next_offset` e `read_complete` no retorno paginad
 
 Suíte completa de backend: **140 testes aprovados**, sem ignorados, em `tcc_test_agent_pages_20261105`. Inclui lacunas, restauração, metadados de continuação, limites serializados, autorização e validação das evidências. Terceiro piloto separado usou esta correção; foi bloqueado por cota 429 do provedor, distinta de paginação, a tratar no marco QUOTA-01. Nenhuma análise de pesquisa foi alterada.
 
+# QUOTA-01 — 05/11/2026 — RetryInfo da cota do Gemini
+
+O terceiro controle local (`5a62261a-fd5f-4805-b2a3-7bea236fc9a2`, `tcc_diag_isnumber_1793912362524`) chegou ao diagnóstico com dois scripts e um trabalho. O provedor devolveu 429, `RESOURCE_EXHAUSTED`, declarando 15 requisições por minuto no Free Tier e espera aproximada de 55 s. A política 1.1.0 com 5/10/20 s esgotou reenvios antes de atravessar a janela. Não confundir essa cota com impossibilidade de teste, erro funcional ou defeito do executor.
+
+Política 1.2.0 de novas análises acrescenta `respect_retry_after:true`. Extrai somente duração de `google.rpc.RetryInfo` do erro, sem salvar corpo/URLs/credenciais. A espera efetiva é o maior valor entre backoff e orientação do provedor, limitada a 60 s e ao prazo remanescente para RetryInfo. Espera inviável encerra sem reenviar antes do prazo. Cada envio ainda passa por beginStep e consome orçamento; tempo de espera, cancelamento e lease permanecem controlados. Espera inclui razão `provider_retry_after`; snapshots 1.0.0/1.1.0 mantêm a política anterior. Não aumentou cota da conta nem mudou limites de inferência/execução.
+
+Validação específica de política/runtime/sessões: **21 testes aprovados** em banco novo isolado `tcc_test_provider_wait_20261105`, após a suíte de 140 aprovada no marco de paginação. No quarto controle real (`648dc579-96b4-4889-8a68-a802b359c4ef`), 429 observado e espera de 42000 ms efetivamente registrada com `delay_reason:provider_retry_after`. Conclusão conjunta ainda sendo conferida; resultado detalhado será registrado no fechamento do piloto.
+
