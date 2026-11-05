@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-07 concluídas; próxima tarefa: AG-08 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-08 concluídas; próxima tarefa: AG-09 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -155,6 +155,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limite:** exportar durante o processamento reflete leituras de um estado em evolução. A coleta científica deverá congelar as condições e conferir os artefatos estabilizados, em vez de tratar esse download como snapshot transacional do banco.
 
 **Rastreabilidade:** commit `[AG-07]`. **Próximo passo:** AG-08.
+
+## 04/11/2026 — AG-08: modo e trajetória na interface
+
+**Estado:** concluído. Base: `7a020ab`.
+
+**Mudança implementada:** seleção do modo de geração de scripts antes de criar a análise, indicação do comportamento correspondente na aba Scripts e painel de trajetória no histórico. O painel permite consultar sessões, turnos, argumentos e observações, com paginação e atualização durante o processamento. Mostra limites/interrupções, tokens parciais e submissão para revisão como fatos diferentes da execução.
+
+**Verificação:** lint e build frontend aprovados. Quatro cenários E2E aprovados com PostgreSQL de teste e respostas/executor injetados: percurso completo no modo agentivo com exportação de três turnos/seis ferramentas; limite de orçamento; cancelamento em andamento; regressão do modo fixo com 104 cenários. Conferidos viewport de 390 px, ausência de overflow e de erros JavaScript; captura do histórico móvel inspecionada visualmente.
+
+**Ocorrências da validação:** o Chromium padrão exigido pela instalação atual do Playwright não estava disponível. Usado o executável já instalado `chromium_headless_shell-1243`, pela configuração explícita existente. Na primeira execução funcional, três cenários passaram e o percurso principal parou no localizador do seletor; foi trocado por consulta ao papel acessível `combobox`, e o cenário completo passou em 24,3 s. Não foi alterado o comportamento do produto para acomodar esse localizador.
+
+**Limite:** a interface está integrada a código real, mas esses testes de navegador usam fixtures. A operação com Gemini/executor reais continua sendo a próxima tarefa. Capturas e traces da suíte ficam em diretórios locais ignorados.
+
+**Rastreabilidade:** commit `[AG-08]`. **Próximo passo:** AG-09.
 
 ## Modelo para a próxima entrada
 

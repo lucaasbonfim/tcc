@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: implementação em andamento; AG-00–AG-07 concluídas.**
+**Estado: implementação em andamento; AG-00–AG-08 concluídas.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -174,7 +174,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Verificação: exportar/reler uma trajetória com falha e recuperação, confirmar integridade e vínculos e checar os tipos de registro CSV. Testar acesso restrito ao pesquisador.
   - Commit: `feat(research): exporta trajetorias dos agentes [AG-07]`.
 
-- [ ] **AG-08 — Mostrar decisões e estados na interface.** Depende de AG-07.
+- [x] **AG-08 — Mostrar decisões e estados na interface.** Depende de AG-07.
   - Arquivos previstos: `ResearchProjectPage.jsx`, `ResearchRunPage.jsx`, `ResearchAutomationPanel.jsx`, novo componente de trajetória, serviço de pesquisa e E2E.
   - Entrega: escolha do modo ao criar a análise e visualização da trajetória, consultas, consumo e motivo de encerramento. Mostrar “artefato gerado”, “revisado” e “executado” como fatos diferentes.
   - Aceite: seleção fica fixada na análise; interface mostra progresso/limite/cancelamento; analisa exportação e histórico antigo; funciona em tela pequena. Ferramentas e detalhes técnicos aparecem na inspeção do histórico, sem sobrecarregar o fluxo principal.
@@ -279,4 +279,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-08**. O ciclo e a consulta/exportação estão integrados; faltam interface e piloto real.
+Próxima tarefa: **AG-09**. O ciclo, histórico e interface estão integrados; falta a validação operacional com Gemini/executor reais.
