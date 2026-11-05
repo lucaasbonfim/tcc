@@ -16,6 +16,7 @@ import {createAgentSessionStore} from './agent-sessions.js';
 import {createAutomationAgentTools} from './automation-agent-tools.js';
 import {runAgentTask,taskFingerprint} from './agent-runtime.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {createRequirementsAgentTools} from './requirements-agent.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -152,7 +153,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       let inputRef = null, outputRef = null, metadata = null, output = null, error = null,automationValidated=false;
       try {
         const snapshot = await store.json(job.run.snapshot);
-        const isAgent=job.stage.agent==='automation' && agentMode(snapshot,'automation')==='agent/v1';
+        const isAgent=agentMode(snapshot,job.stage.agent)==='agent/v1';
         const policy=isAgent ? resolveAgentPolicy(snapshot) : null;
         let input;
         if(job.automationPart)input=await automation.partInput(job.automationPart);
@@ -186,6 +187,16 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             assert(job.stage.context.execution_mode==='agent/v1','Modo da etapa diverge do snapshot.',422);
             const definition=job.stage.context.agent_definition;
             assert(definition?.contract_version===AGENT_CONTRACT_VERSION && Array.isArray(definition.tools),'Contrato agentivo ausente/incompatível; crie nova análise.',422);
+            if(job.stage.agent==='requirements') {
+              const tools=createRequirementsAgentTools({input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars});
+              const task={...tools.task,objective:'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.',
+                fingerprint:taskFingerprint({input,schema:request.schema,definition,policy,model:job.run.model,parameters:job.run.parameters})};
+              const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:task.objective,document_catalog:input.documents.map(d=>({id:d.id,name:d.name,pages:d.pages.map(p=>p.page)})),source_count:tools.task.source_ids.length,part:input.part ?? null,limits:policy.limits}})}]}];
+              const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
+                model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:'submit_requirements',signal:controller.signal});
+              input=terminal.input;inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
+              return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};
+            }
             const inspectionRef=(await pool.query('SELECT artifact FROM research.inspections WHERE id=$1 AND code_version_id=$2',[job.stage.context.inspection_id,job.run.code_version_id])).rows[0]?.artifact;
             assert(inspectionRef,'Inspeção da tarefa não encontrada.',422);
             const inspection=await store.json(inspectionRef);

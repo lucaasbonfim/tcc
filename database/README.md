@@ -21,6 +21,7 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 017 | Lotes/checkpoints de casos, códigos dos requisitos, mapeamentos e vínculo às tentativas |
 | 018 | Lotes de scripts, cenários-alvo, decisões por cenário e tentativas de geração |
 | 019 | Sessões, turnos e chamadas de ferramentas dos agentes; vínculos, contadores e idempotência |
+| 020 | Papel A1, sessões por parte de requisitos e unicidade da sessão ativa por unidade de trabalho |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
 

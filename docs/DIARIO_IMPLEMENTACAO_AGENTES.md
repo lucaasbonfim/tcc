@@ -10,7 +10,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
 | M1 — A2 com ferramentas | Concluído tecnicamente | AG-01–AG-09, com piloto real e falhas preservadas |
-| M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
+| M2 — outros papéis e colaboração | Em implementação | AG-10 concluída; próxima tarefa: AG-11 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
 
@@ -221,6 +221,24 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Revisão do plano:** próximo marco reutiliza o mecanismo para A1, A2 textual e A4, com perfis e ferramentas próprios, vínculos de sessões adequados a partes e contratos de citação mantidos. Essa decisão foi registrada antes de iniciar AG-10.
 
 **Rastreabilidade:** commit `[AG-09]`. **Próximo passo:** AG-10.
+
+## 04/11/2026 — AG-10: A1 com consultas documentais e citações
+
+**Estado:** concluído. Base: `87185dd`.
+
+**Mudança implementada:** perfil A1 com catálogo, consulta em lotes e submissão de requisitos; papéis e ferramentas permanecem fixados por análise. A1 não recebe o texto inteiro na conversa inicial: escolhe consultas dentro das fontes atribuídas. O servidor exige que todos os trechos atribuídos tenham sido efetivamente devolvidos antes da submissão, sem considerar trecho truncado como lido. Metadados de leitura podem ser consultados novamente pelo agente. Citações continuam por source_id resolvido e validado localmente.
+
+**Persistência:** migração 020 acrescenta vínculo a partes de requisitos e permite sessões do papel `requirements`. O orçamento/retomada passa a identificar a unidade de trabalho pela parte ou etapa, preservando teto global. O runtime aceita catálogo e ferramenta terminal por papel. Continuação preserva a definição original; exportação resolve a linhagem e inclui trajetórias dos checkpoints reaproveitados, inclusive após duas continuações.
+
+**Interface/API:** opção “Análise de requisitos com ferramentas” na preparação da análise; continua optativa nesta entrega. Históricos mostram número/papel correto do agente e os nomes das consultas documentais. API aceita `agent_policy.modes.requirements='agent/v1'`; o fluxo fixo permanece disponível.
+
+**Verificação:** 81 testes backend aprovados, zero falhas/ignorados; lint/build frontend aprovados; cinco E2E aprovados, incluindo criação pela opção A1 na interface, consulta dos documentos, trajetória e requisito disponível para revisão. Integrações cobrem documentos extensos em partes, consolidação, duas continuações, preservação de fonte, leitura parcial, recusa de ferramenta alheia e regressão de A2. Evidência: PostgreSQL local separado e provedores injetados, não avaliação real de qualidade de um LLM.
+
+**Atualização do ambiente:** migração 020 aplicada sozinha ao banco existente após novo dump/cópia dos artefatos. Contagens das entidades anteriores e das três tabelas de trajetória preservadas; backup em `.local/agent-pilot/backup-WyBEbw/`, relatório `upgrade-020.json`.
+
+**Limites:** leitura e citação verificadas não demonstram interpretação correta, recall ou identificação correta de ambiguidades. A1 não escreve artefatos aprovados nem acessa código/executor. O piloto real de M1 permanece limitado a A2; uma futura validação conjunta deve registrar as condições novas.
+
+**Rastreabilidade:** commit `[AG-10]`. **Próximo passo:** AG-11, A2 textual.
 
 ## Modelo para a próxima entrada
 

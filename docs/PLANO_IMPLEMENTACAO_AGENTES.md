@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: M1 concluído com piloto real; AG-00–AG-09 e subtarefas AG-09a/AG-09b concluídas. Próximo marco: M2.**
+**Estado: M1 concluído com piloto real; M2 em implementação, com AG-10 concluída.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -196,7 +196,7 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
 
 **Revisão após M1:** manter o runtime, a retomada e os catálogos fixados por análise. AG-10 deverá generalizar os vínculos de sessão por parte/etapa com nova migração aditiva, permitir o papel `requirements`, introduzir perfil/ferramentas próprios e integrar a submissão aos contratos de citação e consolidação existentes. O agente consultará as partes atribuídas; a cobertura de leitura deverá ser distinguida da qualidade semântica da extração. AG-11 e AG-12 reutilizarão esse mecanismo para casos e evidências, mantendo limites e validações por papel. Nenhum papel recebe ferramentas de escrita sobre artefatos aprovados. A colaboração de AG-13 produzirá propostas/mensagens versionadas, sem substituir aprovações humanas ou apagar a versão anterior. Essa evolução ainda não está implementada em M1.
 
-- [ ] **AG-10 — Introduzir ferramentas e ciclo no A1.** Depende de AG-09.
+- [x] **AG-10 — Introduzir ferramentas e ciclo no A1.** Depende de AG-09.
   - Entrega: consultas por página/trecho/catálogo, requisitos e incertezas; reaproveitar citações literais, partes e consolidação. Não permitir que a busca omita silenciosamente páginas de documentos extensos.
   - Aceite/verificação: cobertura de processamento documental separada da qualidade da extração; citações existentes e verificáveis; ambiguidade mantida sem inventar regra; regressão de documentos em partes e continuidade.
   - Commit: `feat(requirements): adiciona consultas e ciclo do A1 [AG-10]`.
@@ -283,4 +283,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-10**. M1 está integrado e validado tecnicamente com Gemini/executor reais; as demais etapas ainda usam o fluxo fixo.
+Próxima tarefa: **AG-11**. A1 e A2/automação têm perfis com ferramentas; A1 foi verificado com fixtures e A2 também com piloto real. Geração textual, A3 e A4 ainda usam o fluxo fixo.
