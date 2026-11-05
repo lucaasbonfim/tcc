@@ -20,8 +20,10 @@ import {CLARIFICATION_AGENT,createCollaborationService} from './agent-collaborat
 import {EXECUTION_PLANNING_AGENT} from './execution-agent.js';
 import {EXECUTION_DIAGNOSIS_AGENT} from './execution-diagnostics.js';
 import {SCRIPT_REVIEW_AGENT} from './script-review-agent.js';
+import {prepareWorkflowPolicy} from './workflow-policy.js';
+import {appendRunEvent} from './run-events.js';
 
-export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
+export function createRunService({ pool, store, executorClient, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
   async function get(id, db = pool, lock = false) {
     const run = (await db.query(`SELECT * FROM research.runs WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [id])).rows[0];
@@ -74,12 +76,15 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const length = documents.reduce((sum,doc) => sum + doc.pages.reduce((n,p) => n + p.text.length,0),0);
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
-        const policy=createAgentPolicy(input.agent_policy ?? {});
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,script_review_agent_definition:SCRIPT_REVIEW_AGENT,execution_agent_definitions:{planning:EXECUTION_PLANNING_AGENT,diagnosis:EXECUTION_DIAGNOSIS_AGENT},automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const workflow=await prepareWorkflowPolicy({db,store,version,input,executorClient});
+        const policy=createAgentPolicy(input.agent_policy ?? (workflow.mode==='autonomous/v1'?{modes:{requirements:'agent/v1',tests:'agent/v1',automation:'agent/v1',execution:'agent/v1',evaluation:'agent/v1'}}:{}));
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,workflow_policy:workflow,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,script_review_agent_definition:SCRIPT_REVIEW_AGENT,execution_agent_definitions:{planning:EXECUTION_PLANNING_AGENT,diagnosis:EXECUTION_DIAGNOSIS_AGENT},automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
-          await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
-            VALUES($1,$2,$3,'pending',$4,$5,$6)`, [id,projectId,version.id,snapshot,config.model,config.parameters]);
+          await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,workflow_mode)
+            VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`, [id,projectId,version.id,snapshot,config.model,config.parameters,workflow.mode]);
+          if(workflow.grant)await db.query("INSERT INTO research.run_grants(id,run_id,policy,actor) VALUES($1,$2,$3,'admin')",[workflow.grant.id,id,await store.put(workflow)]);
+          await appendRunEvent(db,{run_id:id,source_key:'run:created',kind:'run_created',actor:'human',payload:{workflow_mode:workflow.mode,grant_id:workflow.grant?.id ?? null,snapshot}});
           for (const doc of selected) await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) VALUES($1,$2,$3)',[projectId,id,doc.id]);
           for (const definition of AGENTS) {
             const enabled = ['requirements','tests'].includes(definition.agent);
@@ -255,6 +260,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       const justification=text(input.justification,'Justificativa',5000,true),created=[];
       try{return await transaction(pool,async db=>{
         const source=await get(runId,db,true);
+        assert(source.workflow_mode!=='autonomous/v1','Para outra tentativa autônoma, crie nova análise com autorização inicial própria.',409);
         assert(source.status==='failed','Somente análise com falha pode ser continuada.',409);
         await db.query('SELECT id FROM research.projects WHERE id=$1 FOR UPDATE',[source.project_id]);
         assert(!(await db.query("SELECT id FROM research.runs WHERE project_id=$1 AND status IN ('pending','running','awaiting_review')",[source.project_id])).rowCount,'Projeto já possui outra execução ativa.',409);
