@@ -9,6 +9,7 @@ import {createArtifactStore} from '../../src/research/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 import {autonomousFixtureTurn} from '../../test-support/autonomous-fixture.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
+import {createAutonomyController,AUTONOMY_LOCK_PREFIX} from '../../src/research/autonomy.js';
 const url=process.env.TEST_DATABASE_URL;if(url&&!new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 async function env(action){const pool=new pg.Pool({connectionString:url}),dir=await mkdtemp(join(tmpdir(),'autonomous-run-')),store=createArtifactStore(dir);try{await migrate(pool);await action({pool,store});}finally{await pool.end();await rm(dir,{recursive:true,force:true});}}
 async function prepare(pool,store,{native=false,generateTurn=autonomousFixtureTurn,status='passed'}={}) {
@@ -36,6 +37,34 @@ test('todos os agentes e consultas avançam autonomamente e preservam candidatos
 }));
 test('mudança do ambiente após autorização inicial encerra a condição sem enviar código',{skip:!url},async()=>env(async({pool,store})=>{
   const {services,run,receipt,sent}=await prepare(pool,store);receipt.policy_sha256='c'.repeat(64);const detail=await complete(services,run);assert.equal(detail.status,'failed');assert.match(detail.workflow_error,/autorização inicial/);assert.equal(sent.length,0);assert.equal(detail.reviews.length,0);
+}));
+
+test('trava legada não paralisa avanço e transação concorrente preserva exatamente uma admissão',{skip:!url},async()=>env(async({pool,store})=>{
+  const {services,run,receipt,sent}=await prepare(pool,store,{native:true}),legacy=await pool.connect(),guard=await pool.connect();
+  const controller=createAutonomyController({pool,store,executorClient:{health:async()=>receipt}});
+  try {
+    // Reproduce an old session lock stranded on a different physical backend.
+    await legacy.query("SELECT pg_advisory_lock(hashtext('autonomy:' || $1))",[run.id]);
+    await services.processor.processOne();
+    let detail=await services.runs.detail(run.id);
+    assert.equal(detail.stages.find(s=>s.agent==='requirements').status,'completed');
+    assert.equal(detail.stages.find(s=>s.agent==='tests').status,'pending');
+    await guard.query('BEGIN');await guard.query('SELECT pg_advisory_xact_lock(hashtext($1))',[AUTONOMY_LOCK_PREFIX+run.id]);
+    await services.processor.processOne();detail=await services.runs.detail(run.id);
+    assert.equal(detail.stages.find(s=>s.agent==='tests').status,'awaiting_review');
+    assert.equal(detail.stages.filter(s=>s.agent==='automation').length,0);
+    await guard.query('ROLLBACK');
+    await Promise.all([controller.advance(run.id),controller.advance(run.id)]);
+    detail=await services.runs.detail(run.id);
+    assert.equal(detail.stages.filter(s=>s.agent==='automation').length,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM research.run_events WHERE run_id=$1 AND kind='artifacts_admitted' AND payload->>'entity_type'='test_cases'",[run.id])).rows[0].n,1);
+    // The controller returned: its transaction no longer owns the lock.
+    await guard.query('BEGIN');assert.equal((await guard.query('SELECT pg_try_advisory_xact_lock(hashtext($1)) AS owned',[AUTONOMY_LOCK_PREFIX+run.id])).rows[0].owned,true);await guard.query('ROLLBACK');
+    detail=await complete(services,run);assert.equal(detail.status,'completed',detail.workflow_error);assert.equal(sent.length,1);assert.equal(detail.reviews.length,0);assert.equal(detail.findings.length,1);
+  } finally {
+    await guard.query('ROLLBACK');guard.release();
+    await legacy.query("SELECT pg_advisory_unlock(hashtext('autonomy:' || $1))",[run.id]);legacy.release();
+  }
 }));
 test('cancelar antes do início preserva autorização e não aciona o executor',{skip:!url},async()=>env(async({pool,store})=>{
   const {services,run,sent}=await prepare(pool,store);await services.runs.cancel(run.id,{justification:'Cancelamento de controle.'});await services.processor.processOne();assert.equal((await services.runs.detail(run.id)).status,'cancelled');assert.equal(sent.length,0);
