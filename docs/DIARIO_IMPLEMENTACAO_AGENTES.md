@@ -374,6 +374,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commits `762993e` (planejamento), `7f92b93` (diagnóstico) e `[AG-15c]` (consulta/revisão). **Próximo passo:** piloto conjunto separado e fechamento de AG-16 após definir objeto e avaliação humana; a ausência de avaliador não foi preenchida com gabarito da IA.
 
+## 05/11/2026 — AH-01: condição autônoma e elegibilidade sem aprovação humana
+
+**Estado:** concluído. Base: `de0ba04`; a orquestração e interface ainda são as tarefas seguintes.
+
+**Mudança:** modo assisted/v1 preservado; nova condição autonomous/v1 exige consentimento explícito, inspeção pertencente à versão, módulo compatível e recibo do executor conferido pelo servidor. O snapshot e run_grants preservam autorização de uma análise, SHA, módulo, identidade do ambiente e limites. Continuação de análise autônoma não reaproveita a autorização em outra análise.
+
+**Separação:** processing_status registra elegibilidade técnica, conservando review_status humano pendente. A função de elegibilidade aceita admissão automática somente para análise autônoma e nunca reabilita item rejeitado. Admissão registra evento de sistema, sem criar aprovação/revisão humana. Migração 027 também estabelece eventos ordenados e snapshots imutáveis por referência/hash para o histórico posterior.
+
+**Verificação:** 120 testes backend aprovados na verificação final; controles direcionados de consentimento, módulo, ambiente, elegibilidade e continuidade também aprovados. Uma execução anterior teve falha na fixture de continuação de A1 durante verificações sobre o mesmo banco; isolada, a fixture passou e a suíte final foi executada sem outro worker de testes backend concorrente. O banco de testes permanece separado do navegador e da pesquisa. Não houve chamada real ao modelo.
+
+**Ambiente:** migração 027 aplicada após backup `.local/agent-pilot/backup-sjlkcT/`; relatório `upgrade-027.json` confirma preservação das contagens anteriores. Processos locais próprios foram parados para atualização; análise real não foi iniciada.
+
+**Rastreabilidade:** commit `[AH-01]`. **Próximo passo:** AH-02, avanços automáticos sem falsificar aprovação humana.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:
