@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-02 concluídas; próxima tarefa: AG-03 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-03 concluídas; próxima tarefa: AG-04 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -89,6 +89,18 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limitações:** ainda não há integração do runtime ao worker; retomada de conversa e tratamento de retorno tardio serão exercitados com o ciclo em AG-05/AG-06. Não há chamada de IA ou resultado experimental nesta validação.
 
 **Rastreabilidade:** commit `[AG-02]`. **Próximo passo:** AG-03, turnos Gemini com ferramentas.
+
+## 04/11/2026 — AG-03: turnos Gemini com chamadas de ferramentas
+
+**Estado:** concluído. Base: `c044e64`.
+
+**Mudança implementada:** `createAgentTurnGateway` em `model.js` aceita conversa nativa e catálogo de ferramentas, usa `parametersJsonSchema` e solicita chamadas por function calling. Não configura simultaneamente schema/MIME de resposta JSON. A operação JSON anterior permanece disponível. Partes nativas e assinaturas técnicas são preservadas; chamadas sem ID recebem um identificador preservado no conteúdo e no histórico. Campos de transporte/cabeçalhos do SDK não entram na saída bruta selecionada.
+
+**Verificação:** `node --test test/model.test.js test/agents.test.js test/agent-contract.test.js`: 11 testes aprovados, zero falhas/ignorados. Cobrem múltiplas chamadas, IDs, assinatura opaca, recusa, término por limite, cancelamento e timeout mesmo quando o provedor injetado ignora abort. Regressão dos contratos/gateway anteriores aprovada. Nenhuma chamada real ao Gemini.
+
+**Limite:** o gateway executa um turno e não executa ferramentas nem decide permissões. O ciclo e a persistência das observações pertencem às entregas seguintes.
+
+**Rastreabilidade:** commit `[AG-03]`. **Próximo passo:** AG-04, ferramentas de consulta e escopo efetivo.
 
 ## Modelo para a próxima entrada
 

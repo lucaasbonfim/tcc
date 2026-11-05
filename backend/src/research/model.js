@@ -1,5 +1,6 @@
 import { createGeminiClient } from '../config/gemini.js';
 import { assert } from './errors.js';
+import { randomUUID } from 'node:crypto';
 
 export const GENERATION_PARAMETERS = Object.freeze({ temperature:0.2, maxOutputTokens:8192 });
 
@@ -27,5 +28,50 @@ export function createModelGateway(clientFactory = createGeminiClient) {
     return { raw, metadata:{ requested_model:model, model_version:response.modelVersion ?? null,
       response_id:response.responseId ?? null, usage:response.usageMetadata ?? null,
       finish_reasons:response.candidates?.map(item => item.finishReason) ?? [], cost:null } };
+  };
+}
+
+// One model turn only. Tool execution and conversation ownership belong to the runtime.
+export function createAgentTurnGateway(clientFactory=createGeminiClient) {
+  return async ({model,parameters,instruction,contents,tools,signal,timeout_ms=90000,max_context_chars=180000})=>{
+    assert(Array.isArray(contents) && Array.isArray(tools) && tools.length>0,'Conversa/ferramentas inválidas.',422);
+    assert(Number.isSafeInteger(timeout_ms) && timeout_ms>0 && timeout_ms<=90000,'Prazo do turno inválido.',422);
+    assert(JSON.stringify({instruction,contents,tools}).length<=max_context_chars,'Contexto do agente excede o limite.',422);
+    const controller=new AbortController();
+    const abort=()=>controller.abort(signal?.reason);
+    if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(()=>controller.abort(new DOMException('Prazo do turno excedido.','TimeoutError')),timeout_ms);
+    let onAbort;
+    try {
+      controller.signal.throwIfAborted();
+      const client=clientFactory();
+      const operation=client.models.generateContent({model,contents,config:{
+        temperature:parameters.temperature,maxOutputTokens:parameters.maxOutputTokens,systemInstruction:instruction,
+        tools:[{functionDeclarations:tools.map(tool=>({name:tool.name,description:tool.description,parametersJsonSchema:providerSchema(tool.parameters)}))}],
+        toolConfig:{functionCallingConfig:{mode:'ANY',allowedFunctionNames:tools.map(tool=>tool.name)}},
+        abortSignal:controller.signal,httpOptions:{timeout:timeout_ms,retryOptions:{attempts:1}},
+      }});
+      const response=await Promise.race([operation,new Promise((_,reject)=>{
+        onAbort=()=>reject(controller.signal.reason ?? new DOMException('Operação cancelada.','AbortError'));
+        controller.signal.addEventListener('abort',onAbort,{once:true});
+        if(controller.signal.aborted)onAbort();
+      })]);
+      const content=structuredClone(response.candidates?.[0]?.content ?? {role:'model',parts:[]});
+      const calls=[];
+      for(const part of content.parts || [])if(part.functionCall) {
+        part.functionCall.id ||= randomUUID();
+        calls.push({id:part.functionCall.id,name:part.functionCall.name,args:part.functionCall.args});
+      }
+      // Keep native parts/signatures and diagnostic fields, never SDK transport/headers.
+      const raw=JSON.stringify({content,prompt_feedback:response.promptFeedback ?? null,
+        finish_reasons:response.candidates?.map(item=>item.finishReason) ?? []});
+      assert(raw.length<=1000000,'Resposta agentiva excede o limite.',422);
+      return {raw,content,calls,metadata:{requested_model:model,model_version:response.modelVersion ?? null,
+        response_id:response.responseId ?? null,usage:response.usageMetadata ?? null,
+        finish_reasons:response.candidates?.map(item=>item.finishReason) ?? [],cost:null}};
+    }finally{
+      clearTimeout(timer);signal?.removeEventListener('abort',abort);
+      if(onAbort)controller.signal.removeEventListener('abort',onAbort);
+    }
   };
 }
