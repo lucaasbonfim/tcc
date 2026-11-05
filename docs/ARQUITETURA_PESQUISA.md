@@ -2,7 +2,7 @@
 
 Estado do código atualizado em 05/11/2026, até AG-14, com A1/A2 textual/A4, colaboração e planos de vários bundles verificados por fixtures e piloto técnico real do A2/automação. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Evolução dos agentes:** A1, A2 textual/automação e A4 admitem `agent/v1`, com ferramentas e definições fixadas no snapshot. A1 consulta o catálogo documental e submete requisitos com citações verificadas; A2 textual consulta requisitos aprovados e submete cenários; A2/automação escolhe fontes de implementação e submete scripts. A3 permanece determinístico. A4 consulta resultados, regras, trechos originais, casos, scripts e ambientes antes de submeter conclusões verificadas pelo contrato de evidência. A interface oferece opções A1/A2 textual/A4 e sugere agente para scripts. A exportação versão 3 inclui trajetórias e linhagem de checkpoints. O [piloto real](PILOTO_AGENTES.md) valida tecnicamente A2/automação; A1/A2 textual/A4 ainda foram verificados com fixtures. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) separa as naturezas da evidência. Migrações 019–022 aplicadas neste ambiente com backup.
+**Evolução dos agentes:** A1, A2 textual/automação e A4 admitem `agent/v1`, com ferramentas e definições fixadas no snapshot. A1 consulta o catálogo documental e submete requisitos com citações verificadas; A2 textual consulta requisitos aprovados e submete cenários; A2/automação escolhe fontes de implementação e submete scripts. A3 permanece determinístico. A4 consulta resultados, regras, trechos originais, casos, scripts e ambientes antes de submeter conclusões verificadas pelo contrato de evidência. A interface oferece opções A1/A2 textual/A4 e sugere agente para scripts. A exportação versão 3 inclui trajetórias e linhagem de checkpoints. O [piloto real](PILOTO_AGENTES.md) valida tecnicamente A2/automação; A1/A2 textual/A4 ainda foram verificados com fixtures. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) separa as naturezas da evidência. Migrações 019–024 aplicadas neste ambiente com backup.
 
 **Situação operacional:** análise, geração, execução Node/Java e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais; Java/JUnit passou nos mesmos controles e em sete cenários. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Swing, banco, bibliotecas Java externas e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
@@ -88,7 +88,9 @@ erDiagram
   requirements ||--o{ test_requirements : fundamenta
   test_cases ||--o{ automated_tests : automatiza
   attempts ||--o{ automated_tests : produz
-  runs ||--o| execution_jobs : autoriza
+  runs ||--o| execution_plans : autoriza
+  execution_plans ||--|{ execution_jobs : divide
+  execution_jobs ||--o{ attempts : processa
   execution_jobs ||--o| evidence : retorna
   evidence ||--o{ test_results : comprova
   automated_tests ||--o{ test_results : executa
@@ -100,7 +102,7 @@ erDiagram
 
 Chaves compostas garantem vínculos de execução/projeto para versões, documentos, scripts, resultados e análises. Requisitos/casos guardam conteúdo estruturado e estado de revisão. Scripts guardam metadados e referência aos arquivos privados, tentativa geradora, versão/revisão e compatibilidade com o contrato. Essa compatibilidade estática **não comprova compilação, execução ou correção semântica**.
 
-`execution_jobs` fixa bundle/hash e recibo de política/imagem; um trabalho por execução, com repetição idempotente do transporte. `evidence.origin` aceita somente executor. Não existe endpoint para importar um JSON arbitrário como execução real. Resultados individuais ficam vinculados a script, caso e evidência. `findings.content` preserva a proposta do agente; `review_status` e `human_classification` não a sobrescrevem. Revisões registram antes/depois, data, justificativa e ator administrativo.
+`execution_plans` fixa o manifesto autorizado; `execution_jobs` fixa cada bundle/hash e recibo de política/imagem, com repetição idempotente do transporte. `evidence.origin` aceita somente executor. Não existe endpoint para importar um JSON arbitrário como execução real. Resultados individuais ficam vinculados a script, caso e evidência. `findings.content` preserva a proposta do agente; `review_status` e `human_classification` não a sobrescrevem. Revisões registram antes/depois, data, justificativa e ator administrativo.
 
 PDFs, extrações, fontes, código gerado, snapshots, respostas e relatórios ficam em arquivos privados com UUID, tamanho e SHA-256. PostgreSQL armazena metadados/referências. Exportações resolvem arquivos e versões humanas dos scripts para permitir auditoria sem depender somente de chaves locais.
 

@@ -310,6 +310,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-14]`. **Próximo passo:** AG-15, avaliar decisões úteis de planejamento/diagnóstico sem delegar comandos arbitrários ao LLM.
 
+## 05/11/2026 — AG-16a: preparação do protocolo e da referência
+
+**Estado:** preparação documental concluída; AG-16 permanece aberto, sem congelamento ou coleta principal. Base: `5c6b2ea`.
+
+**Entrega:** rascunho do protocolo com perguntas, recorte, condições, unidades de análise, rubrica, denominadores, tratamento de falhas/intervenções e procedimento de coleta. Formulário vazio para referência humana, a ser preparado antes das saídas principais e mantido inicialmente em `.local/experimento/`, ignorado pelo Git. Não se preencheu gabarito com respostas da IA. Links do README e procedimento operacional foram atualizados; o diagrama atual passou a representar planos e vários trabalhos.
+
+**Definições pendentes:** responsáveis pela avaliação/referência, módulo/documentos/SHAs, repetições/orçamento calibrados e decisão de manter A3 determinístico ou estudar um planejador/diagnosticador com LLM. Perguntas foram encaminhadas ao usuário enquanto o rascunho era preparado; não se tratou ausência de resposta como aceite nem se marcou AG-15/AG-16 como concluído.
+
+**Verificação:** revisão documental dos contratos/limites atuais e conferência de que `.local/experimento/` é ignorado. Aplicação reiniciada após AG-14 com API/worker/executor e frontend; HTTP 200 em localhost:5173. Última validação de código: 103 testes backend e sete E2E aprovados, lint/build aprovados. Sem novos chamados reais ao modelo ou alterações no texto acadêmico.
+
+**O que permite afirmar:** existe um desenho concreto para preparar a coleta, não um experimento científico já realizado. Leitura, vínculos e validações técnicas não serão usados como substitutos de precisão, cobertura semântica ou julgamento independente.
+
+**Rastreabilidade:** commit `[AG-16a]`. **Próximo passo:** resolver o recorte de AG-15 e a referência para finalizar/congelar AG-16.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

@@ -235,6 +235,7 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
 ### M4 — Preparar a coleta científica
 
 - [ ] **AG-16 — Congelar arquitetura e protocolo de coleta.** Depende de AG-15, ou de revisão explícita do recorte após M1/M2.
+  - Preparação AG-16a: [rascunho científico](PROTOCOLO_EXPERIMENTO.md) e [formulário humano](MODELO_REFERENCIA.md) prontos; congelamento depende do recorte e da referência revisada. Não houve coleta principal.
   - Entrega: versão de aplicação/instruções/ferramentas, limites calibrados, referência humana preparada, módulo(s)/documentos/SHAs e critérios de julgamento. Registrar intervenções, tentativas, impossibilidades e inconclusivos com denominadores.
   - Aceite/verificação: é possível reconstruir uma conclusão de ponta a ponta e julgar acerto/erro sem usar a conclusão da própria IA como referência. O histórico distingue condição de desenvolvimento/piloto de coleta principal.
   - Comparação opcional: `fixed/v1` versus `agent/v1` só integra a coleta se o protocolo controlar/explicitar informação e orçamento e a alegação pretendida justificar a comparação. Sem isso, relatar viabilidade e qualidade descritivamente, sem superioridade atribuída à agência.
