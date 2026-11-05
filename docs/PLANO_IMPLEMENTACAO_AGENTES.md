@@ -227,10 +227,10 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
   - Aceite/verificação: uma suíte pode ser dividida sem perder testes ou duplicar resultados; cancelamento/falha parcial preserva evidências válidas. Repetir transporte não cria novo ensaio e nova versão de script não reutiliza aprovação antiga. Exportação mantém formato antigo legível.
   - Commit: `feat(execution): organiza planos e bundles versionados [AG-14]`.
 
-- [ ] **AG-15 — Implementar decisões de A3 e retorno de diagnóstico.** Depende de AG-14.
+- [x] **AG-15 — Implementar decisões de A3 e retorno de diagnóstico.** Depende de AG-14.
   - [x] AG-15a: planejamento agentivo validado e autorização separada.
   - [x] AG-15b: investigação pós-execução e diagnósticos vinculados.
-  - [ ] AG-15c: retorno ao A2 com proposta de revisão sem substituir aprovados.
+  - [x] AG-15c: retorno ao A2 com proposta de revisão sem substituir aprovados.
   - Entrega: A3 consulta capacidades, propõe agrupamentos válidos e solicita execuções autorizadas; devolve a A2 diagnósticos verificáveis de script. O backend calcula e valida limites concretos antes de executar qualquer bundle.
   - Aceite/verificação: distinguir erro de compilação/teste, ambiente e falha de asserção; nova versão exige revisão e autorização correspondentes. O agente não altera a implementação, o esperado para forçar passagem, dependências ou a política do executor. Sem decisão útil demonstrada, registrar A3 como serviço determinístico e revisar a descrição arquitetural.
   - Commit: `feat(execution): adiciona planejamento e diagnostico do A3 [AG-15]`.
@@ -293,4 +293,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-15**. A1, A2 textual/automação e A4 têm perfis com ferramentas. A2 pode consultar A1 por mensagens versionadas, com revisão humana e sessões filhas. Execução possui plano autorizado, manifesto e checkpoints por bundle. A1, A2 textual, A4, colaboração e múltiplos bundles foram verificados com fixtures; A2/automação também com piloto real. A3 ainda é determinístico.
+Próxima tarefa: **AG-16**. A1, A2 textual/automação, A3 planejamento/diagnóstico e A4 têm perfis com ferramentas. A2 consulta A1 e A3 consulta A2 por mensagens versionadas, com sessões filhas e revisão humana. Execução material continua determinística, com planos autorizados/checkpoints. Até AG-15, os controles novos foram verificados com fixtures; o piloto real existente é de A2/automação. Falta piloto conjunto, recorte e referência com avaliador humano ainda não definido; protocolo não congelado e coleta principal não iniciada.

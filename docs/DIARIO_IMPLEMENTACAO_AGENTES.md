@@ -356,6 +356,24 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-15b]`. **Próximo passo:** AG-15c, consulta A3 → A2 e proposta versionada de revisão do script.
 
+## 05/11/2026 — AG-15c: retorno A3 → A2 e rascunho versionado de script
+
+**Estado:** concluído; AG-15 encerrada em três subetapas. Base: `7f92b93`. AG-16 permanece aberto por falta de recorte/referência/avaliador e piloto conjunto.
+
+**Mudança:** após investigar um resultado, A3 pode pedir revisão do script ao A2. A2 consultado recebe perfil próprio, sem execução ou delegação, e consulta o contexto original (regra/fontes, caso/esperado, script/versão, fontes de implementação e resultado). Pode responder sem mudança, inconclusivo ou com rascunho completo de revisão. A3 recebe a resposta como observação e pode incorporá-la à justificativa técnica, sem tratá-la como nova evidência ou aplicá-la.
+
+**Persistência/controle:** migração 026 amplia mensagens para script_review, ligando resultado e script por FK composta, versão/revisão/hash e origem; permite sessão filha A2 na etapa solicitante. Até duas consultas de script por análise, além das duas de requisitos. Cada consulta A2 tem até seis turnos/oito ferramentas, subordinada ao teto global e ao cancelamento da fase. Mesma solicitação é idempotente, leituras/consumo são retomados, e indisponibilidade não vira sucesso inventado.
+
+**Candidato:** preserva esperado literal e metadados base; arquivos passam pelo contrato estático existente, inclusive caminho do caso e fontes autorizadas. Rascunho guarda base e versão proposta, código e hash em artefato privado. automated_tests, aprovações, manifesto e evidência anteriores não são substituídos. Validação estática não garante que a asserção preserva semanticamente a regra; isso precisa de revisão humana. Aplicar/copiar/adaptar o código em outra análise é intervenção manual, com aprovação e autorização novas, não recuperação silenciosa da execução antiga.
+
+**Interface/revisão:** mensagens A3/A2 mostram rascunho, esperado e justificativa; reconhecimento não aplica o código. Pedidos de revisão orientam encerrar/preservar a análise e iniciar outra. A4 só pode ser concluído depois de revisar mensagens e diagnóstico, mantendo suas próprias classificações. JSON/CSV incluem candidato e trajetórias vinculadas.
+
+**Verificação final:** 118 testes backend aprovados, zero falhas/ignorados; oito E2E Chromium aprovados; lint/build aprovados. Controles incluem resposta e nova versão apenas proposta, script/evidência preservados, orçamento, candidato fora do escopo recusado/corrigido, indisponibilidade, cancelamento da filha, retomada sem duplicar consulta e bloqueio de conclusão sem revisão. A fixture modifica apenas um comentário para testar versionamento/transporte: não demonstra correção de defeito. Primeiro E2E expôs nome de arquivo estourando a largura móvel; houve quebra de linha no caminho. A suíte ampliada também atingiu o limite cumulativo de importações das fixtures; servidor de teste passou a usar limite próprio de 300 via injeção, mantendo padrão de produção em 30. A suíte completa passou após os ajustes.
+
+**Ambiente:** migração 026 aplicada após backup em `.local/agent-pilot/backup-2Dsqf5/`, relatório `upgrade-026.json`, contagens anteriores preservadas (incluindo planos/propostas/mensagens). Aplicação/API/worker/executor local reiniciados; HTTP 200 no frontend. Nenhuma nova chamada real ao modelo e nenhuma coleta científica foram realizadas nesta implementação.
+
+**Rastreabilidade:** commits `762993e` (planejamento), `7f92b93` (diagnóstico) e `[AG-15c]` (consulta/revisão). **Próximo passo:** piloto conjunto separado e fechamento de AG-16 após definir objeto e avaliação humana; a ausência de avaliador não foi preenchida com gabarito da IA.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

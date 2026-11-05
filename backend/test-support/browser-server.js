@@ -25,6 +25,7 @@ import {testCasesFixtureTurn} from './tests-agent-fixture.js';
 import {evaluationFixtureTurn} from './evaluation-agent-fixture.js';
 import {collaborationFixtureTurn} from './collaboration-fixture.js';
 import {executionAgentFixtureTurn} from './execution-agent-fixture.js';
+import {scriptReviewFixtureTurn} from './script-review-fixture.js';
 import {requireAdmin} from '../src/middlewares/auth.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -43,19 +44,21 @@ const projects = createProjectService({pool,store,inspectCode:version=>inspectRe
 const runs = createRunService({pool,store,configuration:() => ({model:'e2e-fixture-not-research',parameters:{temperature:0.2,maxOutputTokens:8192}})});
 let executorEnabled=false;
 const receipt={ready:true,protocol_version:1,deployment_id:'e2e-fixture-only',policy_sha256:'a'.repeat(64),images:{'node-test/v2':{image_id:'sha256:'+'b'.repeat(64)}}};
-const executorClient={health:async()=>executorEnabled ? receipt : {ready:false,reason:'Fixture E2E: executor indisponível até habilitação exclusiva do teste.'},execute:async bundle=>{const result=fixtureResult(bundle);result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
+const executorClient={health:async()=>executorEnabled ? receipt : {ready:false,reason:'Fixture E2E: executor indisponível até habilitação exclusiva do teste.'},execute:async bundle=>{const project=(await pool.query('SELECT p.name FROM research.projects p JOIN research.runs r ON r.project_id=p.id WHERE r.id=$1',[bundle.run_id])).rows[0];const result=fixtureResult(bundle,project?.name.startsWith('Revisão A3 E2E')?'failed':'passed');result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
 const generate=async ({input}) => {
-  if(input.results)return {raw:JSON.stringify({findings:input.results.map(result=>({test_result_id:result.id,test_case_id:result.test_case_id,automated_test_id:result.automated_test_id,requirement_code:'RF-001',classification:'compatible',expected_behavior:input.test_cases[0].content.expected_result,observed_behavior:result.observed_excerpt,evidence_quote:result.observed_excerpt,justification:'Fixture E2E somente; não é resultado da pesquisa.',limitations:['Fixture técnica.']})),warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
+  if(input.results)return {raw:JSON.stringify({findings:input.results.map(result=>({test_result_id:result.id,test_case_id:result.test_case_id,automated_test_id:result.automated_test_id,requirement_code:'RF-001',classification:result.status==='passed'?'compatible':result.status==='failed'?'possible_functional_divergence':'inconclusive',expected_behavior:input.test_cases[0].content.expected_result,observed_behavior:result.observed_excerpt,evidence_quote:result.observed_excerpt,justification:'Fixture E2E somente; não é resultado da pesquisa.',limitations:['Fixture técnica.']})),warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
   if(input.scope)return {raw:JSON.stringify({artifacts:input.test_cases.map(row=>({test_case_id:row.id,requirement_codes:['RF-001'],adapter:'node-test/v2',commit_sha:'a'.repeat(40),files:[{path:generatedPath(row.id,'node-test/v2').path,code:"import test from 'node:test';import assert from 'node:assert/strict';import {consultarProjetos} from '../src/projects.js';test('consulta',()=>assert.deepEqual(consultarProjetos(),[]));"}],targets:[{path:'src/projects.js',symbols:['consultarProjetos']}],rationale:'Fixture E2E de geração.',expected_result:row.content.expected_result,expected_sources:[{requirement_code:'RF-001',quote:'consultar projetos'}],limitations:['Fixture, sem compilação/execução real.']})),unsupported_cases:[],warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
   const requirement = {code:'RF-001',title:'Consulta de projetos',description:'O pesquisador pode consultar projetos.',kind:'functional',actors:['Pesquisador'],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{document_id:input.documents?.[0].id || 'complementary-text',page:1,quote:'consultar projetos'}]};
   const testCase = {code:'CT-001',title:'Consultar projetos cadastrados',objective:'Verificar consulta de projetos.',requirement_codes:['RF-001'],preconditions:[],input_data:[],steps:['Consultar projetos cadastrados.'],expected_result:'Projetos cadastrados são exibidos.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Fixture E2E; código não executado.'}};
   if(input.project_name?.startsWith('Cancelar agente E2E'))testCase.title='Controle de cancelamento agentivo';
   if(input.project_name?.startsWith('Colaboração E2E'))requirement.title='Colaboração E2E: consulta';
+  if(input.project_name?.startsWith('Revisão A3 E2E'))testCase.title='Revisão A3 E2E: consultar projetos';
   if(input.source_catalog)requirement.sources=[{source_id:input.source_catalog[0].source_id}];
   const cases=input.project_name?.startsWith('Lote E2E') ? Array.from({length:104},(_,i)=>({...testCase,code:`CT-${String(i+1).padStart(3,'0')}`})) : [testCase];
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
 const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
+  if(tools.some(t=>t.name==='respond_script_review') || JSON.stringify(contents).includes('Revisão A3 E2E'))return scriptReviewFixtureTurn({contents,tools});
   if(tools.some(t=>['submit_execution_plan','submit_execution_diagnostics'].includes(t.name)))return executionAgentFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='respond_clarification') || contents[0].parts[0].text.includes('Colaboração E2E'))return collaborationFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='read_evaluation_context'))return evaluationFixtureTurn({contents});
@@ -89,9 +92,10 @@ app.use(cors({origin:process.env.FRONTEND_URL,credentials:true}));
 app.use(cookieParser()); app.use(express.json({limit:'256kb'}));
 const {default:authRoutes} = await import('../src/routes/auth.routes.js');
 app.use('/api/auth',authRoutes);
-app.use('/api/research',createResearchRouter({projects,runs,store,automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store,client:executorClient}),evaluation:createEvaluationService({pool,store})}));
+// All E2E workflows share one loopback IP. Keep their cumulative fixture imports separate from the production default.
+app.use('/api/research',createResearchRouter({projects,runs,store,importLimit:300,automation:createAutomationService({pool,store}),execution:createExecutionService({pool,store,client:executorClient}),evaluation:createEvaluationService({pool,store})}));
 // This route exists only in this test-only server guarded by TEST_DATABASE_URL. Never add it to production app.
-app.post('/__e2e/enable-executor',requireAdmin,(_req,res)=>{executorEnabled=true;res.json({fixture_only:true});});
+app.post('/__e2e/enable-executor',requireAdmin,(req,res)=>{executorEnabled=req.body?.enabled!==false;res.json({fixture_only:true});});
 app.use(errorHandler);
 const server = app.listen(3101,'127.0.0.1',() => console.log('Servidor E2E isolado http://127.0.0.1:3101 (somente fixtures técnicas).'));
 let processing = false;

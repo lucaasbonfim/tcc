@@ -1,6 +1,6 @@
 # Protocolo do experimento — rascunho para fechamento
 
-Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. Base de implementação: `5c6b2ea` (AG-14). O usuário escolheu ampliar o escopo com A3 usando LLM para planejamento/diagnóstico; a implementação está em andamento. Ainda não há avaliador humano definido, nem recorte/referência fechados. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
+Estado em 05/11/2026: **não congelado e sem coleta principal iniciada**. Implementação até AG-15: A3 usa LLM para planejamento/diagnóstico e pode consultar A2 sobre revisão de script; execução material permanece determinística. Os novos controles foram verificados com fixtures, sem novo piloto conjunto com LLM real. Ainda não há avaliador humano definido, nem recorte/referência fechados. Este documento registra decisões propostas; não relata resultados científicos. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) e o [piloto técnico](PILOTO_AGENTES.md) distinguem os testes de plataforma da pesquisa.
 
 ## 1. O que será investigado
 
@@ -15,6 +15,8 @@ Perguntas propostas:
 5. Que decisões de consulta/colaboração ocorreram, quais falharam e qual foi o custo observado de chamadas, tokens e tempo?
 
 A presença de ferramentas ou mensagens não demonstra que melhoraram os resultados. A interpretação da qualidade depende da referência e da avaliação humana. Teste aprovado não prova requisito correto nem ausência de defeitos.
+
+Para A3, registrar se houve decisão de agrupamento/ordem sustentada pelos scripts/capacidades, diagnósticos corretos e necessidade real de consultar A2. Uma fixture que força a consulta só demonstra o mecanismo. Julgar propostas de revisão antes de qualquer intervenção: candidato válido pelo contrato estático pode continuar semanticamente errado. Rascunhos não foram aplicados/executados automaticamente; copiar/adaptar uma proposta em nova análise deve ser identificado como intervenção, com nova revisão/autorização e evidência própria.
 
 ## 2. Recorte antes da coleta
 

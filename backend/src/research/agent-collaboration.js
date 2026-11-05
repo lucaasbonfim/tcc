@@ -65,7 +65,7 @@ export function createCollaborationService({pool,store}) {
         const stage=(await db.query('SELECT status,lease_token,lease_until FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
         assert(stage?.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da solicitação expirada.',409);
         const existing=(await db.query('SELECT * FROM research.agent_messages WHERE run_id=$1 AND request_key=$2',[job.run.id,requestKey])).rows[0];if(existing)return existing;
-        assert((await db.query('SELECT id FROM research.agent_messages WHERE run_id=$1',[job.run.id])).rowCount<2,'Limite de duas consultas entre agentes por análise atingido.',422);
+        assert((await db.query("SELECT id FROM research.agent_messages WHERE run_id=$1 AND kind='requirement_clarification'",[job.run.id])).rowCount<2,'Limite de duas consultas entre agentes por análise atingido.',422);
         return (await db.query(`INSERT INTO research.agent_messages(id,run_id,stage_id,source_attempt_id,source_session_id,sender,recipient,kind,request_key,requirement_id,requirement_revision,request)
           VALUES($1,$2,$3,$4,$5,'tests','requirements','requirement_clarification',$6,$7,$8,$9) RETURNING *`,[randomUUID(),job.run.id,job.stage.id,job.attemptId,parent.id,requestKey,requirement.id,requirement.revision,requestRef])).rows[0];
       });

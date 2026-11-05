@@ -1,8 +1,8 @@
 # Arquitetura da plataforma multiagente
 
-Estado do código atualizado em 05/11/2026, até AG-15b, com A1/A2 textual/A4, colaboração e planos de vários bundles verificados por fixtures e piloto técnico real do A2/automação. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
+Estado do código atualizado em 05/11/2026, até AG-15, com A1/A2 textual/A4, colaboração e planos de vários bundles verificados por fixtures e piloto técnico real do A2/automação. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
-**Evolução dos agentes:** A1, A2 textual/automação e A4 admitem `agent/v1`, com ferramentas e definições fixadas no snapshot. A1 consulta o catálogo documental e submete requisitos com citações verificadas; A2 textual consulta requisitos aprovados e submete cenários; A2/automação escolhe fontes de implementação e submete scripts. A3 pode planejar com ferramentas antes da autorização humana; a execução material permanece determinística. A3 também consulta evidências e propõe diagnósticos técnicos, com revisão humana e sem alterar os resultados. A consulta de revisão de script ao A2 ainda está em implementação. A4 consulta resultados, regras, trechos originais, casos, scripts e ambientes antes de submeter conclusões verificadas pelo contrato de evidência. A interface oferece opções A1/A2 textual/A4 e sugere agente para scripts. A exportação versão 3 inclui trajetórias e linhagem de checkpoints. O [piloto real](PILOTO_AGENTES.md) valida tecnicamente A2/automação; A1/A2 textual/A4 ainda foram verificados com fixtures. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) separa as naturezas da evidência. Migrações 019–025 aplicadas neste ambiente com backup.
+**Evolução dos agentes:** A1, A2 textual/automação e A4 admitem `agent/v1`, com ferramentas e definições fixadas no snapshot. A1 consulta o catálogo documental e submete requisitos com citações verificadas; A2 textual consulta requisitos aprovados e submete cenários; A2/automação escolhe fontes de implementação e submete scripts. A3 pode planejar com ferramentas antes da autorização humana; a execução material permanece determinística. A3 também consulta evidências e propõe diagnósticos técnicos, com revisão humana e sem alterar os resultados. A3 pode consultar A2 em sessão filha sobre revisão do script. A resposta guarda rascunho versionado sem substituir o aprovado ou sua autorização. A4 consulta resultados, regras, trechos originais, casos, scripts e ambientes antes de submeter conclusões verificadas pelo contrato de evidência. A interface oferece opções A1/A2 textual/A4 e sugere agente para scripts. A exportação versão 3 inclui trajetórias e linhagem de checkpoints. O [piloto real](PILOTO_AGENTES.md) valida tecnicamente A2/automação; A1/A2 textual/A4 ainda foram verificados com fixtures. O [diário](DIARIO_IMPLEMENTACAO_AGENTES.md) separa as naturezas da evidência. Migrações 019–026 aplicadas neste ambiente com backup.
 
 **Situação operacional:** análise, geração, execução Node/Java e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais; Java/JUnit passou nos mesmos controles e em sete cenários. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Swing, banco, bibliotecas Java externas e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
@@ -22,12 +22,17 @@ flowchart LR
   W --> A2[Agente 2 / casos e scripts]
   A1 --> G[Gateway Gemini / JSON fixo ou turnos com ferramentas]
   A2 --> G
-  W --> A3[Agente 3 / determinístico]
-  A3 -->|HTTP local ou HTTPS dedicado / autenticado| E[Serviço executor / perfil local ou VM dedicada]
+  W --> A3[Agente 3 / planejamento e diagnóstico com ferramentas]
+  A3 --> G
+  A3 -->|propostas e revisões| PG
+  A3 -->|consulta de revisão de script| A2
+  W --> D[Despacho determinístico / plano autorizado]
+  D -->|HTTP local ou HTTPS dedicado / autenticado| E[Serviço executor / perfil local ou VM dedicada]
   E -->|verificação independente do SHA| GH
   E --> C[Contêiner restrito / fonte imutável / sem rede]
-  E -->|resultados, logs e relatórios| A3
-  A3 --> FS
+  E -->|resultados, logs e relatórios| D
+  D --> FS
+  D -->|evidências preservadas| A3
   W --> A4[Agente 4 / análise de evidências]
   A4 --> G
   A4 --> PG
@@ -45,7 +50,7 @@ Acorn foi acrescentado para análise estática de JavaScript; não carrega o có
 | Agente 1 | Documentos/texto versionados, por inteiro ou em partes limitadas | Requisitos, condições, fluxos, incertezas, alertas; códigos únicos e citações existentes na página | Corrigir/aprovar/rejeitar cada requisito, depois aprovar etapa |
 | Agente 2 / textual | Requisitos aprovados | Casos com passos, dados, esperado, cenário e vínculos válidos | Corrigir/aprovar/rejeitar cada caso |
 | Agente 2 / `automation` | Casos aprovados e escopo técnico inspecionado no mesmo SHA | Um script por caso ou justificativa de impossibilidade; API/símbolos/imports, caminhos, SHA e esperado validados | Código editável com versão/antes/depois; aprovação separada da autorização de execução |
-| Agente 3 | Bundle de fontes/scripts aprovados e recibo autorizado do executor | Execução determinística; estado, comandos, ambiente, resultados, logs e relatórios | Autorização humana anterior ao envio; sem inferência de defeito |
+| Agente 3 | Scripts/revisões e capacidades no planejamento; evidências/regras/casos/scripts no diagnóstico | Propõe lotes validados e ações técnicas, podendo consultar A2; despacho material determinístico após autorização | Autorizar plano separadamente; revisar diagnóstico e resposta A2, sem aplicar rascunho ou inferir defeito automaticamente |
 | Agente 4 | Requisitos/trechos originais, casos/scripts aprovados, observações e ambiente do executor | Classificação vinculada a resultado/requisito, esperado/observado preservados e citação literal da observação | Confirmar/rejeitar/inconclusiva, com justificativa e classificação humana separada |
 
 `automation` é uma subetapa interna do agente 2, persistida na posição 5 para compatibilidade com as quatro posições anteriores. A interface mantém quatro cartões lógicos e apresenta scripts numa aba própria. Concluir o fluxo textual não afirma que testes foram executados; estendê-lo para automação exige nova ação justificada na mesma execução.
@@ -56,9 +61,11 @@ Instruções, versões e contratos estão em `agents.js`, `requirements-agent.js
 
 ## Modelo de dados efetivo
 
-Todas as entidades abaixo ficam no schema `research`. As migrações 009–025 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
+Todas as entidades abaixo ficam no schema `research`. As migrações 009–026 são aditivas/transacionais, sob advisory lock e checksum normalizado CRLF/LF. Migrações aplicadas não são renomeadas nem alteradas. Tabelas antigas não são excluídas por essas migrações; scripts/documentos exclusivos do antigo experimento foram removidos do checkout e continuam no histórico Git.
 
 **Planos de execução:** execution_plans preserva manifesto autorizado com scripts/revisões/hashes e recibo. execution_jobs tem plan_id/sequence e orçamento de tentativas por bundle; attempts identifica o trabalho. A divisão determinística respeita limites do protocolo e fixa todos os scripts uma única vez. Evidências permanecem por trabalho. Falha de transporte/repetição conserva IDs, e A4 só é enfileirado após todos concluírem. Cancelamento conserva o subconjunto executado. Planos legados usam formato 0 e mantêm o bundle histórico; novos planos usam formato 1. O executor continua determinístico.
+
+**A3 agentivo:** novas análises podem usar sessões de planejamento e diagnóstico, separadas por fase e subordinadas ao teto global. O plano proposto fixa o inventário consultado; autorização humana recusa versões, casos, fontes ou ambiente diferentes. Após preservar todos os resultados, A3 investiga seus contextos e pode consultar A2 por mensagem `script_review`, vinculada ao resultado/script/versão/revisão. A2 consultado tem ferramentas restritas de leitura e resposta; rascunho passa pelo contrato estático de automação e permanece separado do aprovado. São até duas consultas de script por análise, além das duas de requisitos; cada consulta A2 tem até seis turnos/oito ferramentas. Revisões humanas de mensagens e diagnóstico são exigidas antes de concluir A4. Nenhum rascunho é aplicado/executado automaticamente, e asserções ainda precisam de julgamento humano. Exportações mantêm proposta, candidato, aprovação e evidência distintos. O piloto real conjunto desses novos papéis ainda está pendente.
 
 ```mermaid
 erDiagram
@@ -89,6 +96,10 @@ erDiagram
   test_cases ||--o{ automated_tests : automatiza
   attempts ||--o{ automated_tests : produz
   runs ||--o| execution_plans : autoriza
+  runs ||--o{ execution_proposals : propoe
+  runs ||--o{ agent_messages : comunica
+  runs ||--o{ agent_sessions : registra
+  agent_sessions ||--o{ agent_sessions : consulta
   execution_plans ||--|{ execution_jobs : divide
   execution_jobs ||--o{ attempts : processa
   execution_jobs ||--o| evidence : retorna
