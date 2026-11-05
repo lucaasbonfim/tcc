@@ -3,17 +3,19 @@ import {assert} from './errors.js';
 import {AGENTS} from './agents.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {isEligible} from './workflow-policy.js';
 
 export function testCoverage(requirements,cases) {
-  const approved=requirements.filter(row=>row.review_status==='approved');
+  const approved=requirements.filter(isEligible);
   const accepted=cases.filter(row=>row.review_status!=='rejected');
   const rows=approved.map(row=>({code:row.code,title:row.content.title,
     case_codes:accepted.filter(item=>item.content.requirement_codes.includes(row.code)).map(item=>item.code),
-    approved_case_codes:accepted.filter(item=>item.review_status==='approved' && item.content.requirement_codes.includes(row.code)).map(item=>item.code)}));
+    approved_case_codes:accepted.filter(item=>item.review_status==='approved' && item.content.requirement_codes.includes(row.code)).map(item=>item.code),
+    eligible_case_codes:accepted.filter(item=>isEligible(item) && item.content.requirement_codes.includes(row.code)).map(item=>item.code)}));
   return {total:rows.length,linked:rows.filter(row=>row.case_codes.length).length,
     approved_linked:rows.filter(row=>row.approved_case_codes.length).length,
     missing:rows.filter(row=>!row.case_codes.length).map(row=>row.code),
-    missing_approved:rows.filter(row=>!row.approved_case_codes.length).map(row=>row.code),rows,
+    missing_approved:rows.filter(row=>!row.approved_case_codes.length).map(row=>row.code),missing_eligible:rows.filter(row=>!row.eligible_case_codes.length).map(row=>row.code),rows,
     limitation:'Vínculos demonstram rastreabilidade declarada, não cobertura semântica, qualidade ou execução dos cenários.'};
 }
 
@@ -37,8 +39,8 @@ export function planTestParts(requirements,{maxRequirements=4,budget=10000}={}) 
 }
 
 export async function createTestParts(db,run,store,{missingOnly=false}={}) {
-  const requirements=(await db.query("SELECT code,content,review_status FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[run.id])).rows;
-  const cases=(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1 ORDER BY code',[run.id])).rows;
+  const requirements=(await db.query("SELECT code,content,review_status,processing_status FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) ORDER BY code",[run.id])).rows;
+  const cases=(await db.query('SELECT code,content,review_status,processing_status FROM research.test_cases WHERE run_id=$1 ORDER BY code',[run.id])).rows;
   const coverage=testCoverage(requirements,cases),selected=missingOnly ? requirements.filter(row=>coverage.missing.includes(row.code)) : requirements;
   assert(selected.length,'Todos os requisitos já possuem casos não rejeitados.',409);
   const snapshot=await store.json(run.snapshot),version=snapshot.code_version;
@@ -67,7 +69,7 @@ export async function persistTestPart(db,runId,output) {
     const code=`CT-${String(next++).padStart(3,'0')}`,id=randomUUID(),content={...candidate,code};used.add(code);
     await db.query('INSERT INTO research.test_cases(id,run_id,code,content) VALUES($1,$2,$3,$4)',[id,runId,code,JSON.stringify(content)]);
     for(const requirement of content.requirement_codes)await db.query(`INSERT INTO research.test_requirements(run_id,test_case_id,requirement_id)
-      SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND review_status='approved'`,[runId,id,requirement]);
+      SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND research.artifact_eligible(run_id,review_status,processing_status)`,[runId,id,requirement]);
     mapping.push({local_code:candidate.code,code,test_case_id:id});
   }
   return mapping;

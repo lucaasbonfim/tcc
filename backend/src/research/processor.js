@@ -23,11 +23,13 @@ import {createCollaborationService} from './agent-collaboration.js';
 import {createExecutionPlanningTools,validateExecutionProposal} from './execution-agent.js';
 import {createExecutionDiagnosisTools,validateExecutionDiagnostics} from './execution-diagnostics.js';
 import {createScriptReviewService} from './script-review-agent.js';
+import {createAutonomyController} from './autonomy.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
   const execution=createExecutionService({pool,store,client:executorClient});
   const evaluation=createEvaluationService({pool,store});
+  const autonomy=createAutonomyController({pool,store,executorClient});
   async function claim() {
     return transaction(pool, async db => {
       const run = (await db.query(`SELECT r.* FROM research.runs r WHERE r.status='pending'
@@ -93,8 +95,8 @@ export function createProcessor({ pool, store, generate, executorClient, generat
         if(!error) {
           partial=Boolean((await db.query("SELECT id FROM research.test_parts WHERE run_id=$1 AND status IN ('pending','running','failed') LIMIT 1",[job.run.id])).rowCount);
           if(!partial) {
-            const requirements=(await db.query('SELECT code,content,review_status FROM research.requirements WHERE run_id=$1',[job.run.id])).rows;
-            const cases=(await db.query('SELECT code,content,review_status FROM research.test_cases WHERE run_id=$1',[job.run.id])).rows;
+            const requirements=(await db.query('SELECT code,content,review_status,processing_status FROM research.requirements WHERE run_id=$1',[job.run.id])).rows;
+            const cases=(await db.query('SELECT code,content,review_status,processing_status FROM research.test_cases WHERE run_id=$1',[job.run.id])).rows;
             assert(!testCoverage(requirements,cases).missing.length,'Consolidação de testes possui requisitos sem caso. Complete os cenários antes de continuar.',422);
           }
         }
@@ -119,7 +121,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
           const id = randomUUID();
           await db.query(`INSERT INTO research.${table}(id,run_id,code,content) VALUES($1,$2,$3,$4)`,[id,job.run.id,content.code,JSON.stringify(content)]);
           if (table === 'test_cases') for (const code of content.requirement_codes) await db.query(`INSERT INTO research.test_requirements(run_id,test_case_id,requirement_id)
-            SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND review_status='approved'`,[job.run.id,id,code]);
+            SELECT $1,$2,id FROM research.requirements WHERE run_id=$1 AND code=$3 AND research.artifact_eligible(run_id,review_status,processing_status)`,[job.run.id,id,code]);
         }
         }
       }
@@ -135,7 +137,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       const executed=job.stage.agent==='execution' && !['planning','diagnosis'].includes(job.stage.context.phase) && !error && !partial;
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
         [job.stage.id,error ? 'failed' : partial ? 'pending' : executed || diagnosed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (partial ? `Parte ${(job.part || job.testPart || job.automationPart || job.executionJob).sequence} concluída; checkpoint preservado.` : diagnosed ? 'Diagnóstico técnico proposto; revisão humana separada.' : executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
-      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : partial ? 'pending' : unsupported || executed ? 'completed' : 'awaiting_review']);
+      await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : partial ? 'pending' : unsupported && job.run.workflow_mode==='autonomous/v1' ? 'awaiting_review' : unsupported || executed ? 'completed' : 'awaiting_review']);
       if(diagnosed || (executed && !await execution.queueDiagnosis(db,job.run.id)))await evaluation.queue(db,job.run.id);
     });
   }
@@ -164,6 +166,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       });
     },
     async processOne() {
+      await autonomy.recoverReady();
       const job = await claim();
       if (!job) return false;
       const started = Date.now();
@@ -181,13 +184,14 @@ export function createProcessor({ pool, store, generate, executorClient, generat
         else if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
         else if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
-          requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[job.run.id])).rows.map(row => row.content)};
+          requirements:(await pool.query("SELECT content FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) ORDER BY code",[job.run.id])).rows.map(row => row.content)};
         const definition = job.part ? {schema:PART_SCHEMA} : ['automation','evaluation','execution'].includes(job.stage.agent) ? {schema:job.stage.context.schema} : (snapshot.agent_definitions || AGENTS).find(agent => agent.agent === job.stage.agent);
         const grounded=job.stage.agent==='requirements' && job.stage.context?.citation_mode==='catalog/v1' ? citationRequest(input,definition.schema) : null;
         if(grounded)input=grounded.input;
         const isAutomation=job.stage.agent==='automation';
         const request = { model:job.run.model,parameters:job.run.parameters,instruction:job.stage.instruction+(isAutomation ? ' '+AUTOMATION_COVERAGE_GUARD : ''),
           instruction_version:job.stage.instruction_version+(isAutomation ? '+coverage-guard/1' : ''),schema:grounded?.schema || (job.stage.agent==='evaluation' ? evaluationRequestSchema(input) : definition.schema),input };
+        if(job.run.workflow_mode==='autonomous/v1') {request.instruction='Condição autonomous/v1: entradas de outros agentes foram admitidas por verificações automáticas, sem revisão ou aprovação humana. Não alegue julgamento humano das entradas. '+request.instruction;request.instruction_version+='+autonomous/v1';}
         inputRef = await store.put(request);
         // Cliente injetável; prazo também cobre provedores que não respeitem AbortSignal.
         const controller = new AbortController();
@@ -270,6 +274,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       }
       try{await finish(job,{inputRef,outputRef,metadata,output,error,automationValidated,elapsed:Date.now()-started});}
       catch(cause){await finish(job,{inputRef,outputRef,metadata,output,error:cause.statusCode===422 ? cause.message.slice(0,1000) : 'Falha ao consolidar/persistir resultados; confira o armazenamento e o banco.',elapsed:Date.now()-started});}
+      await autonomy.advance(job.run.id);
       return true;
     },
   };

@@ -6,26 +6,30 @@ import {buildExecutionBundles} from './execution-plan.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createEvaluationService} from './evaluation.js';
+import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './workflow-policy.js';
+import {appendRunEvent} from './run-events.js';
 
 export const EXECUTION_INSTRUCTION='Serviço A3 determinístico v2.2: executar os bundles do plano autorizado com scripts/revisões/hashes aprovados e fontes do SHA, em serviço autenticado com política do perfil validada. Cada bundle tem checkpoint e identidade de transporte estáveis; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
 export function createExecutionService({pool,store,client=createExecutorClient()}) {
   const receiptIdentity=receipt=>({deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256,isolation_profile:receipt.isolation_profile,development_only:Boolean(receipt.development_only),images:Object.fromEntries(Object.entries(receipt.images || {}).map(([adapter,image])=>[adapter,image.image_id]))});
   async function capture(db,runId,receipt) {
     const automation=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='automation'",[runId])).rows[0];assert(automation?.status==='completed','Scripts precisam de revisão e aprovação da etapa.',409);
-    const scripts=(await db.query("SELECT * FROM research.automated_tests WHERE run_id=$1 AND review_status='approved' AND compatibility='compatible' ORDER BY id",[runId])).rows;
+    const scripts=(await db.query("SELECT * FROM research.automated_tests WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) AND compatibility='compatible' ORDER BY id",[runId])).rows;
     assert(scripts.length>0 && scripts.length<=200,'Plano requer entre 1 e 200 scripts aprovados compatíveis.',422);
     const entries=[];
-    for(const script of scripts){const attempt=(await db.query('SELECT input FROM research.attempts WHERE id=$1',[script.generation_attempt_id])).rows[0];const test_case=(await db.query("SELECT id,content,revision FROM research.test_cases WHERE id=$1 AND run_id=$2 AND review_status='approved'",[script.test_case_id,runId])).rows[0];assert(test_case,'Caso aprovado do script não encontrado.',422);entries.push({script,scope_input:attempt?.input ?? null,test_case});}
+    for(const script of scripts){const attempt=(await db.query('SELECT input FROM research.attempts WHERE id=$1',[script.generation_attempt_id])).rows[0];const test_case=(await db.query("SELECT id,content,revision FROM research.test_cases WHERE id=$1 AND run_id=$2 AND research.artifact_eligible(run_id,review_status,processing_status)",[script.test_case_id,runId])).rows[0];assert(test_case,'Caso aprovado do script não encontrado.',422);entries.push({script,scope_input:attempt?.input ?? null,test_case});}
     const signature=sha256({scope:automation.context.scope.sha256,entries:entries.map(({script,scope_input,test_case})=>({id:script.id,version:script.version,revision:script.revision,files:script.files.sha256,scope_input:scope_input?.sha256,case_sha256:sha256(test_case)})),receipt:receiptIdentity(receipt)});
     return {runId,scope_ref:automation.context.scope,entries,receipt,signature};
   }
   async function materialize(captured) {const scope=await store.json(captured.scope_ref);return {...captured,scope,entries:await Promise.all(captured.entries.map(async({scope_input,...entry})=>({...entry,scope:scope_input?(await store.json(scope_input)).input.scope:scope,files:await store.json(entry.script.files)})))};}
   return {
     capabilities:()=>client.health(),
-    async startPlanning(runId,input) {
+    async startPlanning(runId,input,{automatic=false}={}) {
       const justification=text(input.justification,'Justificativa',5000,true),receipt=await client.health();assert(receipt.ready,receipt.reason || 'Executor indisponível para planejamento.',503);
       return transaction(pool,async db=>{
-        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='completed','Conclua as revisões antes do planejamento.',409);
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status===(automatic?'pending':'completed'),'Conclua as etapas antes do planejamento.',409);
+        assert(automatic?run.workflow_mode==='autonomous/v1':run.workflow_mode!=='autonomous/v1','Modo de planejamento diverge da condição.',409);
+        const grant=automatic?await assertInitialGrant(db,run,store):null;if(grant)assertEnvironmentGrant(grant,receipt,grant.adapter);
         const snapshot=await store.json(run.snapshot);assert(agentMode(snapshot,'execution')==='agent/v1','Esta análise não habilitou A3 com ferramentas.',409);
         assert(!(await db.query('SELECT id FROM research.execution_jobs WHERE run_id=$1',[runId])).rowCount,'Execução já autorizada.',409);
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='execution' FOR UPDATE",[runId])).rows[0];assert(stage?.attempt_count===0 && ['not_supported','blocked'].includes(stage.status),'Planejamento já iniciado; use repetição de falha.',409);
@@ -33,7 +37,8 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         const captured=await capture(db,runId,receipt),ref=await store.put(captured);
         await db.query("UPDATE research.stages SET status='pending',instruction=$2,instruction_version=$3,context=$4,message='Planejamento A3 enfileirado; execução ainda não autorizada.' WHERE id=$1",[stage.id,definition.instruction,definition.version,{phase:'planning',execution_mode:'agent/v1',agent_definition:definition,schema:definition.schema,planning_input:ref}]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-        await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor) VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')",[randomUUID(),runId,stage.id,justification]);
+        if(!automatic)await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,actor) VALUES($1,$2,$3,'stage',$3,'approved',$4,'admin')",[randomUUID(),runId,stage.id,justification]);
+        else await appendRunEvent(db,{run_id:runId,stage_id:stage.id,source_key:'planning:requested',kind:'planning_requested',agent:'execution',payload:{grant_id:grant.id,human_approval:false}});
         return {status:'pending',execution_authorized:false};
       });
     },
@@ -64,7 +69,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
     async reviewDiagnosis(runId,id,input) {
       const justification=text(input.justification,'Justificativa',5000,true);assert(['accepted','rejected','revision_requested'].includes(input.decision),'Decisão do diagnóstico inválida.',422);
       return transaction(pool,async db=>{
-        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review','Análise não aguarda revisão.',409);
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review' || (run?.workflow_mode==='autonomous/v1' && ['completed','failed','cancelled'].includes(run.status)),'Análise não aguarda revisão.',409);
         const row=(await db.query("SELECT * FROM research.execution_proposals WHERE id=$1 AND run_id=$2 AND phase='diagnosis' FOR UPDATE",[id,runId])).rows[0];assert(row?.review_status==='pending','Diagnóstico não está aberto para revisão.',409);
         await db.query('UPDATE research.execution_proposals SET review_status=$2,reviewed_at=now() WHERE id=$1',[id,input.decision]);
         await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor) VALUES($1,$2,$3,'stage',$3,$4,$5,$6,$7,'admin')",[randomUUID(),runId,row.stage_id,input.decision==='accepted'?'approved':input.decision==='rejected'?'rejected':'edited',justification,{proposal_id:id,review_status:'pending'},{proposal_id:id,review_status:input.decision}]);
@@ -72,24 +77,27 @@ export function createExecutionService({pool,store,client=createExecutorClient()
       });
     },
     async proposals(runId) {return Promise.all((await pool.query('SELECT * FROM research.execution_proposals WHERE run_id=$1 ORDER BY created_at',[runId])).rows.map(async row=>({...row,input_data:await store.json(row.input),output_data:await store.json(row.output)})));},
-    async authorize(runId,input) {
+    async authorize(runId,input,{automatic=false}={}) {
       const justification=text(input.justification,'Justificativa',5000,true);
       const receipt=await client.health();
       assert(receipt.ready,receipt.reason || 'Isolamento não validado.',503);
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         assert(run,'Análise não encontrada.',404);
+        assert(automatic?run.workflow_mode==='autonomous/v1':run.workflow_mode!=='autonomous/v1','Autorização desta análise depende do escopo inicial.',409);
+        const grant=automatic?await assertInitialGrant(db,run,store):null;
         const snapshot=await store.json(run.snapshot),native=agentMode(snapshot,'execution')==='agent/v1';
         const executionStage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='execution' FOR UPDATE",[runId])).rows[0];
-        assert(native?run.status==='awaiting_review' && executionStage.status==='awaiting_review' && executionStage.context.phase==='planning':run.status==='completed','Conclua as revisões e o planejamento antes de autorizar execução.',409);
+        assert(native?run.status==='awaiting_review' && executionStage.status==='awaiting_review' && executionStage.context.phase==='planning':run.status===(automatic?'pending':'completed'),'Conclua as etapas e o planejamento antes de autorizar execução.',409);
         const proposal=native?(await db.query("SELECT * FROM research.execution_proposals WHERE run_id=$1 AND phase='planning' FOR UPDATE",[runId])).rows[0]:null;
         if(native)assert(proposal?.review_status==='pending' && input.proposal_id===proposal.id,'Proposta ausente, alterada ou já revisada.',409);
         const automation=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='automation'",[runId])).rows[0];
         assert(automation?.status==='completed','Scripts precisam de revisão e aprovação da etapa.',409);
         assert(!(await db.query('SELECT id FROM research.execution_jobs WHERE run_id=$1',[runId])).rowCount,'Trabalho já criado. Consulte o histórico, repita falha de transporte ou crie outra execução experimental.',409);
-        const scripts=(await db.query("SELECT * FROM research.automated_tests WHERE run_id=$1 AND review_status='approved' AND compatibility='compatible' ORDER BY id",[runId])).rows;
+        const scripts=(await db.query("SELECT * FROM research.automated_tests WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) AND compatibility='compatible' ORDER BY id",[runId])).rows;
         assert(scripts.length>0 && scripts.length<=200,'Plano requer entre 1 e 200 scripts aprovados compatíveis.',422);
         const scope=await store.json(automation.context.scope);
+        if(grant){assert(scope.commit_sha===grant.commit_sha && scope.module.root===grant.module_root && scripts.length<=grant.limits.max_scripts,'Escopo excede a autorização inicial.',422);assertEnvironmentGrant(grant,receipt,scope.module.adapter);}
         assert(receipt.images[scope.module.adapter],'Imagem do adaptador indisponível.',503);
         const entries=[];
         for(const script of scripts) {
@@ -100,20 +108,22 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         if(native){const pinned=await store.json(proposal.input),current=await capture(db,runId,receipt);assert(current.signature===pinned.signature,'Scripts, casos, fontes ou ambiente mudaram após o planejamento. Crie outra análise.',422);}
         const groups=native?(await store.json(proposal.output)).groups.map(g=>g.script_ids):undefined;
         const bundles=buildExecutionBundles({runId,scope,entries,groups});
+        if(grant)assert(bundles.length<=grant.limits.max_bundles,'Plano excede a autorização inicial.',422);
         const planId=randomUUID(),manifest={format_version:1,run_id:runId,commit_sha:scope.commit_sha,adapter:scope.module.adapter,receipt,
           scripts:entries.map(({script})=>({id:script.id,test_case_id:script.test_case_id,version:script.version,revision:script.revision,files:script.files})),
           bundles:bundles.map((bundle,i)=>({job_id:bundle.job_id,sequence:i+1,sha256:sha256(bundle),script_ids:bundle.generated_tests.map(t=>t.id)}))};
         const manifestRef=await store.put(manifest);
-        await db.query("INSERT INTO research.execution_plans(id,run_id,format_version,status,manifest,planner_mode,proposal_id) VALUES($1,$2,1,'pending',$3,$4,$5)",[planId,runId,manifestRef,native?'agent/v1':'deterministic/v1',proposal?.id ?? null]);
-        if(native)await db.query("UPDATE research.execution_proposals SET review_status='accepted',reviewed_at=now() WHERE id=$1",[proposal.id]);
+        await db.query("INSERT INTO research.execution_plans(id,run_id,format_version,status,manifest,planner_mode,proposal_id,authorization_source,grant_id) VALUES($1,$2,1,'pending',$3,$4,$5,$6,$7)",[planId,runId,manifestRef,native?'agent/v1':'deterministic/v1',proposal?.id ?? null,automatic?'initial_grant':'human',grant?.id ?? null]);
+        if(native && !automatic)await db.query("UPDATE research.execution_proposals SET review_status='accepted',reviewed_at=now() WHERE id=$1",[proposal.id]);
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='execution' FOR UPDATE",[runId])).rows[0];
         for(let i=0;i<bundles.length;i++){const bundle=bundles[i];await db.query(`INSERT INTO research.execution_jobs(id,run_id,stage_id,status,adapter,bundle,request_sha256,executor_receipt,plan_id,sequence)
           VALUES($1,$2,$3,'pending',$4,$5,$6,$7,$8,$9)`,[bundle.job_id,runId,stage.id,bundle.adapter,await store.put(bundle),sha256(bundle),receipt,planId,i+1]);}
         await db.query("UPDATE research.stages SET status='pending',attempt_count=0,instruction_version='2.2.0',instruction=$2,context=$3,message='Plano autorizado, aguardando worker.' WHERE id=$1",[stage.id,EXECUTION_INSTRUCTION,{phase:'executing',plan_id:planId,proposal_id:proposal?.id ?? null,job_id:bundles[0].job_id}]);
         await db.query("UPDATE research.stages SET status='blocked',message='Aguardando evidências independentes de execução.' WHERE run_id=$1 AND agent='evaluation' AND status='not_supported'",[runId]);
         await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
-        await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
+        if(!automatic)await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'stage',$3,'approved',$4,$5,$6,'admin')`,[randomUUID(),runId,stage.id,justification,{status:stage.status},{job_id:bundles[0].job_id,plan_id:planId,manifest_sha256:manifestRef.sha256,bundles:manifest.bundles,policy_sha256:receipt.policy_sha256,image:receipt.images[scope.module.adapter].image_id}]);
+        else await appendRunEvent(db,{run_id:runId,stage_id:stage.id,source_key:'execution:authorized',kind:'execution_authorized',payload:{grant_id:grant.id,plan_id:planId,manifest:manifestRef,human_approval:false,authorization_source:'initial_grant'}});
         return {job_id:bundles[0].job_id,plan_id:planId,bundles:bundles.length,status:'pending'};
       });
     },
@@ -129,7 +139,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         assert(entry?.sha256===row.request_sha256 && sha256(manifest.receipt)===sha256(row.executor_receipt),'Trabalho diverge do plano autorizado.',409);
         for(const pinned of manifest.scripts.filter(s=>entry.script_ids.includes(s.id))) {
           const script=(await pool.query('SELECT * FROM research.automated_tests WHERE id=$1 AND run_id=$2',[pinned.id,job.run.id])).rows[0];
-          assert(script?.review_status==='approved' && script.version===pinned.version && script.revision===pinned.revision && script.files.sha256===pinned.files.sha256,'Script/revisão mudou depois da autorização; crie nova análise.',422);
+          assert(script && isEligible(script) && script.version===pinned.version && script.revision===pinned.revision && script.files.sha256===pinned.files.sha256,'Script/revisão mudou depois da autorização; crie nova análise.',422);
         }
       }
       await pool.query("UPDATE research.execution_jobs SET status='running',error=NULL WHERE id=$1 AND status<>'cancelled'",[row.id]);

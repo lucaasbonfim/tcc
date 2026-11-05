@@ -388,6 +388,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AH-01]`. **Próximo passo:** AH-02, avanços automáticos sem falsificar aprovação humana.
 
+## 05/11/2026 — AH-02: avanço autônomo sob autorização inicial
+
+**Estado:** concluído. Base: `7c73cc3`.
+
+**Mudança:** controlador serializa avanços por análise e recupera transições interrompidas entre checkpoints. A1, A2 textual, automação, planejamento/execução, diagnóstico e A4 avançam sem aprovação intermediária no modo autônomo. Artefatos passam pelos contratos existentes e são consumidos por elegibilidade técnica; os campos de revisão humana e propostas continuam pendentes. Execução indica origem initial_grant e não cria aceite humano fictício. Prompts identificam explicitamente a condição sem revisão humana.
+
+**Limites:** SHA/inspeção/módulo/recibo e quantidade são conferidos novamente; ambiente diferente encerra a condição sem envio. Rejeições e validações não viram sucesso. Controle mantém análise ativa durante transições, preserva cancelamento e não aplica rascunhos de revisão. Avaliação humana de conclusões/mensagens/diagnóstico é possível após o término, sem reabrir a execução. Correção/complementação manual intermediária é recusada; novas análises exigem autorização própria.
+
+**Verificação:** 124 testes backend aprovados na suíte final, oito E2E do modo assistido aprovados. Fixtures verificam fluxo fixo autônomo e fluxo com todos os agentes, duas consultas reais do ponto de vista do transporte, revisão humana pendente, candidatos separados, autorização por escopo, mudança de ambiente e cancelamento. Duas primeiras regressões eram mensagens de erro do modo assistido trocadas para “admitido”; a mensagem anterior foi preservada nesse modo e os testes passaram. Sem modelo/executor reais na suíte.
+
+**O que permite afirmar:** a passagem automática está implementada e verificada tecnicamente. Não comprova qualidade semântica dos artefatos nem ganho de autonomia/colaboração por um LLM real. O histórico visual e julgamento posterior dos artefatos são as próximas tarefas.
+
+**Rastreabilidade:** commit `[AH-02]`. **Próximo passo:** AH-03, eventos, snapshots e stream.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:
