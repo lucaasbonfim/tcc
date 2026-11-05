@@ -21,6 +21,7 @@ import {createTestsAgentTools} from './tests-agent.js';
 import {createEvaluationAgentTools} from './evaluation-agent.js';
 import {createCollaborationService} from './agent-collaboration.js';
 import {createExecutionPlanningTools,validateExecutionProposal} from './execution-agent.js';
+import {createExecutionDiagnosisTools,validateExecutionDiagnostics} from './execution-diagnostics.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -44,7 +45,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       const part=stage.agent==='requirements' ? (await db.query("SELECT * FROM research.requirement_parts WHERE run_id=$1 AND status IN ('pending','failed') ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
       const testPart=stage.agent==='tests' ? (await db.query("SELECT * FROM research.test_parts WHERE run_id=$1 AND status IN ('pending','failed') AND attempt_count<3 ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
       const automationPart=stage.agent==='automation' ? (await db.query("SELECT * FROM research.automation_parts WHERE run_id=$1 AND status IN ('pending','failed') AND attempt_count<3 ORDER BY sequence LIMIT 1 FOR UPDATE",[run.id])).rows[0] : null;
-      const executing=stage.agent==='execution' && stage.context.phase!=='planning';
+      const executing=stage.agent==='execution' && !['planning','diagnosis'].includes(stage.context.phase);
       const executionJob=executing ? (await db.query('SELECT * FROM research.execution_jobs WHERE run_id=$1 AND id=$2 AND attempt_count<3 FOR UPDATE',[run.id,stage.context.job_id])).rows[0] : null;
       if(executing)assert(executionJob,'Trabalho de execução esgotado ou ausente.',409);
       const checkpoint=part || testPart || automationPart || executionJob;
@@ -108,7 +109,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       }
       if (!error && !partial && !job.testPart && !job.automationPart) {
         if(job.stage.agent==='evaluation')await evaluation.persist(db,job,output);
-        else if(job.stage.agent==='execution') {if(job.stage.context.phase==='planning')await execution.persistPlanning(db,job,output);else await execution.persist(db,job,output);}
+        else if(job.stage.agent==='execution') {if(job.stage.context.phase==='planning')await execution.persistPlanning(db,job,output);else if(job.stage.context.phase==='diagnosis')await execution.persistDiagnosis(db,job,output,inputRef);else await execution.persist(db,job,output);}
         else if(job.stage.agent==='automation') await automation.persist(db,job,output);
         else {
         const items = job.stage.agent === 'requirements' ? output.requirements : output.test_cases;
@@ -121,7 +122,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
         }
         }
       }
-      if(job.stage.agent==='execution' && job.stage.context.phase!=='planning') {
+      if(job.stage.agent==='execution' && !['planning','diagnosis'].includes(job.stage.context.phase)) {
         if(error){await db.query("UPDATE research.execution_jobs SET status='failed',error=$2,finished_at=now() WHERE id=$1",[job.stage.context.job_id,error]);await db.query("UPDATE research.execution_plans SET status='failed',finished_at=now() WHERE run_id=$1",[job.run.id]);}
         else {const next=(await db.query("SELECT * FROM research.execution_jobs WHERE run_id=$1 AND status<>'completed' ORDER BY sequence LIMIT 1",[job.run.id])).rows[0];
           if(next){partial=true;await db.query('UPDATE research.stages SET context=$2,attempt_count=$3 WHERE id=$1',[job.stage.id,{...job.stage.context,job_id:next.id},next.attempt_count]);}}
@@ -129,11 +130,12 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       await db.query(`UPDATE research.attempts SET status=$2,input=$3,output=$4,provider_metadata=$5,error=$6,finished_at=now(),duration_ms=$7 WHERE id=$1`,
         [job.attemptId,error ? 'failed' : 'completed',inputRef,outputRef,metadata,error,elapsed]);
       const unsupported=job.stage.agent==='automation' && !error && !partial && !(await db.query('SELECT id FROM research.automated_tests WHERE run_id=$1 LIMIT 1',[job.run.id])).rowCount;
-      const executed=job.stage.agent==='execution' && job.stage.context.phase!=='planning' && !error && !partial;
+      const diagnosed=job.stage.agent==='execution' && job.stage.context.phase==='diagnosis' && !error;
+      const executed=job.stage.agent==='execution' && !['planning','diagnosis'].includes(job.stage.context.phase) && !error && !partial;
       await db.query(`UPDATE research.stages SET status=$2,message=$3,lease_token=NULL,lease_until=NULL WHERE id=$1`,
-        [job.stage.id,error ? 'failed' : partial ? 'pending' : executed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (partial ? `Parte ${(job.part || job.testPart || job.automationPart || job.executionJob).sequence} concluída; checkpoint preservado.` : executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
+        [job.stage.id,error ? 'failed' : partial ? 'pending' : executed || diagnosed ? 'completed' : unsupported ? 'not_supported' : 'awaiting_review',error || (partial ? `Parte ${(job.part || job.testPart || job.automationPart || job.executionJob).sequence} concluída; checkpoint preservado.` : diagnosed ? 'Diagnóstico técnico proposto; revisão humana separada.' : executed ? 'Evidências independentes do executor preservadas.' : unsupported ? 'Nenhum caso selecionado pôde ser automatizado. Consulte as justificativas.' : 'Resultados estruturados disponíveis para revisão humana.')]);
       await db.query(`UPDATE research.runs SET status=$2,finished_at=${error || unsupported || executed ? 'now()' : 'NULL'} WHERE id=$1`,[job.run.id,error ? 'failed' : partial ? 'pending' : unsupported || executed ? 'completed' : 'awaiting_review']);
-      if(executed)await evaluation.queue(db,job.run.id);
+      if(diagnosed || (executed && !await execution.queueDiagnosis(db,job.run.id)))await evaluation.queue(db,job.run.id);
     });
   }
   return {
@@ -167,14 +169,14 @@ export function createProcessor({ pool, store, generate, executorClient, generat
       let inputRef = null, outputRef = null, metadata = null, output = null, error = null,automationValidated=false;
       try {
         const snapshot = await store.json(job.run.snapshot);
-        const isAgent=agentMode(snapshot,job.stage.agent)==='agent/v1' && (job.stage.agent!=='execution' || job.stage.context.phase==='planning');
+        const isAgent=agentMode(snapshot,job.stage.agent)==='agent/v1' && (job.stage.agent!=='execution' || ['planning','diagnosis'].includes(job.stage.context.phase));
         const policy=isAgent ? resolveAgentPolicy(snapshot) : null;
         let input;
         if(job.automationPart)input=await automation.partInput(job.automationPart);
         else if(job.testPart)input=await store.json(job.testPart.input);
         else if(job.part)input={project_name:snapshot.project.name,...await store.json(job.part.input)};
         else if(job.stage.agent==='evaluation')input=await evaluation.inputFor(job.run.id);
-        else if(job.stage.agent==='execution')input=isAgent?await execution.planningInput(job.stage.context.planning_input):await execution.prepare(job);
+        else if(job.stage.agent==='execution')input=isAgent?(job.stage.context.phase==='planning'?await execution.planningInput(job.stage.context.planning_input):await execution.diagnosisInput(job)):await execution.prepare(job);
         else if(job.stage.agent==='automation') input=await automation.inputFor(job.run.id,job.stage);
         else if (job.stage.agent === 'requirements') input = {project_name:snapshot.project.name,documents:snapshot.documents};
         else input = {project_name:snapshot.project.name,code_version:snapshot.code_version,
@@ -204,16 +206,17 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             if(['requirements','tests','evaluation','execution'].includes(job.stage.agent)) {
               const isRequirements=job.stage.agent==='requirements';
               const isEvaluation=job.stage.agent==='evaluation';
-              const isPlanning=job.stage.agent==='execution';
+              const isPlanning=job.stage.agent==='execution' && job.stage.context.phase==='planning';
+              const isDiagnosis=job.stage.agent==='execution' && job.stage.context.phase==='diagnosis';
               const options={input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars,
                 requestClarification:(args,context)=>createCollaborationService({pool,store}).request({job,input,snapshot,policy,generateTurn,signal:context.signal,...args})};
-              const tools=(isRequirements?createRequirementsAgentTools:isEvaluation?createEvaluationAgentTools:isPlanning?createExecutionPlanningTools:createTestsAgentTools)(options);
-              const task={...tools.task,objective:isRequirements?'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.':isEvaluation?'Investigar as evidências e propor conclusões vinculadas aos cenários executados.':isPlanning?'Planejar lotes de execução dos scripts aprovados, para autorização humana.':'Elaborar cenários de teste sustentados pelos requisitos aprovados.',
+              const tools=(isRequirements?createRequirementsAgentTools:isEvaluation?createEvaluationAgentTools:isPlanning?createExecutionPlanningTools:isDiagnosis?createExecutionDiagnosisTools:createTestsAgentTools)(options);
+              const task={...tools.task,objective:isRequirements?'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.':isEvaluation?'Investigar as evidências e propor conclusões vinculadas aos cenários executados.':isPlanning?'Planejar lotes de execução dos scripts aprovados, para autorização humana.':isDiagnosis?'Diagnosticar problemas técnicos dos testes executados sem alterar evidências.':'Elaborar cenários de teste sustentados pelos requisitos aprovados.',
                 fingerprint:taskFingerprint({input,schema:request.schema,definition,policy,model:job.run.model,parameters:job.run.parameters})};
               const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:task.objective,
-                ...(isRequirements?{document_catalog:input.documents.map(d=>({id:d.id,name:d.name,pages:d.pages.map(p=>p.page)})),source_count:tools.task.source_ids.length,part:input.part ?? null}:isEvaluation?{result_count:input.results.length}:isPlanning?{script_count:input.entries.length}:{requirement_catalog:input.requirements.map(r=>({code:r.code,title:r.title})),batch:input.batch ?? null}),limits:policy.limits}})}]}];
+                ...(isRequirements?{document_catalog:input.documents.map(d=>({id:d.id,name:d.name,pages:d.pages.map(p=>p.page)})),source_count:tools.task.source_ids.length,part:input.part ?? null}:isEvaluation || isDiagnosis?{result_count:input.results.length}:isPlanning?{script_count:input.entries.length}:{requirement_catalog:input.requirements.map(r=>({code:r.code,title:r.title})),batch:input.batch ?? null}),limits:policy.limits}})}]}];
               const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
-                model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:isRequirements?'submit_requirements':isEvaluation?'submit_evaluation':isPlanning?'submit_execution_plan':'submit_test_cases',signal:controller.signal});
+                model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:isRequirements?'submit_requirements':isEvaluation?'submit_evaluation':isPlanning?'submit_execution_plan':isDiagnosis?'submit_execution_diagnostics':'submit_test_cases',signal:controller.signal});
               input=terminal.input;inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
               return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};
             }
@@ -249,7 +252,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             assert(!automationErrors.length,automationErrors.map(item=>`${input.test_cases.find(row=>row.id===item.test_case_id)?.content.code || item.test_case_id}: ${item.reason}`).join(' '),422);
           }
           else if(job.stage.agent==='evaluation')validateEvaluation(output,input);
-          else if(job.stage.agent==='execution' && isAgent)validateExecutionProposal(output,input);
+          else if(job.stage.agent==='execution' && isAgent) {if(job.stage.context.phase==='planning')validateExecutionProposal(output,input);else validateExecutionDiagnostics(output,input);}
           else if(job.stage.agent!=='execution')validateOutput(job.stage.agent,output,input);
           if(job.stage.agent==='tests')assertTestCoverage(output.test_cases,input.requirements);
           resolved=Boolean(grounded);

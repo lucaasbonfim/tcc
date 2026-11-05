@@ -30,14 +30,14 @@ export function createEvaluationService({pool,store}) {
         return {status:'pending'};
       });
     },
-    async inputFor(runId) {
-      const evidence=(await pool.query("SELECT * FROM research.evidence WHERE run_id=$1 AND origin='executor'",[runId])).rows;
+    async inputFor(runId,db=pool) {
+      const evidence=(await db.query("SELECT * FROM research.evidence WHERE run_id=$1 AND origin='executor'",[runId])).rows;
       assert(evidence.length>0,'Não há evidência independente para avaliar.',422);
-      const results=(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[runId])).rows;
+      const results=(await db.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[runId])).rows;
       assert(results.length>0 && results.length<=200,'Resultados fora dos limites de avaliação.',422);
-      const cases=(await pool.query("SELECT id,content FROM research.test_cases WHERE run_id=$1 AND review_status='approved' ORDER BY code",[runId])).rows;
-      const requirements=(await pool.query("SELECT id,code,content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[runId])).rows;
-      const scripts=(await pool.query("SELECT id,test_case_id,content,files FROM research.automated_tests WHERE run_id=$1 AND review_status='approved'",[runId])).rows;
+      const cases=(await db.query("SELECT id,content FROM research.test_cases WHERE run_id=$1 AND review_status='approved' ORDER BY code",[runId])).rows;
+      const requirements=(await db.query("SELECT id,code,content FROM research.requirements WHERE run_id=$1 AND review_status='approved' ORDER BY code",[runId])).rows;
+      const scripts=(await db.query("SELECT id,test_case_id,version,revision,generation_attempt_id,content,files FROM research.automated_tests WHERE run_id=$1 AND review_status='approved'",[runId])).rows;
       const records=[];for(const row of evidence)records.push({id:row.id,origin:row.origin,data:await store.json(row.artifact)});
       const approvedScripts=[];for(const script of scripts)approvedScripts.push({...script,files_data:await store.json(script.files)});
       return {requirements:requirements.map(r=>({id:r.id,code:r.code,...r.content})),
@@ -79,6 +79,7 @@ export function createEvaluationService({pool,store}) {
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='evaluation' FOR UPDATE",[runId])).rows[0];
         assert(run?.status==='awaiting_review' && stage?.status==='awaiting_review','Avaliação não aguarda revisão.',409);
+        assert(!(await db.query("SELECT id FROM research.execution_proposals WHERE run_id=$1 AND phase='diagnosis' AND review_status='pending'",[runId])).rowCount,'Revise o diagnóstico do A3 antes de concluir a avaliação.',409);
         const rows=(await db.query('SELECT review_status FROM research.findings WHERE run_id=$1',[runId])).rows;
         assert(rows.length>0 && rows.every(row=>row.review_status!=='pending'),'Revise todas as análises antes de concluir.',409);
         await db.query("UPDATE research.stages SET status='completed',message='Análises revisadas; consulte classificações humanas e evidências.' WHERE id=$1",[stage.id]);

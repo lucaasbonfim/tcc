@@ -1,14 +1,14 @@
 import {randomUUID} from 'node:crypto';
 import {scenarioServices,textualScenario} from './research-scenario.js';
-import {executionPlanningFixtureTurn} from './execution-agent-fixture.js';
+import {executionAgentFixtureTurn} from './execution-agent-fixture.js';
 import {createAutomationService} from '../src/research/automation.js';
 import {createExecutionService} from '../src/research/execution.js';
 import {generatedPath} from '../src/research/automation-contract.js';
 import {fixtureResult} from '../../shared/execution-fixture.js';
-export async function executionAgentScenario(pool,store,{count=1,generateTurn=executionPlanningFixtureTurn}={}) {
+export async function executionAgentScenario(pool,store,{count=1,generateTurn=executionAgentFixtureTurn,status='passed',limits={}}={}) {
   const sent=[],receipt={ready:true,deployment_id:'a3-fixture',policy_sha256:'a'.repeat(64),images:{'node-test/v2':{image_id:'sha256:'+'b'.repeat(64)}}};
-  const executorClient={health:async()=>receipt,execute:async bundle=>{sent.push(bundle);const result=fixtureResult(bundle);result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
-  const services=scenarioServices(pool,store,{executorClient,generateTurn}),{run,inspection}=await textualScenario(services,{agent_policy:{modes:{execution:'agent/v1'}}}),automation=createAutomationService({pool,store});
+  const executorClient={health:async()=>receipt,execute:async bundle=>{sent.push(bundle);const result=fixtureResult(bundle,status);result.environment={image_id:receipt.images[bundle.adapter].image_id,deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256};return result;}};
+  const services=scenarioServices(pool,store,{executorClient,generateTurn}),{run,inspection}=await textualScenario(services,{agent_policy:{modes:{execution:'agent/v1'},limits}}),automation=createAutomationService({pool,store});
   await automation.start(run.id,{inspection_id:inspection.inspection_id,module_root:'',target_paths:['src/calc.js'],justification:'Controle de A3.'});await services.processor.processOne();const [script]=await automation.list(run.id);
   await automation.review(run.id,script.id,{revision:script.revision,decision:'approved',justification:'Script de controle.'});await automation.approve(run.id,{justification:'Fixture aprovada.'});
   const original=(await services.runs.detail(run.id)).test_cases[0];

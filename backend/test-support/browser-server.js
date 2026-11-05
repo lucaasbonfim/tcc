@@ -24,7 +24,7 @@ import {fixtureTurn} from './agent-scenario.js';
 import {testCasesFixtureTurn} from './tests-agent-fixture.js';
 import {evaluationFixtureTurn} from './evaluation-agent-fixture.js';
 import {collaborationFixtureTurn} from './collaboration-fixture.js';
-import {executionPlanningFixtureTurn} from './execution-agent-fixture.js';
+import {executionAgentFixtureTurn} from './execution-agent-fixture.js';
 import {requireAdmin} from '../src/middlewares/auth.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -56,7 +56,7 @@ const generate=async ({input}) => {
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
 const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
-  if(tools.some(t=>t.name==='submit_execution_plan'))return executionPlanningFixtureTurn({contents});
+  if(tools.some(t=>['submit_execution_plan','submit_execution_diagnostics'].includes(t.name)))return executionAgentFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='respond_clarification') || contents[0].parts[0].text.includes('Colaboração E2E'))return collaborationFixtureTurn({contents,tools});
   if(tools.some(t=>t.name==='read_evaluation_context'))return evaluationFixtureTurn({contents});
   if(tools.some(t=>t.name==='read_test_requirement'))return testCasesFixtureTurn({contents});

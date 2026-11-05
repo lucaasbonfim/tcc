@@ -59,6 +59,7 @@ export function createResearchRouter({ projects, store, runs, automation,executi
   router.post('/runs/:runId/automation/approve',handler(req=>automation.approve(req.params.runId,req.body)));
   router.post('/runs/:runId/execution',imports,async(req,res)=>res.status(202).json({data:await execution.authorize(req.params.runId,req.body)}));
   router.post('/runs/:runId/execution/planning',imports,handler(req=>execution.startPlanning(req.params.runId,req.body)));
+  router.post('/runs/:runId/execution/diagnostics/:itemId/review',handler(req=>execution.reviewDiagnosis(req.params.runId,req.params.itemId,req.body)));
   router.post('/runs/:runId/evaluation',imports,async(req,res)=>res.status(202).json({data:await evaluation.start(req.params.runId,req.body)}));
   router.post('/runs/:runId/findings/:itemId/review',handler(req=>evaluation.review(req.params.runId,req.params.itemId,req.body)));
   router.post('/runs/:runId/evaluation/approve',handler(req=>evaluation.approve(req.params.runId,req.body)));

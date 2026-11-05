@@ -21,7 +21,7 @@ test('A3 consulta scripts, escolhe ordem/lotes e exige autorização antes do ex
   const expected=proposal.output_data.groups.flatMap(g=>g.script_ids);assert.deepEqual(expected,detail.automated_tests.map(s=>s.id).sort().reverse());
   assert.equal((await services.runs.agentSessions(run.id)).sessions[0].execution_phase,'planning');
   await execution.authorize(run.id,{proposal_id:proposal.id,justification:'Plano conferido; autorizar dois lotes da fixture.'});await services.processor.processOne();await services.processor.processOne();
-  assert.deepEqual(sent.map(b=>b.generated_tests[0].id),expected);await services.processor.processOne();detail=await services.runs.export(run.id);
+  assert.deepEqual(sent.map(b=>b.generated_tests[0].id),expected);await services.processor.processOne();detail=await services.runs.detail(run.id);assert.equal(detail.findings.length,0);assert.ok(detail.execution_proposals.some(p=>p.phase==='diagnosis'));await services.processor.processOne();detail=await services.runs.export(run.id);
   assert.equal(detail.execution_proposals[0].review_status,'accepted');assert.equal(detail.execution_plans[0].planner_mode,'agent/v1');assert.equal(detail.evidence.length,2);assert.equal(detail.findings.length,2);
 }));
 test('A3 retoma leitura confirmada, preserva orçamento e registra correção de agrupamento rejeitado',{skip:!url},async()=>environment(async({pool,store})=>{
