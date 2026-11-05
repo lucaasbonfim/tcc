@@ -94,6 +94,20 @@ test('falha do provedor registra status sem vazar mensagem ou credenciais',{skip
 
 const retryPolicy=(extra={})=>createAgentPolicy({modes:{automation:'agent/v1'},model_retry:{initial_delay_ms:1,max_delay_ms:4},...extra});
 const unavailable=status=>Object.assign(new Error('private-transport'),{name:'ApiError',status});
+test('UUID sem hífens é rejeitado com identidade exata; agente corrige sem normalização silenciosa',{skip:!url},async()=>environment(async env=>{
+  let turns=0,rawCompact;
+  const tools=createAutomationAgentTools({...env,store:env.store});
+  const result=await runAgentTask(config(env,{tools,toolDefinitions:tools.declarations,generateTurn:async({contents})=>{
+    if(++turns===1)return fixtureTurn([read,prepare]);
+    const response=finishTurn(contents,env.input);
+    if(turns===2){const artifact=response.calls[0].args.output.artifacts[0];artifact.test_case_id=artifact.test_case_id.replaceAll('-','');rawCompact=artifact.test_case_id;}
+    else{const rejected=contents.flatMap(c=>c.parts).find(p=>p.functionResponse?.response?.error);assert.match(rejected.functionResponse.response.message,/hífens/);assert.ok(rejected.functionResponse.response.message.includes(env.input.test_cases[0].id));}
+    return response;
+  }}));
+  assert.equal(turns,3);assert.equal(result.output.artifacts[0].test_case_id,env.input.test_cases[0].id);
+  const calls=(await env.pool.query("SELECT arguments,status FROM research.agent_tool_calls WHERE session_id=(SELECT id FROM research.agent_sessions WHERE attempt_id=$1) AND name='submit_automation' ORDER BY started_at",[env.job.attemptId])).rows;
+  assert.deepEqual(calls.map(c=>c.status),['rejected','completed']);assert.equal((await env.store.json(calls[0].arguments)).output.artifacts[0].test_case_id,rawCompact);
+}));
 test('espera respeita prazo total e encerra como orçamento esgotado',{skip:!url},async()=>environment(async env=>{
   let sends=0;await assert.rejects(runAgentTask(config(env,{policy:retryPolicy({limits:{max_duration_ms:500},model_retry:{initial_delay_ms:1000,max_delay_ms:1000}}),generateTurn:async()=>{sends++;throw unavailable(502);}})),/Orçamento/);
   assert.ok(sends<=1);assert.equal((await env.pool.query('SELECT status FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0].status,'exhausted');

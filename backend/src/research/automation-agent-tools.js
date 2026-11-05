@@ -2,8 +2,10 @@ import {assert} from './errors.js';
 import {safePath} from './inspection.js';
 import {buildScope,validateAutomation} from './automation-contract.js';
 import {createAgentToolRegistry} from './agent-tools.js';
+import {AUTOMATION_AGENT} from './agent-contract.js';
+import {automationDeclarations} from './automation-agent-bindings.js';
 
-export function createAutomationAgentTools({input,inspection,store,maxObservationChars=12000}) {
+export function createAutomationAgentTools({input,inspection,store,maxObservationChars=12000,definition=AUTOMATION_AGENT}) {
   assert(inspection.commit_sha===input.scope.commit_sha && inspection.repository_url===input.scope.repository_url,'Inspeção diverge da versão da tarefa.',409);
   const root=input.scope.module.root;
   assert(inspection.modules.some(module=>module.root===root && module.adapter===input.scope.module.adapter),'Módulo fora da inspeção.',409);
@@ -12,7 +14,7 @@ export function createAutomationAgentTools({input,inspection,store,maxObservatio
     const owner=inspection.modules.filter(module=>!module.root || file.path.startsWith(module.root+'/')).sort((a,b)=>b.root.length-a.root.length)[0];
     return owner?.root===root && (file.role==='source' || /(?:^|\/)(?:package\.json|pom\.xml)$/.test(file.path));
   });
-  const task={case_ids:input.test_cases.map(row=>row.id),requirement_codes:input.requirements.map(row=>row.code)};
+  const task={case_ids:input.test_cases.map(row=>row.id),requirement_codes:input.requirements.map(row=>row.code),...(definition.case_binding?{case_binding:definition.case_binding}:{})};
   const scopes=new Map();
   const metadata=file=>({path:file.path,sha256:file.sha256,role:file.role,symbols:file.symbols ?? null,characters:file.content.length});
   async function prepare(target_paths) {
@@ -53,7 +55,7 @@ export function createAutomationAgentTools({input,inspection,store,maxObservatio
         terminal:{output,input:effectiveInput,scope_ref:prepared?.ref ?? null}};
     },
   };
-  return {task,execute:createAgentToolRegistry({task,handlers,maxObservationChars}),
+  return {task,declarations:automationDeclarations(input,definition),execute:createAgentToolRegistry({task,handlers,maxObservationChars}),
     async restore(observation) {
       if(observation?.scope_ref) {
         const scope=await store.json(observation.scope_ref);
