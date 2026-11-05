@@ -1,0 +1,14 @@
+import {test,expect} from '@playwright/test';
+test('mapa localiza falha 503 no A1 e mantém os outros agentes não iniciados',async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const post=async(path,data)=>{const response=await page.request.post(`http://localhost:3101/api${path}`,{data,headers:{Origin:'http://localhost:5178'}});expect(response.ok(),await response.text()).toBeTruthy();return (await response.json()).data;};
+  await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
+  const project=await post('/research/projects',{name:'Falha do provedor 503',repository_url:'https://github.com/example/repo',requested_ref:'main'});
+  const upload=await page.request.post(`http://localhost:3101/api/research/projects/${project.id}/documents`,{data:Buffer.from('O sistema deve permitir consultar projetos.'),headers:{Origin:'http://localhost:5178','Content-Type':'text/plain','X-File-Name':'503-E2E.txt'}});expect(upload.ok()).toBeTruthy();
+  const run=await post(`/research/projects/${project.id}/runs`,{agent_policy:{modes:{requirements:'agent/v1'}}});await page.goto(`/admin/runs/${run.id}?view=timeline`);
+  await expect(page.getByRole('heading',{name:'O serviço do modelo está indisponível',exact:true})).toBeVisible({timeout:20000});await expect(page.locator('.map-node.state-failed')).toHaveCount(1);await expect(page.locator('.map-node.state-idle')).toHaveCount(3);await expect(page.locator('.map-node.is-live')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Retomar etapa',exact:true})).toBeVisible();await page.screenshot({path:testInfo.outputPath('mapa-falha-503-desktop.png'),fullPage:true});
+  await page.getByRole('button',{name:'Ver falha',exact:true}).click();const dialog=page.getByRole('dialog');await expect(dialog).toContainText('HTTP 503');await expect(dialog.getByText('Conteúdo preservado completo',{exact:true})).toBeVisible();await expect(dialog.locator('.code-panel')).not.toBeVisible();await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();await expect(page.getByRole('button',{name:'Ver falha',exact:true})).toBeFocused();
+  const response=await page.request.get(`http://localhost:3101/api/research/runs/${run.id}`),detail=(await response.json()).data;expect(detail.attempts).toHaveLength(1);expect(detail.agent_summary.model_turns).toBe(1);expect(detail.execution_jobs).toEqual([]);expect(errors).toEqual([]);
+  await page.setViewportSize({width:390,height:844});await expect(page.locator('.map-compact')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();expect(await page.locator('.map-node').evaluateAll(nodes=>nodes.every(node=>{const box=node.getBoundingClientRect();return box.left>=0&&box.right<=window.innerWidth;}))).toBeTruthy();await page.screenshot({path:testInfo.outputPath('mapa-falha-503-mobile.png'),fullPage:true});
+});

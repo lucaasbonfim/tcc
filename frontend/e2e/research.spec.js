@@ -9,7 +9,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByLabel('E-mail',{exact:true}).fill('researcher@example.test');
   await page.getByLabel('Senha',{exact:true}).fill('E2E-Research-Only');
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Da especificação à evidência.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Visão geral'})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath('dashboard-desktop.png'),fullPage:true});
   await page.getByRole('link',{name:'+ Cadastrar projeto',exact:true}).click();
   const name = `Projeto E2E ${Date.now()}`;
@@ -36,6 +36,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.locator('.timeline-event').filter({hasText:'Saída preservada'}).filter({hasText:'A1 · Requisitos'}).click();
   await expect(page.locator('.timeline-detail').getByRole('heading',{name:'RF-001 · Consulta de projetos',exact:true})).toBeVisible();
   await expect(page.locator('.timeline-detail')).not.toContainText('Consulta de projetos revisada');
+  await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Requisitos',exact:true}).click();
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Consultar projetos cadastrados',exact:true})).toBeVisible({timeout:20000});
