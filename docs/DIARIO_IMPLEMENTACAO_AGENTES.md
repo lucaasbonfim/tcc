@@ -568,3 +568,5 @@ Substituída por trava transacional em conexão reservada até ROLLBACK, com nov
 
 Sete testes de integração aprovados no banco isolado `tcc_test_autonomy_lock_20261105`. Regressão mantém trava antiga, simula disputa pela nova, verifica apenas uma admissão em avanço concorrente, liberação da trava, conclusão com executor de fixture e zero revisões humanas. Após recarregar os serviços, o worker existente retomou a análise real com a autorização inicial preservada: um trabalho Docker, dois resultados `passed`, diagnóstico A3 concluído e A4 em execução. Não houve edição direta de status, reset de orçamento nem repetição das chamadas concluídas. A intervenção de plataforma durante esse piloto técnico deve ser considerada ao interpretar seus resultados. [Plano e evidências](PLANO_TRAVA_AVANCO_AUTONOMO.md).
 
+Fechamento real após `1ec7da1`: análise `completed`, todos os papéis concluídos, dois findings, nenhum erro de workflow, zero revisões humanas. O julgamento posterior continua separado. A mesma análise foi concluída sem recriação.
+
