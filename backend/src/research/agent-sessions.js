@@ -16,6 +16,9 @@ export function createAgentSessionStore(pool,job) {
     return session;
   }
   return {
+    async find() {return (await pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[job.attemptId])).rows[0];},
+    async previous() {return job.automationPart ? (await pool.query('SELECT * FROM research.agent_sessions WHERE automation_part_id=$1 AND attempt_id<>$2 ORDER BY started_at DESC LIMIT 1',[job.automationPart.id,job.attemptId])).rows[0] : null;},
+    async heartbeat() {return Boolean((await pool.query("UPDATE research.stages SET lease_until=now()+interval '180 seconds' WHERE id=$1 AND run_id=$2 AND status='running' AND lease_token=$3 RETURNING id",[job.stage.id,job.run.id,job.token])).rowCount);},
     async create({task,policy,context}) {
       return transaction(pool,async db=>{
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);await owned(db);
@@ -40,7 +43,7 @@ export function createAgentSessionStore(pool,job) {
         await db.query('UPDATE research.agent_sessions SET model_turns=model_turns+1 WHERE id=$1',[id]);return step;
       });
     },
-    async completeStep(id,stepId,response,metadata) {
+    async completeStep(id,stepId,response,metadata,checkpoint=null,elapsed=0) {
       return transaction(pool,async db=>{
         const session=await locked(db,id);assert(session.status==='running','Sessão encerrada.',409);
         const step=(await db.query('SELECT * FROM research.agent_steps WHERE session_id=$1 AND id=$2 FOR UPDATE',[id,stepId])).rows[0];
@@ -50,6 +53,7 @@ export function createAgentSessionStore(pool,job) {
         const tokens=metadata?.usage?.totalTokenCount;
         assert(tokens==null || (Number.isSafeInteger(tokens) && tokens>=0),'Contagem de tokens inválida.',422);
         await db.query('UPDATE research.agent_sessions SET total_tokens=total_tokens+$2,usage_unknown=usage_unknown OR $3 WHERE id=$1',[id,tokens ?? 0,tokens==null]);
+        if(checkpoint)await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,checkpoint,elapsed]);
         return (await db.query("UPDATE research.agent_steps SET status='completed',response=$3,provider_metadata=$4,finished_at=now() WHERE session_id=$1 AND id=$2 RETURNING *",[id,stepId,response,metadata])).rows[0];
       });
     },
@@ -68,14 +72,45 @@ export function createAgentSessionStore(pool,job) {
         await db.query('UPDATE research.agent_sessions SET tool_calls=tool_calls+1 WHERE id=$1',[id]);return row;
       });
     },
-    async completeCall(id,callId,observation,{rejected=false,duration_ms=0}={}) {
+    async completeCall(id,callId,observation,{rejected=false,duration_ms=0,checkpoint=null,elapsed=0}={}) {
       return transaction(pool,async db=>{
         const session=await locked(db,id);assert(session.status==='running','Sessão encerrada.',409);
         const call=(await db.query('SELECT * FROM research.agent_tool_calls WHERE id=$1 AND session_id=$2 FOR UPDATE',[callId,id])).rows[0];
         assert(call,'Chamada fora da sessão.',409);
         if(call.status!=='requested'){assert(call.observation?.sha256===observation.sha256,'Observação não pode ser substituída.',409);return call;}
+        if(checkpoint)await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,checkpoint,elapsed]);
         return (await db.query('UPDATE research.agent_tool_calls SET status=$3,observation=$4,duration_ms=$5,finished_at=now() WHERE id=$1 AND session_id=$2 RETURNING *',[callId,id,rejected?'rejected':'completed',observation,duration_ms])).rows[0];
       });
+    },
+    async checkpoint(id,context,elapsed) {return transaction(pool,async db=>{const s=await locked(db,id);assert(s.status==='running','Sessão encerrada.',409);await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,context,elapsed]);});},
+    async recordLateResponse(id,stepId,response,metadata) {
+      return transaction(pool,async db=>{
+        await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);
+        const session=(await db.query('SELECT id FROM research.agent_sessions WHERE id=$1 AND attempt_id=$2 FOR UPDATE',[id,job.attemptId])).rows[0];
+        assert(session,'Sessão fora da tentativa.',409);
+        const result=await db.query("UPDATE research.agent_steps SET response=$3,provider_metadata=$4,status='interrupted',finished_at=now() WHERE session_id=$1 AND id=$2 AND response IS NULL RETURNING id",[id,stepId,response,{...metadata,late_response:true}]);
+        if(result.rowCount){const n=metadata?.usage?.totalTokenCount;await db.query('UPDATE research.agent_sessions SET usage_unknown=true,total_tokens=total_tokens+$2 WHERE id=$1',[id,Number.isSafeInteger(n)&&n>=0?n:0]);}
+      });
+    },
+    async adoptStep(id,pending) {
+      return transaction(pool,async db=>{
+        const s=await locked(db,id);assert(s.status==='running','Sessão encerrada.',409);
+        const own=(await db.query('SELECT id FROM research.agent_steps WHERE id=$1 AND session_id=$2',[pending.step_id,id])).rows[0];
+        if(own)return own.id;
+        const existing=(await db.query("SELECT id FROM research.agent_steps WHERE session_id=$1 AND provider_metadata->>'reused_from_step_id'=$2",[id,pending.step_id])).rows[0];
+        if(existing)return existing.id;
+        const sequence=(await db.query('SELECT COALESCE(max(sequence),0)+1 AS n FROM research.agent_steps WHERE session_id=$1',[id])).rows[0].n;
+        const stepId=randomUUID();
+        await db.query("INSERT INTO research.agent_steps(id,session_id,sequence,status,request,response,provider_metadata,finished_at) VALUES($1,$2,$3,'completed',$4,$5,$6,now())",[stepId,id,sequence,pending.request_ref,pending.response_ref,{reused_from_step_id:pending.step_id,usage:null,cost:null}]);
+        return stepId;
+      });
+    },
+    async lostLease(id) {
+      // Only close this attempt's old session if it no longer owns the stage. Never finish its parent stage.
+      await pool.query(`UPDATE research.agent_sessions a SET status=CASE WHEN s.status='cancelled' THEN 'cancelled' ELSE 'interrupted' END,
+        stop_reason='lease_lost',usage_unknown=usage_unknown OR EXISTS(SELECT 1 FROM research.agent_steps p WHERE p.session_id=a.id AND p.status='requested'),finished_at=now()
+        FROM research.stages s WHERE a.id=$1 AND a.attempt_id=$2 AND s.id=a.stage_id AND a.status='running'
+        AND (s.status<>'running' OR s.lease_token IS DISTINCT FROM $3 OR s.lease_until<now())`,[id,job.attemptId,job.token]);
     },
     async finish(id,status,reason,output=null,elapsed=0) {
       return transaction(pool,async db=>{

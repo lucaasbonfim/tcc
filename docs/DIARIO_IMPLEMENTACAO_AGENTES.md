@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-04 concluídas; próxima tarefa: AG-05 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-05 concluídas; próxima tarefa: AG-06 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -115,6 +115,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limitação:** a restauração de escopo está disponível ao runtime, mas o ciclo persistido ainda será integrado na tarefa seguinte.
 
 **Rastreabilidade:** commit `[AG-04]`. **Próximo passo:** AG-05.
+
+## 04/11/2026 — AG-05: ciclo persistido, interrupção e retomada
+
+**Estado:** concluído. Base: `f84b658`.
+
+**Mudança implementada:** `agent-runtime.js` realiza turnos, executa ferramentas permitidas e devolve observações à conversa nativa. Cada resposta e chamada são registradas com checkpoints imutáveis. O ciclo tem heartbeat, prazo cumulativo, limites de chamadas/tokens, detecção de repetição sem progresso e submissão terminal separada. O fingerprint da tarefa permite herdar contexto somente da mesma entrada; o consumo anterior permanece contabilizado.
+
+**Retomada:** uma nova tentativa pode adotar um turno já recebido, reutilizar observações confirmadas e executar só a ferramenta pendente. Escopos preparados ficam também no estado privado do checkpoint, sobrevivendo a falha na chamada posterior ao modelo. Chamadas de respostas parciais ou sem IDs únicos não são executadas. Retorno tardio preserva resposta e metadados sem concluir a etapa pertencente a outro worker.
+
+**Verificação:** suíte completa via `node scripts/test-agents-local.mjs`: 72 testes aprovados, zero falhas/ignorados, usando banco PostgreSQL de teste local. A verificação focal de runtime/sessões/ferramentas teve nove testes aprovados. Controles incluem interrupção entre duas ferramentas, interrupção após preparar escopo, orçamento esgotado, `MAX_TOKENS`, troca do token de posse e regressões do fluxo anterior. Provedor/executor injetados, sem Gemini real.
+
+**Limite:** os testes demonstram o funcionamento do mecanismo e da retomada com respostas programadas; não medem a capacidade de um LLM real de tomar boas decisões. A ligação ao processador, modos de criação e revisão será entregue em AG-06.
+
+**Rastreabilidade:** commit `[AG-05]`. **Próximo passo:** AG-06.
 
 ## Modelo para a próxima entrada
 
