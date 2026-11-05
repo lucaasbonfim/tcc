@@ -13,10 +13,10 @@ Escopo: runtime `agent/v1`, usado no VVV. Chamadas `fixed/v1` conservam o contra
 
 ## UX-01 — Jornada e navegação
 
-- [ ] Ler as páginas, componentes, contratos e testes indicados no prompt anexado.
-- [ ] Menu Início / Projetos / Análises, preservando URLs e acesso a exportações/históricos.
-- [ ] Início orientado a ação; cadastro com essenciais e opções adicionais; preparação por documentos, modo e ação principal.
-- [ ] Verificar e commitar.
+- [x] Ler as páginas, componentes, contratos e testes indicados no prompt anexado.
+- [x] Menu Início / Projetos / Análises, preservando URLs e acesso a exportações/históricos.
+- [x] Início orientado a ação; cadastro com essenciais e opções adicionais; preparação por documentos, modo e ação principal.
+- [x] Verificar e commitar.
 
 ## UX-02 — Acompanhamento e decisões
 

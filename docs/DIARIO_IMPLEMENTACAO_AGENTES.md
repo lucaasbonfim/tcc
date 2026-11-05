@@ -482,3 +482,9 @@ Política 1.0.0 e snapshots sem versão continuam sem retentativas. Nenhuma aná
 
 Validação em PostgreSQL local `tcc_test_retry_20261105`: 22 testes de política/runtime/sessões/histórico aprovados; após ampliar o caso de cancelamento para testar retomada, 13 testes de runtime/sessões novamente aprovados. Sete testes de projeção visual, lint e build do frontend aprovados. São controles com fixtures, sem novas chamadas reais ao Gemini e sem executar o VVV original. Ainda falta observar recuperação sob indisponibilidade real do provedor; backoff não garante disponibilidade.
 
+# UX-01 — 05/11/2026 — Entrada na jornada de análise
+
+Leitura das páginas/componentes atuais, serviços, contratos de preparação/revisão/execução, arquitetura e testes. Menu reduzido a Início, Projetos e Análises; rotas anteriores permanecem registradas. Início prioriza análises abertas e projetos, com indicadores/relatórios secundários. Cadastro prioriza nome/repositório/descrição e mantém referência, notas e texto em opções adicionais. Preparação apresenta documentos antes da análise; configurações individuais continuam funcionais em seção avançada. Defaults científicos anteriores preservados: assistido, A1/A2 textual/A3/A4 fixos e automação agentiva; escolher autonomia continua selecionando agentes com ferramentas explicitamente. Projeto com análise aberta oferece acesso a ela e bloqueia novo início.
+
+Estilos compartilhados padronizam fontes, botões, tabelas e espaçamento, sem biblioteca adicional. Conferidos screenshots em 1280 e 390 px; sem transbordamento horizontal. E2E novo cobre cadastro na branch padrão, documentos, início sem configurar agentes, snapshot/modo preservados, bloqueio por análise ativa e rotas legadas. Um teste E2E aprovado; lint e build aprovados (importação ociosa identificada no primeiro lint foi removida). Sem alterações no banco de pesquisa.
+

@@ -4,8 +4,7 @@ import { logoutSession } from '../services/auth.service';
 import ErrorMessage from './ErrorMessage';
 
 const links = [
-  ['Visão geral','/admin','01'],['Projetos','/admin/projects','02'],['Requisitos','/admin/requirements','03'],
-  ['Casos de teste','/admin/test-cases','04'],['Execuções','/admin/runs','05'],['Análise','/admin/analysis','06'],['Relatórios','/admin/reports','07'],
+  ['Início','/admin'],['Projetos','/admin/projects'],['Análises','/admin/runs'],
 ];
 export default function ResearchLayout() {
   const navigate = useNavigate();
@@ -16,14 +15,12 @@ export default function ResearchLayout() {
   return <div className="research-shell">
     <aside className="research-sidebar">
       <NavLink to="/admin" className="brand"><span className="brand-mark" aria-hidden="true">R</span><span>Requisita<span className="brand-subtitle">Requisitos e testes</span></span></NavLink>
-      <p className="nav-caption">Pesquisa</p>
-      <nav aria-label="Navegação principal">{links.map(([label,to,number]) => <NavLink key={to} to={to} end={to==='/admin'} className={({isActive}) => `sidebar-link ${isActive ? 'active' : ''}`}><span aria-hidden="true">{number}</span>{label}</NavLink>)}</nav>
-      <div className="sidebar-note"><span className="live-dot" /> Avaliação humana separada<p>Requisitos e testes com origem preservada em cada execução.</p></div>
+      <nav aria-label="Navegação principal">{links.map(([label,to]) => <NavLink key={to} to={to} end={to==='/admin'} className={({isActive}) => `sidebar-link ${isActive ? 'active' : ''}`}>{label}</NavLink>)}</nav>
       <button className="logout-button" onClick={logout}>Sair da sessão <span aria-hidden="true">↗</span></button>
     </aside>
-    <div className="research-body"><header className="research-topbar"><span>Plataforma de análise de requisitos e testes</span><span className="researcher-chip">Pesquisador</span></header>
+    <div className="research-body"><header className="research-topbar"><span>Análise de requisitos e testes</span><span>Área do pesquisador</span></header>
       <main className="research-main"><ErrorMessage>{error}</ErrorMessage><Outlet /></main>
-      <footer className="research-footer">Pesquisa acadêmica · TCC <span>Resultados de IA sujeitos à validação humana</span></footer>
+      <footer className="research-footer">Requisita <span>Fontes, decisões e evidências preservadas por análise.</span></footer>
     </div>
   </div>;
 }
