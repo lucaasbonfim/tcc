@@ -201,7 +201,7 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
   - Aceite/verificação: cobertura de processamento documental separada da qualidade da extração; citações existentes e verificáveis; ambiguidade mantida sem inventar regra; regressão de documentos em partes e continuidade.
   - Commit: `feat(requirements): adiciona consultas e ciclo do A1 [AG-10]`.
 
-- [ ] **AG-11 — Introduzir ciclo no A2 textual.** Depende de AG-10.
+- [x] **AG-11 — Introduzir ciclo no A2 textual.** Depende de AG-10.
   - Entrega: consulta a regras/fluxos aprovados e construção de cenários, com submissão validada e cobertura declarada de requisitos.
   - Aceite/verificação: casos com esperado sustentado, limites/exceções quando aplicáveis, sem preencher ambiguidade como fato; preservar lotes/códigos e revisão. Vínculos não são apresentados como cobertura semântica comprovada.
   - Commit: `feat(tests): adiciona planejamento agentivo dos cenarios [AG-11]`.
@@ -283,4 +283,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-11**. A1 e A2/automação têm perfis com ferramentas; A1 foi verificado com fixtures e A2 também com piloto real. Geração textual, A3 e A4 ainda usam o fluxo fixo.
+Próxima tarefa: **AG-12**. A1 e A2 textual/automação têm perfis com ferramentas. A1 e A2 textual foram verificados com fixtures; A2/automação também com piloto real. A3 e A4 ainda usam o fluxo fixo.

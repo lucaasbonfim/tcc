@@ -3,8 +3,8 @@ import {assert,transaction} from './errors.js';
 import {assertSessionTransition} from './agent-contract.js';
 
 export function createAgentSessionStore(pool,job) {
-  const unitColumn=job.automationPart?'automation_part_id':job.part?'requirement_part_id':'stage_id';
-  const unitId=job.automationPart?.id ?? job.part?.id ?? job.stage.id;
+  const unitColumn=job.automationPart?'automation_part_id':job.part?'requirement_part_id':job.testPart?'test_part_id':'stage_id';
+  const unitId=job.automationPart?.id ?? job.part?.id ?? job.testPart?.id ?? job.stage.id;
   async function owned(db) {
     const stage=(await db.query('SELECT * FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
     assert(stage?.run_id===job.run.id && stage.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da tarefa expirada ou cancelada.',409);
@@ -26,9 +26,9 @@ export function createAgentSessionStore(pool,job) {
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);await owned(db);
         const existing=(await db.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[job.attemptId])).rows[0];
         if(existing)return existing;
-        return (await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,agent,mode,status,task,policy,context)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,'agent/v1','running',$9,$10,$11) RETURNING *`,
-          [randomUUID(),job.run.project_id,job.run.id,job.stage.id,job.attemptId,job.automationPart?.id ?? null,job.part?.id ?? null,job.stage.agent,task,policy,context])).rows[0];
+        return (await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,test_part_id,agent,mode,status,task,policy,context)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'agent/v1','running',$10,$11,$12) RETURNING *`,
+          [randomUUID(),job.run.project_id,job.run.id,job.stage.id,job.attemptId,job.automationPart?.id ?? null,job.part?.id ?? null,job.testPart?.id ?? null,job.stage.agent,task,policy,context])).rows[0];
       });
     },
     async get(id) {return (await pool.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND run_id=$2 AND attempt_id=$3',[id,job.run.id,job.attemptId])).rows[0];},

@@ -240,6 +240,22 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-10]`. **Próximo passo:** AG-11, A2 textual.
 
+## 05/11/2026 — AG-11: A2 textual com consultas aos requisitos
+
+**Estado:** concluído. Base: `69295d7`.
+
+**Mudança:** perfil A2 textual fixado no snapshot, ferramentas de catálogo, leitura paginada e submissão de casos. A conversa inicial contém identificadores/títulos; o agente consulta os requisitos aprovados antes de propor cenários. O servidor registra intervalos completos devolvidos, restaura leituras na retomada e exige consulta integral dos requisitos atribuídos. A submissão exige todos os vínculos do lote, preserva códigos globais e mantém revisão humana. O perfil orienta cenários sustentados, registro de ambiguidades e estimativas preliminares de automação; não consulta implementação nem executa testes.
+
+**Persistência/interface:** migração 021 permite sessões `tests` com vínculo ao lote; política, capacidades e opção “Geração de casos com ferramentas” disponíveis. Continuação usa o perfil original. Histórico apresenta as novas consultas.
+
+**Verificação:** 85 testes backend aprovados, zero falhas/ignorados; seis E2E Chromium aprovados; lint/build frontend aprovados. Integrações verificam seis requisitos em dois lotes, códigos únicos, revisão e retomada sem repetir leitura concluída. Testes locais de paginação verificam observações com escape e retomada parcial. Durante a verificação, a restrição de códigos foi isolada no campo requirement_codes: objetos compartilhados do schema não podem propagar o enum aos textos livres. As primeiras execuções de testes expuseram esse problema; a suíte completa passou após a correção.
+
+**Ambiente:** migração 021 aplicada após dump/cópia dos artefatos em `.local/agent-pilot/backup-xCnzV2/`; relatório `upgrade-021.json`, contagens preservadas. Fixtures backend/navegador em bancos locais separados, sem chamadas reais ao provedor.
+
+**Limite para o TCC:** consultas, retomada e rastreabilidade foram verificadas tecnicamente. Não se demonstrou correção dos esperados, qualidade dos limites/exceções ou cobertura semântica por um LLM real. Isso permanece dependente do piloto conjunto e da referência independente do experimento.
+
+**Rastreabilidade:** commit `[AG-11]`. **Próximo passo:** AG-12, A4 com investigação das evidências.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

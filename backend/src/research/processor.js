@@ -17,6 +17,7 @@ import {createAutomationAgentTools} from './automation-agent-tools.js';
 import {runAgentTask,taskFingerprint} from './agent-runtime.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createRequirementsAgentTools} from './requirements-agent.js';
+import {createTestsAgentTools} from './tests-agent.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -187,13 +188,15 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             assert(job.stage.context.execution_mode==='agent/v1','Modo da etapa diverge do snapshot.',422);
             const definition=job.stage.context.agent_definition;
             assert(definition?.contract_version===AGENT_CONTRACT_VERSION && Array.isArray(definition.tools),'Contrato agentivo ausente/incompatível; crie nova análise.',422);
-            if(job.stage.agent==='requirements') {
-              const tools=createRequirementsAgentTools({input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars});
-              const task={...tools.task,objective:'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.',
+            if(['requirements','tests'].includes(job.stage.agent)) {
+              const isRequirements=job.stage.agent==='requirements';
+              const tools=isRequirements?createRequirementsAgentTools({input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars}):createTestsAgentTools({input,definition,maxObservationChars:policy.limits.max_observation_chars});
+              const task={...tools.task,objective:isRequirements?'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.':'Elaborar cenários de teste sustentados pelos requisitos aprovados.',
                 fingerprint:taskFingerprint({input,schema:request.schema,definition,policy,model:job.run.model,parameters:job.run.parameters})};
-              const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:task.objective,document_catalog:input.documents.map(d=>({id:d.id,name:d.name,pages:d.pages.map(p=>p.page)})),source_count:tools.task.source_ids.length,part:input.part ?? null,limits:policy.limits}})}]}];
+              const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:task.objective,
+                ...(isRequirements?{document_catalog:input.documents.map(d=>({id:d.id,name:d.name,pages:d.pages.map(p=>p.page)})),source_count:tools.task.source_ids.length,part:input.part ?? null}:{requirement_catalog:input.requirements.map(r=>({code:r.code,title:r.title})),batch:input.batch ?? null}),limits:policy.limits}})}]}];
               const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
-                model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:'submit_requirements',signal:controller.signal});
+                model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:isRequirements?'submit_requirements':'submit_test_cases',signal:controller.signal});
               input=terminal.input;inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
               return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};
             }
