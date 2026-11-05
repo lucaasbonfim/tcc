@@ -12,7 +12,12 @@ import {createArtifactStore} from '../../src/research/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 const url=process.env.TEST_DATABASE_URL;if(url&&!new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 async function env(action){const pool=new pg.Pool({connectionString:url}),dir=await mkdtemp(join(tmpdir(),'timeline-')),store=createArtifactStore(dir);try{await migrate(pool);await action({pool,store});}finally{await pool.end();await rm(dir,{recursive:true,force:true});}}
-async function prepare(pool,store,options={}){const services=scenarioServices(pool,store,options),project=await services.projects.create({name:'Histórico preservado',repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve somar dois números.'}),run=await services.runs.create(project.id);return {services,run};}
+async function prepare(pool,store,options={},runOptions={}){const services=scenarioServices(pool,store,options),project=await services.projects.create({name:'Histórico preservado',repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve somar dois números.'}),run=await services.runs.create(project.id,runOptions);return {services,run};}
+test('503 preservado aparece no histórico sem mensagem sensível nem nova chamada automática',{skip:!url},()=>env(async({pool,store})=>{
+  let calls=0;const {services,run}=await prepare(pool,store,{generateTurn:async()=>{calls++;throw Object.assign(new Error('private-provider-secret'),{name:'ApiError',status:503});}},{agent_policy:{modes:{requirements:'agent/v1'}}});
+  await services.processor.processOne();const page=await services.runs.events(run.id);assert.equal(page.status,'failed');assert.equal(page.failure.diagnostic.http_status,503);assert.equal(page.failure.agent,'requirements');assert.equal(page.failure.diagnostic.phase,'model_turn');
+  const event=page.events.find(e=>e.kind==='attempt_failed'),detail=await services.runs.event(run.id,event.id);assert.equal(detail.data.failure.diagnostic.http_status,503);assert.ok(!JSON.stringify(detail).includes('private-provider-secret'));assert.equal(calls,1);assert.equal((await services.runs.detail(run.id)).execution_jobs.length,0);
+}));
 test('eventos paginados abrem versões preservadas após edição humana, com escopo e exportação',{skip:!url},()=>env(async({pool,store})=>{
   const {services,run}=await prepare(pool,store);await services.processor.processOne();
   await assert.rejects(services.runs.assess(run.id,{verdict:'correct',justification:'Ainda não terminou.'}),e=>e.statusCode===409);
