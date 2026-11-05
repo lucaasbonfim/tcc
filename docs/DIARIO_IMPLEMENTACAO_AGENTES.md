@@ -190,6 +190,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-09a]`.
 
+## 04/11/2026 — AG-09b: diagnóstico seguro da falha de turno
+
+**Estado:** subtarefa concluída; AG-09 continua em andamento. Base: `ba7c4d2`.
+
+**Observação:** a nova análise `d3aa93b7-f139-4f2c-bfda-75d57acd845c`, com instrução 1.0.1, leitor 2.2.0 e limite de 12 turnos, completou seis ferramentas. O sétimo turno ficou sem resposta preservada e a análise encerrou com mensagem genérica, 16.857 tokens reportados e consumo desconhecido. Não se pode concluir retrospectivamente se houve falha de rede, do provedor ou do gateway a partir dessa mensagem.
+
+**Mudança implementada:** falhas de processamento passam a ter artefato diagnóstico com fase, classe do erro e status HTTP quando disponíveis, sem copiar mensagem, stack, cabeçalhos ou URL do SDK. O processador recebe uma mensagem controlada com status e indicação da sessão. Armazenamento indisponível não impede a tentativa de encerrar a sessão. Falhas por orçamento e escopo mantêm sua classificação separada.
+
+**Verificação:** sete testes de integração do runtime aprovados, incluindo erro injetado HTTP 429 com mensagem contendo segredo de controle; o diagnóstico registra status/fase e não contém o segredo. Retomada, orçamento, resposta parcial e retorno tardio continuam aprovados. PostgreSQL local separado, sem chamadas pagas nessa verificação.
+
+**Próximo passo:** preservar a primeira tentativa dessa segunda análise e usar a repetição explícita na mesma condição, reaproveitando contexto e consumo. Se a falha repetir, o diagnóstico permitirá identificar o impedimento sem expor credenciais.
+
+**Rastreabilidade:** commit `[AG-09b]`.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

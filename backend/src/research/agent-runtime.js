@@ -37,6 +37,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
   },20000);
   const activeElapsed=()=>Date.now()-started;
   const save=async()=>{checkpoint.elapsed_ms=elapsed();checkpoint.attempt_elapsed_ms=activeElapsed();return store.put(checkpoint);};
+  let phase='checkpoint';
   try {
     for(const state of checkpoint.tool_states || [])await tools.restore(state);
     while(true) {
@@ -88,7 +89,9 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
       assert(JSON.stringify(request).length<=policy.limits.max_context_chars,'Contexto do agente excede o limite.',422);
       const requestRef=await store.put(request),step=await sessions.beginStep(session.id,requestRef);
       controller.signal.throwIfAborted();
+      phase='model_turn';
       const response=await abortable(()=>generateTurn({...request,signal:controller.signal,timeout_ms:Math.min(90000,remaining()),max_context_chars:policy.limits.max_context_chars}),controller.signal);
+      phase='checkpoint';
       const responseRef=await store.put(response);
       const complete=Array.isArray(response.calls) && response.calls.length>0 && new Set(response.calls.map(call=>call.id)).size===response.calls.length && !response.metadata?.finish_reasons?.includes('MAX_TOKENS');
       checkpoint.pending=complete ? {step_id:step.id,request_ref:requestRef,response_ref:responseRef,content:response.content,calls:response.calls,done:[]} : null;
@@ -101,8 +104,17 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
   }catch(error) {
     const exhausted=/Orçamento/.test(error.message || '') || error.name==='TimeoutError';
     const reason=exhausted?'budget_exhausted':controller.signal.aborted?'interrupted':error.statusCode===403?'scope_violation':'processing_error';
-    try{await sessions.finish(session.id,exhausted?'exhausted':controller.signal.aborted?'interrupted':'failed',reason,null,activeElapsed());}
+    let diagnostic=null;
+    const status=Number(error.status ?? error.statusCode),httpStatus=Number.isInteger(status)&&status>=400&&status<=599?status:null;
+    if(reason==='processing_error')diagnostic=await store.put({kind:'agent_diagnostic',phase,
+      error_name:/^[A-Za-z]{1,50}$/.test(error.name || '')?error.name:'Error',http_status:httpStatus,
+      error_code:['ECONNRESET','ETIMEDOUT','ENOTFOUND','UNABLE_TO_VERIFY_LEAF_SIGNATURE','UND_ERR_CONNECT_TIMEOUT'].includes(error.code)?error.code:null,
+      message:'Falha do turno ou processamento; detalhes de transporte e credenciais não são armazenados.'}).catch(()=>null);
+    try{await sessions.finish(session.id,exhausted?'exhausted':controller.signal.aborted?'interrupted':'failed',reason,diagnostic,activeElapsed());}
     catch{await sessions.lostLease(session.id).catch(()=>{});}
+    if(phase==='model_turn' && reason==='processing_error') {
+      const safe=new Error(`Falha no turno do modelo${httpStatus?` (HTTP ${httpStatus})`:''}. Consulte o diagnóstico da sessão; a tentativa e o consumo foram preservados.`);safe.statusCode=422;throw safe;
+    }
     throw error;
   }finally{clearTimeout(timer);clearInterval(heartbeat);signal?.removeEventListener('abort',abort);}
 }
