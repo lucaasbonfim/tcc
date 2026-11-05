@@ -82,6 +82,16 @@ Avaliação humana: `{decision:'confirmed'|'rejected'|'inconclusive',revision,ju
 
 ## Operação e falhas
 
+### Histórico dos agentes
+
+O modo de cada etapa fica em `snapshot_data.agent_policy`. No marco inicial, somente `automation` aceita `agent/v1`; as demais etapas e snapshots antigos permanecem fixos. Configure `agent_policy` ao criar uma análise, por exemplo `{"modes":{"automation":"agent/v1"}}`. O modo não pode ser trocado ao iniciar automação de uma análise existente.
+
+- `GET /research/runs/:runId/agent-sessions?offset=0&limit=25`: sessões e resumo de chamadas, ferramentas, tokens reportados, uso desconhecido e duração.
+- `GET /research/runs/:runId/agent-sessions/:sessionId?offset=0&limit=25`: turnos e chamadas relacionadas; limite de página máximo 100.
+- `GET /research/runs/:runId/agent-sessions/:sessionId/artifacts/:kind/:artifactId/:type`: `kind=step` para `request/response`; `kind=call` para `arguments/observation`. IDs precisam pertencer à sessão/análise consultadas.
+
+Exportação JSON/CSV versão 3 acrescenta `agent_sessions`, `agent_steps`, `agent_tool_calls` e `agent_summary`, com artefatos resolvidos e erros/interrupções incluídos. Campos anteriores permanecem disponíveis. `total_tokens_reported` é parcial quando `usage_unknown=true`; custo monetário continua não informado. Cada sessão registra sua duração ativa, enquanto o checkpoint mantém também o prazo cumulativo da tarefa para retomada. Exportações durante processamento são leituras de um estado em evolução; a coleta científica exige condições e artefatos estabilizados.
+
 - Worker consulta a cada 2 s; lease de 180 s e timeout de inferência de 95 s. Interrupções exigem repetição explícita, preservando tentativas. Em documentos extensos, chamadas por parte têm registros próprios; checkpoints concluídos não são repetidos. Três sessões de tentativa da etapa, em vez de limitar o número de partes a três.
 - Sem credenciais/modelo configurados, uma nova execução não é criada. Falhas do provedor são registradas sem cabeçalhos/segredos; respostas inválidas ficam disponíveis para auditoria.
 - Banco remoto usa TLS com certificado verificado. Conexões têm prazo de 10 s. Para configuração de CA privada, adapte explicitamente a configuração de confiança; não desabilite verificação silenciosamente.

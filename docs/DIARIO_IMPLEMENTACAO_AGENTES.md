@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01–AG-06 concluídas; próxima tarefa: AG-07 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-07 concluídas; próxima tarefa: AG-08 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -141,6 +141,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limitações:** execução/avaliação desse teste usam fixtures, não observações reais do programa. A integração está disponível pela API/configuração do snapshot; escolha na interface e exportação detalhada serão entregues nas tarefas seguintes. Ambientes existentes precisam aplicar a migração 019 antes de reiniciar a nova versão. O banco da pesquisa ainda não foi migrado nesta tarefa; o piloto operacional está previsto em AG-09.
 
 **Rastreabilidade:** commit `[AG-06]`. **Próximo passo:** AG-07.
+
+## 04/11/2026 — AG-07: consulta e exportação da trajetória
+
+**Estado:** concluído. Base: `ba58fdb`.
+
+**Mudança implementada:** serviço de histórico paginado, endpoints administrativos de sessões/turnos/chamadas e artefatos vinculados, resumo operacional e exportação JSON/CSV versão 3. A exportação inclui requisições, respostas, argumentos, observações, escopos preparados e saídas, também quando há falha ou interrupção. Campos anteriores são mantidos e análises sem sessões retornam coleções vazias.
+
+**Ajuste encontrado durante a implementação:** o prazo cumulativo necessário para retomar a tarefa não pode ser somado como duração de cada tentativa. O checkpoint passou a registrar separadamente tempo acumulado e tempo da tentativa; a duração da sessão passa a contar somente o período ativo dessa tentativa. O resumo distingue tokens reportados de consumo desconhecido e mantém custo não informado.
+
+**Verificação:** 11 testes focais aprovados (acesso, CSV, integração agentiva e runtime), zero falhas/ignorados. Conferidos paginação, associação de artefatos à sessão/análise, acesso administrativo, exportação de três turnos/seis ferramentas e retomada/cancelamento. Ambiente PostgreSQL local de teste e provedores injetados; sem consumo Gemini.
+
+**Limite:** exportar durante o processamento reflete leituras de um estado em evolução. A coleta científica deverá congelar as condições e conferir os artefatos estabilizados, em vez de tratar esse download como snapshot transacional do banco.
+
+**Rastreabilidade:** commit `[AG-07]`. **Próximo passo:** AG-08.
 
 ## Modelo para a próxima entrada
 

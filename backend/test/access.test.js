@@ -14,17 +14,21 @@ test('API protege projetos e impede escrita cross-site', async () => {
   app.use(cookieParser());
   app.use(express.json());
   app.use('/auth',authRoutes);
-  app.use('/research',createResearchRouter({ projects:{ list: async () => [] } }));
+  app.use('/research',createResearchRouter({ projects:{ list: async () => [] },runs:{agentSessions:async()=>({sessions:[]})} }));
   app.use(errorHandler);
   const server = app.listen(0,'127.0.0.1');
   await new Promise(resolve => server.once('listening',resolve));
   const url = `http://127.0.0.1:${server.address().port}/research`;
   try {
     assert.equal((await fetch(`${url}/projects`)).status,401);
+    const runId='10000000-0000-4000-8000-000000000000';
+    assert.equal((await fetch(`${url}/runs/${runId}/agent-sessions`)).status,401);
     const participant = `tcc_session=${jwt.sign({role:'participant',participantId:1},secret)}`;
     assert.equal((await fetch(`${url}/projects`,{headers:{Cookie:participant}})).status,401);
     const admin = `tcc_session=${jwt.sign({role:'admin'},secret)}`;
     assert.equal((await fetch(`${url}/projects`,{headers:{Cookie:admin}})).status,200);
+    assert.equal((await fetch(`${url}/runs/${runId}/agent-sessions`,{headers:{Cookie:admin}})).status,200);
+    assert.equal((await fetch(`${url}/runs/${runId}/agent-sessions/invalid`,{headers:{Cookie:admin}})).status,400);
     assert.equal((await fetch(`${url}/projects`,{method:'POST',headers:{Cookie:admin,Origin:'https://evil.example'}})).status,403);
     assert.equal((await fetch(`${url}/projects/invalid`,{headers:{Cookie:admin}})).status,400);
     assert.equal((await fetch(`${url}/projects`,{method:'POST',headers:{Cookie:admin}})).status,400);

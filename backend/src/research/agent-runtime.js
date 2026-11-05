@@ -20,7 +20,8 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
   else {
     const previous=await sessions.previous();
     checkpoint=previous?.task.fingerprint===task.fingerprint ? await store.json(previous.context) : {contents:initialContents,pending:null,elapsed_ms:0,repetitions:{}};
-    if(previous?.task.fingerprint===task.fingerprint)checkpoint.elapsed_ms=Math.max(checkpoint.elapsed_ms || 0,previous.elapsed_ms || 0);
+    if(previous?.task.fingerprint===task.fingerprint)checkpoint.elapsed_ms=(checkpoint.elapsed_ms || 0)+Math.max(0,(previous.elapsed_ms || 0)-(checkpoint.attempt_elapsed_ms || 0));
+    checkpoint.attempt_elapsed_ms=0;
     session=await sessions.create({task,policy,context:await store.put(checkpoint)});
   }
   const inherited=checkpoint.elapsed_ms || 0,elapsed=()=>inherited+Date.now()-started;
@@ -34,19 +35,20 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
     catch{controller.abort(new DOMException('Falha ao verificar posse da tarefa.','AbortError'));}
     finally{checking=false;}
   },20000);
-  const save=async()=>{checkpoint.elapsed_ms=elapsed();return store.put(checkpoint);};
+  const activeElapsed=()=>Date.now()-started;
+  const save=async()=>{checkpoint.elapsed_ms=elapsed();checkpoint.attempt_elapsed_ms=activeElapsed();return store.put(checkpoint);};
   try {
     for(const state of checkpoint.tool_states || [])await tools.restore(state);
     while(true) {
       controller.signal.throwIfAborted();assert(remaining()>0,'Orçamento de tempo esgotado.',422);
       if(checkpoint.pending) {
         const pending=checkpoint.pending;pending.step_id=await sessions.adoptStep(session.id,pending);
-        await sessions.checkpoint(session.id,await save(),elapsed());
+        await sessions.checkpoint(session.id,await save(),activeElapsed());
         for(const done of pending.done) {
           const observation=await store.json(done.observation_ref);
           if(done.name==='prepare_automation_scope' && !done.rejected)await tools.restore(observation);
           if(done.terminal_ref) {
-            await sessions.finish(session.id,'completed','submitted',done.terminal_ref,elapsed());
+            await sessions.finish(session.id,'completed','submitted',done.terminal_ref,activeElapsed());
             return store.json(done.terminal_ref);
           }
         }
@@ -70,17 +72,17 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
           const signature=taskFingerprint({name:call.name,args:call.args,observation:result.observation});
           checkpoint.repetitions[signature]=(checkpoint.repetitions[signature] || 0)+1;
           pending.done.push({id:call.id,name:call.name,observation_ref:observationRef,rejected,...(terminalRef?{terminal_ref:terminalRef}:{})});
-          await sessions.completeCall(session.id,record.id,observationRef,{rejected,duration_ms:Date.now()-before,checkpoint:await save(),elapsed:elapsed()});
+          await sessions.completeCall(session.id,record.id,observationRef,{rejected,duration_ms:Date.now()-before,checkpoint:await save(),elapsed:activeElapsed()});
           assert(!fatal,'Ferramenta recusada por violação de escopo.',403);
           assert(checkpoint.repetitions[signature]<3,'Agente repetiu ação sem progresso.',422);
           if(terminalRef) {
-            await sessions.finish(session.id,'completed','submitted',terminalRef,elapsed());return store.json(terminalRef);
+            await sessions.finish(session.id,'completed','submitted',terminalRef,activeElapsed());return store.json(terminalRef);
           }
         }
         checkpoint.contents.push(pending.content,{role:'user',parts:pending.done.map(done=>({functionResponse:{id:done.id,name:done.name,response:null}}))});
         const parts=checkpoint.contents.at(-1).parts;
         for(let i=0;i<parts.length;i++)parts[i].functionResponse.response=await store.json(pending.done[i].observation_ref);
-        checkpoint.pending=null;await sessions.checkpoint(session.id,await save(),elapsed());
+        checkpoint.pending=null;await sessions.checkpoint(session.id,await save(),activeElapsed());
       }
       const request={model,parameters,instruction,instruction_version,contents:checkpoint.contents,tools:AUTOMATION_AGENT_TOOLS};
       assert(JSON.stringify(request).length<=policy.limits.max_context_chars,'Contexto do agente excede o limite.',422);
@@ -90,7 +92,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
       const responseRef=await store.put(response);
       const complete=Array.isArray(response.calls) && response.calls.length>0 && new Set(response.calls.map(call=>call.id)).size===response.calls.length && !response.metadata?.finish_reasons?.includes('MAX_TOKENS');
       checkpoint.pending=complete ? {step_id:step.id,request_ref:requestRef,response_ref:responseRef,content:response.content,calls:response.calls,done:[]} : null;
-      try{await sessions.completeStep(session.id,step.id,responseRef,response.metadata,await save(),elapsed());}
+      try{await sessions.completeStep(session.id,step.id,responseRef,response.metadata,await save(),activeElapsed());}
       catch(error){await sessions.recordLateResponse(session.id,step.id,responseRef,response.metadata).catch(()=>{});throw error;}
       assert(!response.metadata?.finish_reasons?.includes('MAX_TOKENS'),'Resposta interrompida pelo limite de saída.',422);
       assert(Array.isArray(response.calls) && response.calls.length>0,'Modelo não solicitou ferramenta nem submeteu resultado.',422);
@@ -99,7 +101,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
   }catch(error) {
     const exhausted=/Orçamento/.test(error.message || '') || error.name==='TimeoutError';
     const reason=exhausted?'budget_exhausted':controller.signal.aborted?'interrupted':error.statusCode===403?'scope_violation':'processing_error';
-    try{await sessions.finish(session.id,exhausted?'exhausted':controller.signal.aborted?'interrupted':'failed',reason,null,elapsed());}
+    try{await sessions.finish(session.id,exhausted?'exhausted':controller.signal.aborted?'interrupted':'failed',reason,null,activeElapsed());}
     catch{await sessions.lostLease(session.id).catch(()=>{});}
     throw error;
   }finally{clearTimeout(timer);clearInterval(heartbeat);signal?.removeEventListener('abort',abort);}
