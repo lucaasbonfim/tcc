@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: planejamento concluído; implementação deste plano ainda não iniciada.**
+**Estado: implementação em andamento; AG-00 e AG-01 concluídas.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -125,7 +125,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
 
 ### M1 — Primeiro agente operacional: A2/automation
 
-- [ ] **AG-01 — Definir contrato do runtime e política versionada.** Depende de AG-00.
+- [x] **AG-01 — Definir contrato do runtime e política versionada.** Depende de AG-00.
   - Arquivos previstos: novos `backend/src/research/agent-contract.js`, `agent-policy.js` e testes unitários correspondentes; instrução agentiva de automação separada da atual.
   - Entrega: tipos de ação, submissão terminal, estados/motivos, catálogo permitido, configuração dos modos e limites com validação. Definir um exemplo completo de chamada/observação/submissão.
   - Aceite: contrato rejeita ferramenta desconhecida, orçamento inválido e IDs fora da tarefa; ausência de configuração em snapshot antigo resolve para `fixed/v1`.
@@ -279,4 +279,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-01**. Nenhum arquivo de implementação dos agentes foi alterado na entrega AG-00.
+Próxima tarefa: **AG-02**. AG-01 entrega contratos e política; a integração operacional do agente depende das tarefas seguintes.

@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Não iniciado | Próxima tarefa: AG-01 |
+| M1 — A2 com ferramentas | Em implementação | AG-01 concluída; próxima tarefa: AG-02 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -59,6 +59,20 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Uso posterior no TCC:** base para explicar a motivação da evolução, os limites da arquitetura inicial e as decisões prospectivas de implementação. Não descrever as tarefas pendentes como funcionalidades entregues ou os critérios propostos como resultados observados.
 
 **Próximo passo:** AG-01 — contratos e política do ciclo.
+
+## 04/11/2026 — AG-01: contratos e política do ciclo
+
+**Estado:** concluído. Base: `9338f84`.
+
+**Mudança implementada:** `agent-policy.js` define modos por subetapa, limites de sessão/análise e política versionada/imutável. `agent-contract.js` define as oito ferramentas iniciais do A2, submissão terminal, instrução agentiva independente do prompt anterior, estados e transições de sessão. A configuração ausente em snapshot antigo é interpretada como modo fixo, sem reescrever o artefato.
+
+**Decisões:** apenas automação pode selecionar `agent/v1` neste marco. A submissão precisa responder a todos os casos da tarefa exatamente uma vez. Campos inesperados, acesso a requisito/caso externo, ferramenta desconhecida e limites inválidos são recusados. Esgotamento mapeia para falha incompleta, não para aprovação ou impossibilidade do requisito. O catálogo é imutável e usa uma cópia do schema anterior para não alterar seu objeto compartilhado.
+
+**Verificação:** `node --test test/agent-contract.test.js test/agents.test.js test/automation.test.js`, no backend: 12 testes aprovados, zero falhas/ignorados. Evidência: testes locais com dados/provedor injetados, incluindo regressão dos contratos e do gateway existentes; sem Gemini real ou banco da pesquisa.
+
+**Limite da entrega:** ainda não há ciclo executando ferramentas nem persistência de sessão; esses contratos constituem a interface para AG-02–AG-06. Não equivalem a um agente operacional.
+
+**Rastreabilidade:** commit com ID `[AG-01]`. **Próximo passo:** AG-02, persistência de sessões/passos/chamadas.
 
 ## Modelo para a próxima entrada
 
