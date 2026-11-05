@@ -26,6 +26,7 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 022 | Papel A4 com sessões de investigação de evidências por etapa |
 | 023 | Mensagens A2 → A1, vínculos/revisões imutáveis e sessões filhas com retomada e orçamento |
 | 024 | Planos de execução, vários bundles por análise e tentativas por trabalho; planos legados preservam IDs/evidências |
+| 025 | Sessões A3 por fase, propostas imutáveis de plano/diagnóstico e vínculo à autorização |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
 
