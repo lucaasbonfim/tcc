@@ -12,6 +12,7 @@ Object.assign(tools,{list_evaluation_results:'Listar resultados para avaliação
 Object.assign(tools,{request_requirement_clarification:'Pedir esclarecimento ao A1',read_clarification_sources:'Consultar fontes para esclarecer',respond_clarification:'Responder ao A2'});
 const agentNumbers={requirements:1,tests:2,automation:2,execution:3,evaluation:4};
 Object.assign(tools,{get_execution_capabilities:'Consultar capacidades de execução',list_execution_scripts:'Listar scripts para o plano',read_execution_script:'Consultar script para o plano',validate_execution_groups:'Validar lotes propostos',submit_execution_plan:'Submeter plano para autorização'});
+Object.assign(tools,{list_execution_results:'Listar resultados para diagnóstico',read_execution_evidence:'Investigar evidência de execução',submit_execution_diagnostics:'Submeter diagnóstico técnico'});
 const reasons={submitted:'Artefatos submetidos para revisão',budget_exhausted:'Orçamento da tarefa esgotado',interrupted:'Processamento interrompido',processing_error:'Falha durante o processamento',scope_violation:'Consulta fora do escopo recusada',cancelled_by_researcher:'Cancelada pelo pesquisador',worker_interrupted:'Worker interrompido',lease_lost:'Posse da tarefa perdida'};
 function usePolling(active,reload){const previous=useRef(active);useEffect(()=>{if(previous.current && !active)reload();previous.current=active;if(!active)return;const timer=setInterval(reload,4000);return()=>clearInterval(timer);},[active,reload]);}
 

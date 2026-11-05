@@ -15,6 +15,7 @@ import ResearchEvaluationPanel from '../components/ResearchEvaluationPanel';
 import ResearchTestCoverage from '../components/ResearchTestCoverage';
 import ResearchAgentHistory from '../components/ResearchAgentHistory';
 import ResearchAgentMessages from '../components/ResearchAgentMessages';
+import ResearchExecutionDiagnostics from '../components/ResearchExecutionDiagnostics';
 
 const tabs = [['requirements','Requisitos'],['tests','Casos de teste'],['automation','Scripts'],['evidence','Execução'],['analysis','Análise'],['history','Histórico e configuração']];
 function clean(content) {return Object.fromEntries(Object.entries(content).map(([key,value]) => [key,Array.isArray(value) && value.every(item => typeof item==='string') ? value.map(item => item.trim()).filter(Boolean) : value]));}
@@ -43,6 +44,7 @@ export default function ResearchRunPage() {
   return <div className="page-stack"><div className="page-heading"><div><Link className="back-link" to={`/admin/projects/${run.project_id}`}>← {project.name}</Link><p className="eyebrow mt-3">EXECUÇÃO {shortId(run.id)}</p><h1>Análise do projeto</h1><p>{project.name} · {date(run.created_at)}</p></div><div className="heading-actions"><ResearchStatus status={run.status}/><Button variant="secondary" onClick={reload}>Atualizar</Button></div></div>
     <ErrorMessage>{error || actionError}</ErrorMessage>
     <ResearchAgentMessages run={run} onChange={reload}/>
+    <ResearchExecutionDiagnostics run={run} onChange={reload}/>
     {run.resumed_from_run_id && <p className="notice">Continuação com checkpoints preservados. <Link to={`/admin/runs/${run.resumed_from_run_id}`}>Consultar análise anterior e suas tentativas</Link>.</p>}
     {run.continuations?.length>0 && <p className="notice">Esta análise possui continuação: {run.continuations.map(next=><Link key={next.id} to={`/admin/runs/${next.id}`}>abrir {shortId(next.id)} ({next.status}) </Link>)}.</p>}
     <div className="commit-row"><span>{run.snapshot_data.code_version.requested_ref}</span><code>{run.snapshot_data.code_version.commit_sha}</code><span>{run.model}</span></div>

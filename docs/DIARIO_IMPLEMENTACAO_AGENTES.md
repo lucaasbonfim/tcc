@@ -340,6 +340,22 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-15a]`. **Próximo passo:** AG-15b, diagnóstico pós-execução.
 
+## 05/11/2026 — AG-15b: investigação pós-execução e diagnósticos A3
+
+**Estado:** subetapa concluída. Base: `762993e`; AG-15c permanece aberta.
+
+**Mudança:** depois de todos os bundles, novos snapshots com perfil de diagnóstico A3 enfileiram consultas sobre os resultados reais. A3 lê contextos completos de regra/fonte, caso, script/versão e ambiente, e propõe ação técnica. Contrato diferencia falha de asserção, possível problema no teste, ambiente, compatibilidade do cenário e inconclusivo. Copia esperado/observado, exige citação literal e uma conclusão por resultado; estados técnicos não podem ser classificados como falha de asserção e truncamento exige inconclusivo. Isso restringe coerência, não garante interpretação correta da causa.
+
+**Persistência:** diagnóstico tem sessão e orçamento por fase, com teto global compartilhado. Enfileiramento registra IDs dos resultados sem copiar grandes logs na transação que persiste evidências; falha do processamento posterior não perde nem reexecuta o bundle. Contexto confere scripts/revisões/hashes contra o plano autorizado. Proposta fica em execution_proposals, com entrada/saída e revisão humana separadas. Snapshots anteriores sem esse perfil conservam o fluxo direto para A4.
+
+**Revisão:** A4 continua examinando a evidência, sem receber o diagnóstico do A3 como gabarito. A conclusão da avaliação exige revisão do diagnóstico técnico; reconhecer/rejeitar/solicitar revisão não altera código nem autoriza novo ensaio. A interface apresenta esperado/observado e ações propostas, e registra justificativa humana.
+
+**Verificação:** 112 testes backend aprovados, zero falhas/ignorados; seis E2E passaram na suíte inicial e o fluxo completo restante passou após corrigir um seletor, que confundia observação da tabela com sua repetição no cartão de diagnóstico. Lint/build aprovados. Controles incluem literalidade/versões, classes por estado, truncamento, leitura parcial, orçamento independente de planejamento, revisão obrigatória e retomada sem nova execução. Todos com provedor/executor injetados; não houve novo piloto real.
+
+**Ambiente:** usa a migração 025 já aplicada; não requer migração adicional ou alteração nos dados históricos. As propostas reais desta configuração ainda não foram coletadas.
+
+**Rastreabilidade:** commit `[AG-15b]`. **Próximo passo:** AG-15c, consulta A3 → A2 e proposta versionada de revisão do script.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

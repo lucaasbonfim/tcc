@@ -56,13 +56,16 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.getByRole('heading',{name:'Proposta de plano do A3',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeEnabled();
   await page.getByRole('button',{name:'Autorizar execução isolada'}).click();
-  await expect(page.getByText('Fixture: assert sem falha.',{exact:true})).toBeVisible({timeout:20000});
+  await expect(page.getByRole('cell',{name:'Fixture: assert sem falha.',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Análise',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Comportamento compatível no cenário'})).toBeVisible({timeout:20000});
   await page.getByRole('textbox',{name:'Justificativa da decisão humana'}).fill('Evidência sintética conferida no teste da interface.');
   await page.getByRole('button',{name:'Confirmar classificação'}).click();
   await expect(page.locator('.review-item .status-confirmed')).toBeVisible();
   await page.getByRole('textbox',{name:'Justificativa da conclusão da avaliação'}).fill('Fluxo E2E concluído; sem dados experimentais.');
+  await expect(page.getByRole('button',{name:'Concluir revisão da avaliação'})).toBeDisabled();
+  await page.getByLabel('Justificativa da revisão do diagnóstico A3',{exact:true}).fill('Diagnóstico sintético conferido no controle E2E.');
+  await page.getByRole('button',{name:'Confirmar diagnóstico técnico',exact:true}).click();
   await page.getByRole('button',{name:'Concluir revisão da avaliação'}).click();
   await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
   await page.getByRole('button',{name:'Histórico e configuração'}).click();
@@ -73,8 +76,8 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   const exported = JSON.parse(await readFile(await file.path(),'utf8'));
   expect(exported.snapshot_data.agent_policy.modes.automation).toBe('agent/v1');
   expect(exported.snapshot_data.agent_policy.modes.evaluation).toBe('agent/v1');
-  expect(exported.agent_steps).toHaveLength(10);
-  expect(exported.agent_tool_calls).toHaveLength(14);
+  expect(exported.agent_steps).toHaveLength(13);
+  expect(exported.agent_tool_calls).toHaveLength(17);
   expect(exported.execution_plans[0].planner_mode).toBe('agent/v1');
   expect(exported.execution_proposals[0].review_status).toBe('accepted');
   expect(exported.agent_tool_calls.some(call=>call.name==='read_evaluation_context')).toBeTruthy();

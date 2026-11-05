@@ -229,7 +229,7 @@ Estas tarefas mantêm a ordem conceitual, mas seu detalhamento operacional deve 
 
 - [ ] **AG-15 — Implementar decisões de A3 e retorno de diagnóstico.** Depende de AG-14.
   - [x] AG-15a: planejamento agentivo validado e autorização separada.
-  - [ ] AG-15b: investigação pós-execução e diagnósticos vinculados.
+  - [x] AG-15b: investigação pós-execução e diagnósticos vinculados.
   - [ ] AG-15c: retorno ao A2 com proposta de revisão sem substituir aprovados.
   - Entrega: A3 consulta capacidades, propõe agrupamentos válidos e solicita execuções autorizadas; devolve a A2 diagnósticos verificáveis de script. O backend calcula e valida limites concretos antes de executar qualquer bundle.
   - Aceite/verificação: distinguir erro de compilação/teste, ambiente e falha de asserção; nova versão exige revisão e autorização correspondentes. O agente não altera a implementação, o esperado para forçar passagem, dependências ou a política do executor. Sem decisão útil demonstrada, registrar A3 como serviço determinístico e revisar a descrição arquitetural.

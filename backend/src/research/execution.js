@@ -5,6 +5,7 @@ import {sha256,validateBundle,validateExecutionResult} from '../../../shared/exe
 import {buildExecutionBundles} from './execution-plan.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {createEvaluationService} from './evaluation.js';
 
 export const EXECUTION_INSTRUCTION='Serviço A3 determinístico v2.2: executar os bundles do plano autorizado com scripts/revisões/hashes aprovados e fontes do SHA, em serviço autenticado com política do perfil validada. Cada bundle tem checkpoint e identidade de transporte estáveis; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
 export function createExecutionService({pool,store,client=createExecutorClient()}) {
@@ -40,6 +41,35 @@ export function createExecutionService({pool,store,client=createExecutorClient()
     async persistPlanning(db,job,output) {
       const id=randomUUID();await db.query("INSERT INTO research.execution_proposals(id,run_id,stage_id,attempt_id,phase,input,output) VALUES($1,$2,$3,$4,'planning',$5,$6)",[id,job.run.id,job.stage.id,job.attemptId,job.stage.context.planning_input,await store.put(output)]);
       await db.query('UPDATE research.stages SET context=context || $2::jsonb WHERE id=$1',[job.stage.id,JSON.stringify({proposal_id:id})]);
+    },
+    async queueDiagnosis(db,runId) {
+      const run=(await db.query('SELECT snapshot FROM research.runs WHERE id=$1',[runId])).rows[0],snapshot=await store.json(run.snapshot),definition=snapshot.execution_agent_definitions?.diagnosis;
+      if(agentMode(snapshot,'execution')!=='agent/v1' || !definition)return false;
+      assert(definition.contract_version===AGENT_CONTRACT_VERSION,'Perfil de diagnóstico A3 incompatível.',422);
+      const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='execution' FOR UPDATE",[runId])).rows[0];
+      const results=(await db.query('SELECT id FROM research.test_results WHERE run_id=$1 ORDER BY id',[runId])).rows;
+      await db.query("UPDATE research.stages SET status='pending',attempt_count=0,instruction=$2,instruction_version=$3,context=$4,message='Diagnóstico A3 enfileirado sobre evidências preservadas.' WHERE id=$1",[stage.id,definition.instruction,definition.version,{phase:'diagnosis',execution_mode:'agent/v1',agent_definition:definition,schema:definition.schema,plan_id:stage.context.plan_id,diagnosis_result_ids:results.map(r=>r.id)}]);
+      await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);return true;
+    },
+    async diagnosisInput(job) {
+      const input=await createEvaluationService({pool,store}).inputFor(job.run.id);
+      assert(sha256(input.results.map(r=>r.id).sort())===sha256([...job.stage.context.diagnosis_result_ids].sort()),'Resultados divergem do diagnóstico enfileirado.',422);
+      const plan=(await pool.query('SELECT manifest FROM research.execution_plans WHERE id=$1 AND run_id=$2',[job.stage.context.plan_id,job.run.id])).rows[0];assert(plan,'Plano do diagnóstico não encontrado.',422);
+      const manifest=await store.json(plan.manifest);for(const script of input.automated_tests){const pinned=manifest.scripts.find(s=>s.id===script.id);assert(pinned?.version===script.version && pinned.revision===script.revision && pinned.files.sha256===script.files.sha256,'Script mudou após a execução; diagnóstico bloqueado.',422);}
+      return input;
+    },
+    async persistDiagnosis(db,job,output,inputRef) {
+      await db.query("INSERT INTO research.execution_proposals(id,run_id,stage_id,attempt_id,phase,input,output) VALUES($1,$2,$3,$4,'diagnosis',$5,$6)",[randomUUID(),job.run.id,job.stage.id,job.attemptId,inputRef,await store.put(output)]);
+    },
+    async reviewDiagnosis(runId,id,input) {
+      const justification=text(input.justification,'Justificativa',5000,true);assert(['accepted','rejected','revision_requested'].includes(input.decision),'Decisão do diagnóstico inválida.',422);
+      return transaction(pool,async db=>{
+        const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];assert(run?.status==='awaiting_review','Análise não aguarda revisão.',409);
+        const row=(await db.query("SELECT * FROM research.execution_proposals WHERE id=$1 AND run_id=$2 AND phase='diagnosis' FOR UPDATE",[id,runId])).rows[0];assert(row?.review_status==='pending','Diagnóstico não está aberto para revisão.',409);
+        await db.query('UPDATE research.execution_proposals SET review_status=$2,reviewed_at=now() WHERE id=$1',[id,input.decision]);
+        await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor) VALUES($1,$2,$3,'stage',$3,$4,$5,$6,$7,'admin')",[randomUUID(),runId,row.stage_id,input.decision==='accepted'?'approved':input.decision==='rejected'?'rejected':'edited',justification,{proposal_id:id,review_status:'pending'},{proposal_id:id,review_status:input.decision}]);
+        return {review_status:input.decision};
+      });
     },
     async proposals(runId) {return Promise.all((await pool.query('SELECT * FROM research.execution_proposals WHERE run_id=$1 ORDER BY created_at',[runId])).rows.map(async row=>({...row,input_data:await store.json(row.input),output_data:await store.json(row.output)})));},
     async authorize(runId,input) {
