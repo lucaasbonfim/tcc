@@ -20,8 +20,9 @@ export function createAutomationAgentTools({input,inspection,store,maxObservatio
     const scope=buildScope(inspection,root,target_paths);
     assert(scope.files.every(file=>files.some(allowed=>allowed.path===file.path)),'Dependência fora do módulo autorizado.',403);
     const ref=await store.put(scope);scopes.set(ref.sha256,{scope,ref});
-    return {observation:{scope_id:ref.sha256,scope_ref:ref,commit_sha:scope.commit_sha,target_paths:scope.target_paths,
-      files:scope.files.map(metadata),limitations:scope.limitations}};
+    return {state:{scope_ref:ref},observation:{scope_id:ref.sha256,scope_ref:ref,commit_sha:scope.commit_sha,target_paths:scope.target_paths,
+      files:scope.files.map(file=>({path:file.path,sha256:file.sha256})),limitations:scope.limitations.slice(0,10).map(s=>s.slice(0,150)),
+      limitations_truncated:scope.limitations.length>10 || scope.limitations.some(s=>s.length>150)}};
   }
   const handlers={
     list_sources:async({offset,limit})=>({observation:{files:files.slice(offset,offset+limit).map(metadata),total:files.length,next_offset:offset+limit<files.length?offset+limit:null,inspection_omissions:inspection.omitted ?? []}}),
