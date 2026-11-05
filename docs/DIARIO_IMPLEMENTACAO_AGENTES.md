@@ -502,3 +502,9 @@ Validação: 135 testes de backend na suíte completa (banco local novo), seis c
 
 Sem alterações em `.env`, segredos, lockfiles, `atual.java`, código do executor ou banco de pesquisa. Nenhuma chamada real ao Gemini, reexecução do VVV original, coleta científica ou avaliação de usabilidade com participantes foi realizada. Estes testes de software não substituem piloto real/protocolo. Resumo completo e mapa de arquivos: [REFATORACAO_UX.md](REFATORACAO_UX.md). Commits apenas locais.
 
+# VVV-DIAG-02 — 05/11/2026 — Execução real após RT-01/RT-02
+
+Investigada a execução autônoma `05fcda61-2cac-412d-955f-b518274777b3`, iniciada às 13:12 em Brasília. O runtime fez 14 envios, obteve cinco respostas e nove 503; oito reenvios reais estão registrados. Parte 1 concluída, parte 2 falhou após quatro 503 consecutivos na submissão. As esperas 5/10/20 s e o hash idêntico comprovam funcionamento do backoff; recuperação limitada não garante disponibilidade do provedor.
+
+Controles reais isolados: chamada simples e ferramenta mínima no modelo atual funcionaram; reenvio exato e conversa nova da parte 2 no 3.5 Flash-Lite falharam na submissão. O 3.1 Flash-Lite concluiu essa parte com as ferramentas e validações atuais, sem transferir assinaturas de outros modelos. O 2.5 Flash retornou 404; o 3.5 Flash reportou versão 3.6 e também falhou na submissão. São 13 envios diagnósticos, 20691 tokens reportados e custo desconhecido, sem interpretar como comparação científica de qualidade/confiabilidade. Não houve A2–A4, código executado ou alteração da análise. Escolha de modelo para futuras análises foi apresentada explicitamente ao usuário; configuração original preservada nesta investigação. Detalhes em `DIAGNOSTICO_VVV_503.md`.
+

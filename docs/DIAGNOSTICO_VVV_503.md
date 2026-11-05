@@ -53,3 +53,33 @@ Próxima melhoria proposta, **não implementada neste diagnóstico**: retentativ
 Dados completos ficam em `.local/vvv-diagnostics/`, ignorados pelo Git: `replay-report.json`, `compare-report.json`, `a1-first-part-success-report.json`, `third-turn-probe.json`, `investigation-summary.json` e `full-simulation/report.json`/`export.json`. Respostas/conteúdos privados permanecem nesse diretório e no banco local de diagnóstico. O primeiro ensaio independente que falhou também consta do log da execução do assistente e de seus artefatos brutos; seu relatório intermediário foi sobrescrito pelo segundo ensaio, limitação registrada no resumo local. Os demais relatórios citados estão preservados.
 
 Referências de contrato: [erros da API Gemini](https://aistudio.google.com/docs/api-errors) e [function calling/assinaturas nativas](https://ai.google.dev/gemini-api/docs/generate-content/function-calling). A documentação descreve o contrato; os resultados acima vêm das chamadas efetivamente realizadas.
+
+## Nova execução com retentativas — 05/11/2026, 13:12–13:16 (Brasília)
+
+A execução `05fcda61-2cac-412d-955f-b518274777b3` usa política 1.1.0, `gemini-3.5-flash-lite` e os quatro papéis agentivos no modo autônomo. As retentativas estavam habilitadas e foram efetivamente usadas. São 14 envios ao modelo: cinco respostas e nove HTTP 503, oito deles seguidos por reenvio automático. Não houve repetição manual de etapa.
+
+- Parte 1: seis envios, três respostas e três 503. Recuperou o turno de leitura e o de submissão, concluiu com zero requisitos e um alerta referente apenas à capa/sumário.
+- Parte 2: oito envios, duas respostas e seis 503. Recuperou a leitura após duas falhas. A submissão recebeu quatro 503 consecutivos, separados pelas esperas de 5, 10 e 20 segundos; então encerrou conforme o limite da política.
+- Uma de 13 partes concluída; A2/A3/A4 não alcançados. Cada unidade iniciou sua primeira tentativa. O total de oito reenvios pode superar três porque o limite se aplica a cada turno do modelo, e não à análise inteira. Os orçamentos cumulativos continuam limitados.
+
+O pedido da submissão que falhou tem SHA-256 `50f57e3b0684f842040469683722f727f25346d029216732935ca4b0b98e41fb`, 19054 caracteres no artefato serializado. Os quatro envios preservam esse mesmo hash. A etapa não chegou a executar código.
+
+### Controles reais posteriores, sem alterar essa execução
+
+| Controle | Resultado observado |
+| --- | --- |
+| Chamada simples ao 3.5 Flash-Lite | Resposta válida, 9 tokens reportados |
+| Ferramenta mínima no 3.5 Flash-Lite | Chamada `confirm` válida, 73 tokens reportados |
+| Reenvio isolado exato da submissão que falhou | HTTP 503, `UNAVAILABLE`, corpo informa alta demanda |
+| Nova conversa do A1 para a mesma parte 2, no 3.5 Flash-Lite | Listar e ler responderam; submeter voltou a receber 503 |
+| Nova conversa da mesma parte no 3.1 Flash-Lite | Listar, ler e submeter responderam; saída aceita pelas ferramentas/validações reais |
+| Tentativa no 2.5 Flash | HTTP 404; estar na listagem de modelos não garantiu disponibilidade para geração |
+| Nova conversa da mesma parte no 3.5 Flash | Duas respostas reportando versão `gemini-3.6-flash`; submissão recebeu 503 |
+
+O 3.1 Flash-Lite concluiu apenas esta parte em três envios, aproximadamente 3,2 segundos de inferência somados, com 10931 tokens reportados, zero requisitos e um alerta. Isso não comprova estabilidade, qualidade de extração ou conclusão do VVV inteiro. Não houve continuação de conversas/assinaturas de outro modelo: cada comparação começou com a mesma mensagem inicial e ferramentas novas para a parte preservada. O controle foi encerrado na primeira falha ou submissão, até quatro envios por candidato e prazo de 60 segundos por conversa. Não executa scripts nem altera artefatos do experimento.
+
+Foram 13 chamadas de geração nestes controles: nove respostas, três 503 e um 404; 20691 tokens reportados. Consumo/custo nas falhas é desconhecido. São controles selecionados e não estimativa estatística de confiabilidade entre modelos.
+
+Conclusão prática: o backoff recuperou falhas nesta execução, mas não superou a indisponibilidade persistente do turno de submissão. A resposta simples de controle não comprova disponibilidade para a tarefa completa. Existe um candidato que concluiu a parte no controle real, `gemini-3.1-flash-lite`; a escolha de modelo para novas análises precisa ser explícita, preservando os snapshots e a execução que falhou. Não foram alterados código de produção, `.env`, modelo padrão ou estado da análise durante estes controles.
+
+Evidências privadas: `.local/vvv-diagnostics/current/report.json`, `alternative-model-report.json`, relatórios com timestamp, respostas por modelo e `output-gemini-3.1-flash-lite.json`. Não publicar conteúdo dos documentos/assinaturas nativas ou credenciais. A antiga seção “melhoria proposta” acima descreve o momento anterior à implementação; RT-01/RT-02 e esta execução já comprovam que os retries foram implementados.
