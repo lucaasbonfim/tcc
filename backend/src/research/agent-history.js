@@ -12,9 +12,10 @@ export function createAgentHistoryService({pool,store}) {
     async summary(runId) {
       const row=(await pool.query(`SELECT count(*)::int AS sessions,COALESCE(sum(model_turns),0)::int AS model_turns,
         COALESCE(sum(tool_calls),0)::int AS tool_calls,COALESCE(sum(total_tokens),0)::bigint AS total_tokens_reported,
-        COALESCE(bool_or(usage_unknown),false) AS usage_unknown,COALESCE(sum(elapsed_ms),0)::bigint AS elapsed_ms
+        COALESCE(bool_or(usage_unknown),false) AS usage_unknown,COALESCE(sum(elapsed_ms) FILTER(WHERE parent_session_id IS NULL),0)::bigint AS elapsed_ms,
+        COALESCE(sum(elapsed_ms) FILTER(WHERE parent_session_id IS NOT NULL),0)::bigint AS child_elapsed_ms
         FROM research.agent_sessions WHERE run_id=$1`,[runId])).rows[0];
-      return {...row,total_tokens_reported:Number(row.total_tokens_reported),elapsed_ms:Number(row.elapsed_ms)};
+      return {...row,total_tokens_reported:Number(row.total_tokens_reported),elapsed_ms:Number(row.elapsed_ms),child_elapsed_ms:Number(row.child_elapsed_ms)};
     },
     async list(runId,query={}) {
       await runExists(runId);const {offset,limit}=page(query);

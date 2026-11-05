@@ -62,7 +62,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
           try {
             assert(call.name!==terminalTool || pending.calls.length===1,'Submissão terminal exige turno separado.',422);
             controller.signal.throwIfAborted();
-            result=await abortable(()=>tools.execute(call),controller.signal);
+            result=await abortable(()=>tools.execute(call,{signal:controller.signal}),controller.signal);
           }catch(error) {
             if(controller.signal.aborted)throw error;
             rejected=true;fatal=error.statusCode===403;

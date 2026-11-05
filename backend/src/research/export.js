@@ -22,9 +22,10 @@ export function exportCsv(data) {
   for(const evidence of data.evidence || [])add('evidence',evidence.id,'',evidence.origin,[evidence.job_id],evidence);
   for(const result of data.test_results || [])add('test_result',result.id,'',result.status,[result.automated_test_id,result.test_case_id,result.evidence_id],result);
   for(const finding of data.findings || [])add('finding',finding.id,'',finding.review_status,[finding.requirement_id,finding.test_case_id,finding.automated_test_id,finding.test_result_id],finding);
-  for(const session of data.agent_sessions || [])add('agent_session',session.id,session.agent,session.status,[session.stage_id,session.attempt_id,session.automation_part_id],session);
+  for(const session of data.agent_sessions || [])add('agent_session',session.id,session.agent,session.status,[session.stage_id,session.attempt_id,session.automation_part_id,session.requirement_part_id,session.test_part_id,session.message_id,session.parent_session_id].filter(Boolean),session);
   for(const step of data.agent_steps || [])add('agent_step',step.id,String(step.sequence),step.status,[step.session_id],step);
   for(const call of data.agent_tool_calls || [])add('agent_tool_call',call.id,call.name,call.status,[call.session_id,call.step_id],call);
+  for(const message of data.agent_messages || [])add('agent_message',message.id,message.kind,message.review_status,[message.source_session_id,message.requirement_id],message);
   if(data.agent_summary)add('agent_summary',data.id,'','',[],data.agent_summary);
   for(const [source_run_id,history] of Object.entries(data.reused_agent_histories || {})) {
     for(const session of history.agent_sessions)add('reused_agent_session',session.id,session.agent,session.status,[source_run_id,session.stage_id,session.attempt_id],session);

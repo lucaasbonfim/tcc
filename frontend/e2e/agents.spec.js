@@ -1,5 +1,20 @@
 import {test,expect} from '@playwright/test';
 
+test('A2 consulta A1 e o pesquisador revisa a resposta antes dos casos',async({page})=>{
+  const post=async(path,data)=>{const r=await page.request.post('http://localhost:3101/api'+path,{data,headers:{Origin:'http://localhost:5178'}});expect(r.ok()).toBeTruthy();return (await r.json()).data;};
+  await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});
+  const project=await post('/research/projects',{name:`Colaboração E2E ${Date.now()}`,repository_url:'https://github.com/example/repo',requested_ref:'main',complementary_text:'O sistema deve permitir consultar projetos.'});
+  await page.goto(`/admin/projects/${project.id}`);await page.getByLabel('Geração de casos com ferramentas',{exact:true}).check();await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
+  await expect(page.getByRole('heading',{name:'Colaboração E2E: consulta',exact:true})).toBeVisible({timeout:20000});await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
+  await expect(page.getByRole('heading',{name:'Mensagens entre agentes',exact:true})).toBeVisible({timeout:20000});
+  await expect(page.getByRole('button',{name:'Reconhecer esclarecimento',exact:true})).toBeVisible({timeout:20000});
+  await expect(page.getByRole('button',{name:'Aprovar todos e continuar'})).toBeDisabled();
+  await page.getByLabel('Justificativa da revisão do esclarecimento',{exact:true}).fill('Fonte conferida no controle E2E, sem julgamento científico.');
+  await page.getByRole('button',{name:'Reconhecer esclarecimento',exact:true}).click();await expect(page.getByText('Esclarecimento reconhecido',{exact:false})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Aprovar todos e continuar'})).toBeEnabled();
+  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
+});
+
 test('A2 textual consulta os requisitos e apresenta casos sujeitos à revisão',async({page})=>{
   const post=async(path,data)=>{const r=await page.request.post('http://localhost:3101/api'+path,{data,headers:{Origin:'http://localhost:5178'}});expect(r.ok()).toBeTruthy();return (await r.json()).data;};
   await post('/auth/admin/login',{email:'researcher@example.test',password:'E2E-Research-Only'});

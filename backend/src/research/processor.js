@@ -19,6 +19,7 @@ import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createRequirementsAgentTools} from './requirements-agent.js';
 import {createTestsAgentTools} from './tests-agent.js';
 import {createEvaluationAgentTools} from './evaluation-agent.js';
+import {createCollaborationService} from './agent-collaboration.js';
 
 export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
@@ -192,7 +193,8 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             if(['requirements','tests','evaluation'].includes(job.stage.agent)) {
               const isRequirements=job.stage.agent==='requirements';
               const isEvaluation=job.stage.agent==='evaluation';
-              const options={input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars};
+              const options={input,schema:request.schema,definition,maxObservationChars:policy.limits.max_observation_chars,
+                requestClarification:(args,context)=>createCollaborationService({pool,store}).request({job,input,snapshot,policy,generateTurn,signal:context.signal,...args})};
               const tools=(isRequirements?createRequirementsAgentTools:isEvaluation?createEvaluationAgentTools:createTestsAgentTools)(options);
               const task={...tools.task,objective:isRequirements?'Extrair requisitos rastreáveis e analisar incertezas das fontes atribuídas.':isEvaluation?'Investigar as evidências e propor conclusões vinculadas aos cenários executados.':'Elaborar cenários de teste sustentados pelos requisitos aprovados.',
                 fingerprint:taskFingerprint({input,schema:request.schema,definition,policy,model:job.run.model,parameters:job.run.parameters})};

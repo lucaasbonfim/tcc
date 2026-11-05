@@ -16,6 +16,7 @@ import {REQUIREMENTS_AGENT} from './requirements-agent.js';
 import {TESTS_AGENT} from './tests-agent.js';
 import {EVALUATION_AGENT} from './evaluation-agent.js';
 import {EVALUATION} from './evaluation-contract.js';
+import {CLARIFICATION_AGENT,createCollaborationService} from './agent-collaboration.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
@@ -71,7 +72,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
         const policy=createAgentPolicy(input.agent_policy ?? {});
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
@@ -128,6 +129,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
       }
       return {...run,snapshot_data:await store.json(run.snapshot),stages:stages.rows,attempts:attempts.rows,agent_outputs:agentOutputs,
         requirements:requirements.rows,test_cases:tests.rows,traceability:links.rows,reviews:reviews.rows,
+        agent_messages:await createCollaborationService({pool,store}).list(id),
         automated_tests:automatedTests,automation_parts:automationParts,automation_coverage:automationSummary,
         execution_jobs:await createExecutionService({pool,store}).list(id),
         test_results:(await pool.query('SELECT * FROM research.test_results WHERE run_id=$1 ORDER BY id',[id])).rows,
@@ -138,6 +140,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         continuations:(await pool.query('SELECT id,status,created_at FROM research.runs WHERE resumed_from_run_id=$1 ORDER BY created_at DESC LIMIT 10',[id])).rows,
         consolidation_data:consolidation,agent_summary:await agentHistory.summary(id)};
     },
+    async reviewMessage(runId,id,input) {return createCollaborationService({pool,store}).review(runId,id,input);},
     async reviewItem(runId, kind, id, input) {
       assert(['requirements','tests'].includes(kind), 'Tipo de revisão inválido.');
       const decision = input.decision;
@@ -176,6 +179,11 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const run = await get(runId, db, true);
         const stage = (await db.query('SELECT * FROM research.stages WHERE run_id=$1 AND agent=$2 FOR UPDATE',[runId,agent])).rows[0];
         assert(run.status === 'awaiting_review' && stage?.status === 'awaiting_review','Etapa não aguarda aprovação.',409);
+        if(agent==='tests') {
+          const messages=(await db.query('SELECT status,review_status FROM research.agent_messages WHERE run_id=$1',[runId])).rows;
+          assert(messages.every(m=>m.status==='answered' && m.review_status!=='pending'),'Revise as mensagens entre agentes antes de aprovar os casos.',409);
+          assert(!messages.some(m=>m.review_status==='revision_requested'),'Revisão de regra solicitada: preserve esta análise e inicie outra sem reutilizar aprovações.',409);
+        }
         const table = agent === 'requirements' ? 'requirements' : 'test_cases';
         assert(input.approve_pending===undefined || typeof input.approve_pending==='boolean','Opção de aprovação em lote inválida.');
         if(input.approve_pending) {
