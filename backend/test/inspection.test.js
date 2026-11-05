@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {inspectRepository,javascriptSymbols,javaSymbols,safePath,INSPECTION_LIMITS} from '../src/research/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 const version={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)};
+test('arquivos legados test.js/spec.cjs não são alvos de implementação',async()=>{
+  const fixture=repositoryFixture({'package.json':'{"type":"module"}','index.js':'export const value=1;','test.js':'export const expected=1;','spec.cjs':'exports.expected=1;'});
+  const result=await inspectRepository(version,fixture.fetch);
+  assert.equal(result.files.find(f=>f.path==='test.js').role,'existing_test');
+  assert.equal(result.files.find(f=>f.path==='spec.cjs').role,'existing_test');
+  assert.deepEqual(result.modules[0].targets,['index.js']);assert.equal(result.reader_version,'2.2.0');
+});
 test('inspeção encontra módulos internos, testes antigos e omissões sem truncamento silencioso',async()=>{
   const fixture=repositoryFixture({'apps/api/package.json':'{"type":"module"}','apps/api/src/a.mjs':'export function soma(a,b){return a+b;}','apps/api/test/a.test.mjs':'import test from "node:test";','java/pom.xml':'<artifactId>postgresql</artifactId>','java/src/main/java/Value.java':'public class Value {public int get(){return 1;}}'});
   const inspected=await inspectRepository(version,fixture.fetch);

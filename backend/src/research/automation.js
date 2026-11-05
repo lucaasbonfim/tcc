@@ -5,7 +5,7 @@ import {testCoverage} from './test-parts.js';
 import {planAutomationParts} from './automation-parts.js';
 import {planModuleScopes} from './module-scopes.js';
 import {agentMode} from './agent-policy.js';
-import {AUTOMATION_AGENT} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 
 export function createAutomationService({pool,store}) {
   async function inputFor(runId,stage,db=pool,caseIds=stage.context.case_ids) {
@@ -39,7 +39,8 @@ export function createAutomationService({pool,store}) {
       return transaction(pool,async db=>{
         const run=(await db.query('SELECT * FROM research.runs WHERE id=$1 FOR UPDATE',[runId])).rows[0];
         assert(run && run.status==='completed','Conclua a revisão textual antes de preparar automação.',409);
-        const mode=agentMode(await store.json(run.snapshot),'automation');
+        const snapshot=await store.json(run.snapshot),mode=agentMode(snapshot,'automation'),agentDefinition=snapshot.automation_agent_definition;
+        if(mode==='agent/v1')assert(agentDefinition?.contract_version===AGENT_CONTRACT_VERSION && Array.isArray(agentDefinition.tools),'Definição agentiva ausente/incompatível; crie nova análise.',422);
         assert(input.execution_mode===undefined || input.execution_mode===mode,'Modo fixado no snapshot; crie outra análise para mudar a condição.',422);
         const tests=(await db.query("SELECT status FROM research.stages WHERE run_id=$1 AND agent='tests'",[runId])).rows[0];
         assert(tests?.status==='completed','Casos textuais ainda não aprovados.',409);
@@ -63,7 +64,7 @@ export function createAutomationService({pool,store}) {
           const scopeRef=scopeRefs[0];
           parts=planAutomationParts(await inputFor(runId,{context:{scope:scopeRef,case_ids:cases}},db)).map(part=>({...part,scope_route:{index:0,total:scopeRefs.length}}));
           await db.query(`INSERT INTO research.stages(id,run_id,agent,position,status,instruction_version,instruction,context)
-            VALUES($1,$2,'automation',5,'pending',$3,$4,$5)`,[id,runId,mode==='agent/v1'?AUTOMATION_AGENT.version:AUTOMATION.version,mode==='agent/v1'?AUTOMATION_AGENT.instruction:AUTOMATION.instruction,{execution_mode:mode,scope:scopeRef,scopes:scopeRefs,scope_plan:sourcePlan.summary,inspection_id:inspection.id,case_ids:cases,schema:AUTOMATION.schema}]);
+            VALUES($1,$2,'automation',5,'pending',$3,$4,$5)`,[id,runId,mode==='agent/v1'?agentDefinition.version:AUTOMATION.version,mode==='agent/v1'?agentDefinition.instruction:AUTOMATION.instruction,{execution_mode:mode,...(mode==='agent/v1'?{agent_definition:agentDefinition}:{}),scope:scopeRef,scopes:scopeRefs,scope_plan:sourcePlan.summary,inspection_id:inspection.id,case_ids:cases,schema:AUTOMATION.schema}]);
           for(const part of parts) {
             const ref=await store.put(part);created.push(ref);
             await db.query("INSERT INTO research.automation_parts(id,run_id,sequence,status,input,case_ids) VALUES($1,$2,$3,'pending',$4,$5)",[randomUUID(),runId,part.batch.sequence,ref,JSON.stringify(part.batch.case_ids)]);

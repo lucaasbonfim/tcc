@@ -87,7 +87,7 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
     assert(buffer.length===entry.size && buffer.length<=limits.maxFileBytes,'Tamanho do blob diverge da árvore.',422);
     assert(createHash('sha1').update(`blob ${buffer.length}\0`).update(buffer).digest('hex')===entry.sha,'Integridade do blob Git comprometida.',422);
     const content=new TextDecoder('utf-8',{fatal:true}).decode(buffer);
-    const role=/(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\./i.test(entry.path) ? 'existing_test' : 'source';
+    const role=/(?:^|\/)(?:test|tests|__tests__|spec|specs)\/|\.(?:test|spec)\.|(?:^|\/)(?:test|tests|spec|specs)\.[cm]?js$/i.test(entry.path) ? 'existing_test' : 'source';
     const symbols=/\.[cm]?js$/.test(entry.path) ? javascriptSymbols(content) : /\.java$/.test(entry.path) ? javaSymbols(content) : null;
     return {file:{path:entry.path,git_sha:entry.sha,sha256:createHash('sha256').update(buffer).digest('hex'),byte_size:buffer.length,content,role,symbols},from_cache};
   }
@@ -141,7 +141,7 @@ export async function inspectRepository(version, fetchImpl=fetch, limits=INSPECT
         restrictions:['Compilação restrita a classes selecionadas e dependências locais/JDK. Plugins Maven não executados.','Swing e banco não suportados no adaptador headless.']});
     }
   }
-  return {inspection_version:'2.0.0',reader_version:'2.1.0',candidate_count:candidates.length,read_batches,inspected_at:new Date().toISOString(),repository_url:version.repository_url,commit_sha:version.commit_sha,
+  return {inspection_version:'2.0.0',reader_version:'2.2.0',candidate_count:candidates.length,read_batches,inspected_at:new Date().toISOString(),repository_url:version.repository_url,commit_sha:version.commit_sha,
     stack:modules.map(m=>m.stack).join(', ') || 'unknown',adapter:modules.length===1 ? modules[0].adapter : 'select_module',
     execution_enabled:false,status:modules.some(m=>m.targets.length) ? 'inspection_ready' : 'not_supported',
     reason:'Inspeção estática no SHA. Escolha módulo/arquivos para geração; execução requer executor validado e aprovação.',

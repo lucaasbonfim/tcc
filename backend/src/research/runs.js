@@ -11,6 +11,7 @@ import {createTestParts,testCoverage} from './test-parts.js';
 import {automationCoverage} from './automation-parts.js';
 import {createAgentPolicy} from './agent-policy.js';
 import {createAgentHistoryService} from './agent-history.js';
+import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
@@ -65,7 +66,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const length = documents.reduce((sum,doc) => sum + doc.pages.reduce((n,p) => n + p.text.length,0),0);
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:createAgentPolicy(input.agent_policy ?? {}) });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:createAgentPolicy(input.agent_policy ?? {}),automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
