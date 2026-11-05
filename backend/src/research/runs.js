@@ -21,21 +21,28 @@ import {EXECUTION_PLANNING_AGENT} from './execution-agent.js';
 import {EXECUTION_DIAGNOSIS_AGENT} from './execution-diagnostics.js';
 import {SCRIPT_REVIEW_AGENT} from './script-review-agent.js';
 import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './workflow-policy.js';
-import {appendRunEvent} from './run-events.js';
+import {appendRunEvent,recordHumanEvent} from './run-events.js';
+import {createTimelineService} from './timeline.js';
 
 export function createRunService({ pool, store, executorClient, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   const agentHistory=createAgentHistoryService({pool,store});
+  const timeline=createTimelineService({pool,store});
   async function get(id, db = pool, lock = false) {
     const run = (await db.query(`SELECT * FROM research.runs WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [id])).rows[0];
     assert(run, 'Execução não encontrada.', 404);
     return run;
   }
   async function review(db, runId, stageId, entityType, entityId, decision, justification, before, after) {
+    const id=randomUUID();
     await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'admin')`,
-    [randomUUID(),runId,stageId,entityType,entityId,decision,justification,before ? JSON.stringify(before) : null,after ? JSON.stringify(after) : null]);
+    [id,runId,stageId,entityType,entityId,decision,justification,before ? JSON.stringify(before) : null,after ? JSON.stringify(after) : null]);
+    await recordHumanEvent(db,store,{run_id:runId,stage_id:stageId,source_key:`review:${id}`,entity_type:entityType,entity_id:entityId,decision,justification,before,after});
   }
   const service = {
+    events:(id,query)=>timeline.list(id,query),
+    event:(id,eventId)=>timeline.detail(id,eventId),
+    streamEvents:(req,res,id)=>timeline.stream(req,res,id),
     agentSessions:(id,query)=>agentHistory.list(id,query),
     agentSession:(id,sessionId,query)=>agentHistory.detail(id,sessionId,query),
     agentArtifact:(id,sessionId,kind,artifactId,type)=>agentHistory.artifact(id,sessionId,kind,artifactId,type),
@@ -84,7 +91,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,workflow_mode)
             VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`, [id,projectId,version.id,snapshot,config.model,config.parameters,workflow.mode]);
           if(workflow.grant)await db.query("INSERT INTO research.run_grants(id,run_id,policy,actor) VALUES($1,$2,$3,'admin')",[workflow.grant.id,id,await store.put(workflow)]);
-          await appendRunEvent(db,{run_id:id,source_key:'run:created',kind:'run_created',actor:'human',payload:{workflow_mode:workflow.mode,grant_id:workflow.grant?.id ?? null,snapshot}});
+          await appendRunEvent(db,{run_id:id,source_key:'run:created',kind:'run_created',actor:'human',payload:{timeline_version:1,workflow_mode:workflow.mode,grant_id:workflow.grant?.id ?? null,snapshot}});
           for (const doc of selected) await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) VALUES($1,$2,$3)',[projectId,id,doc.id]);
           for (const definition of AGENTS) {
             const enabled = ['requirements','tests'].includes(definition.agent);
@@ -284,6 +291,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
         const snapshot=await store.put({...sourceSnapshot,agent_definitions:sourceSnapshot.agent_definitions || AGENTS,continuation:{source_run_id:runId,reused_part_ids:oldParts.filter(p=>p.status==='completed').map(p=>p.id),justification}});created.push(snapshot);
         await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,resumed_from_run_id)
           VALUES($1,$2,$3,'pending',$4,$5,$6,$7)`,[id,source.project_id,source.code_version_id,snapshot,source.model,source.parameters,runId]);
+        await appendRunEvent(db,{run_id:id,source_key:'run:created',kind:'run_created',actor:'human',payload:{timeline_version:1,workflow_mode:'assisted/v1',resumed_from_run_id:runId,snapshot}});
         await db.query('INSERT INTO research.run_documents(project_id,run_id,document_id) SELECT project_id,$2,document_id FROM research.run_documents WHERE run_id=$1',[runId,id]);
         let requirementStage;
         for(const definition of sourceSnapshot.agent_definitions || AGENTS) {
@@ -325,6 +333,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
         assert(['pending','running','awaiting_review','failed'].includes(run.status),'Execução já encerrada.',409);
         const stage = (await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND status IN ('pending','running','awaiting_review','failed') ORDER BY position LIMIT 1 FOR UPDATE",[runId])).rows[0];
         await db.query("UPDATE research.runs SET status='cancelled',finished_at=now() WHERE id=$1",[runId]);
+        await appendRunEvent(db,{run_id:runId,source_key:'run:cancelled',kind:'run_cancelled',actor:'human',payload:{justification}});
         await db.query(`UPDATE research.attempts SET status='interrupted',finished_at=now(),error='Cancelada pelo pesquisador.'
           WHERE status='running' AND stage_id IN (SELECT id FROM research.stages WHERE run_id=$1)`,[runId]);
         await db.query("UPDATE research.stages SET status='cancelled',lease_token=NULL,lease_until=NULL WHERE run_id=$1 AND status IN ('blocked','pending','running','awaiting_review','failed')",[runId]);
@@ -381,7 +390,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
         if(review.before_value?.files)review.before_files_data=await store.json(review.before_value.files);
         if(review.after_value?.files)review.after_files_data=await store.json(review.after_value.files);
       }
-      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId),reused_agent_histories:reusedAgentHistories };
+      return { export_format_version:3,exported_at:new Date().toISOString(),...data,...await agentHistory.export(runId),...await timeline.export(runId),reused_agent_histories:reusedAgentHistories };
     },
   };
   return service;

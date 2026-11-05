@@ -7,6 +7,7 @@ import {validateAutomationArtifact} from './automation-contract.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createAgentSessionStore} from './agent-sessions.js';
 import {runAgentTask,taskFingerprint} from './agent-runtime.js';
+import {recordMessageEvent} from './run-events.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'};
 const responseSchema=obj({status:{type:'string',enum:['proposed_revision','no_change','inconclusive']},answer:string,expected_result:string,files:{type:'array',items:obj({path:string,code:string}),minItems:0,maxItems:1}});
 export const SCRIPT_REVIEW_AGENT={agent:'automation',version:'review/1.0.0',contract_version:AGENT_CONTRACT_VERSION,
@@ -45,8 +46,9 @@ export function createScriptReviewService({pool,store}) {
     const message=await transaction(pool,async db=>{
       await owned(db);const existing=(await db.query('SELECT * FROM research.agent_messages WHERE run_id=$1 AND request_key=$2',[job.run.id,requestKey])).rows[0];if(existing)return existing;
       assert((await db.query("SELECT id FROM research.agent_messages WHERE run_id=$1 AND kind='script_review'",[job.run.id])).rowCount<2,'Limite de duas revisões de script por análise atingido.',422);
-      return (await db.query(`INSERT INTO research.agent_messages(id,run_id,stage_id,source_attempt_id,source_session_id,sender,recipient,kind,request_key,automated_test_id,test_result_id,script_version,script_revision,request)
+      const created=(await db.query(`INSERT INTO research.agent_messages(id,run_id,stage_id,source_attempt_id,source_session_id,sender,recipient,kind,request_key,automated_test_id,test_result_id,script_version,script_revision,request)
         VALUES($1,$2,$3,$4,$5,'execution','automation','script_review',$6,$7,$8,$9,$10,$11) RETURNING *`,[randomUUID(),job.run.id,job.stage.id,job.attemptId,parent.id,requestKey,script.id,result.id,script.version,script.revision,requestRef])).rows[0];
+      await recordMessageEvent(db,created,'request',request);return created;
     });
     const summarize=response=>({message_id:message.id,status:response.status,answer:response.answer.slice(0,2000),base_script_version:script.version,proposed_version:response.proposed_version ?? null,candidate_files_sha256:response.candidate_files?.sha256 ?? null,requires_human_review:true,script_changed:false});
     if(message.status==='answered')return summarize(await store.json(message.response));
@@ -57,6 +59,6 @@ export function createScriptReviewService({pool,store}) {
       initialContents:[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{request}})}]}],model:job.run.model,parameters:job.run.parameters,signal,instruction:definition.instruction,instruction_version:definition.version,toolDefinitions:tools.declarations,terminalTool:'respond_script_review'});response=terminal.response;
       if(response.status==='proposed_revision')response.candidate_files=await store.put(response.files);
     }catch(error){if(signal.aborted)throw error;response={status:'unavailable',answer:'A consulta ao A2 não foi concluída nas condições registradas. O script aprovado foi preservado.',files:[],sources:[],requires_human_review:true,script_changed:false};}
-    const responseRef=await store.put(response);await transaction(pool,async db=>{await owned(db);await db.query("UPDATE research.agent_messages SET response=$2,status='answered',answered_at=now() WHERE id=$1 AND status='pending'",[message.id,responseRef]);});return summarize(response);
+    const responseRef=await store.put(response);await transaction(pool,async db=>{await owned(db);const answered=(await db.query("UPDATE research.agent_messages SET response=$2,status='answered',answered_at=now() WHERE id=$1 AND status='pending' RETURNING *",[message.id,responseRef])).rows[0];if(answered)await recordMessageEvent(db,answered,'response',response);});return summarize(response);
   }};
 }

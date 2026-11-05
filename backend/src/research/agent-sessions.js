@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {assert,transaction} from './errors.js';
 import {assertSessionTransition} from './agent-contract.js';
+import {appendRunEvent} from './run-events.js';
 
 export function createAgentSessionStore(pool,job) {
   const unitColumn=job.message?'message_id':job.automationPart?'automation_part_id':job.part?'requirement_part_id':job.testPart?'test_part_id':'stage_id';
@@ -9,6 +10,7 @@ export function createAgentSessionStore(pool,job) {
   assert(phase===null || ['planning','diagnosis'].includes(phase),'Fase da sessão A3 inválida.',422);
   const scope=(job.message?'':' AND message_id IS NULL')+(phase?` AND execution_phase='${phase}'`:' AND execution_phase IS NULL');
   const find=async db=>(await db.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1 AND message_id IS NOT DISTINCT FROM $2::uuid',[job.attemptId,job.message?.id ?? null])).rows[0];
+  const event=(db,session,kind,key,payload={})=>appendRunEvent(db,{run_id:job.run.id,stage_id:job.stage.id,attempt_id:job.attemptId,session_id:session.id,message_id:session.message_id,correlation_id:session.message_id,agent:session.agent,actor:'agent',source_key:key,kind,payload:{phase:session.execution_phase,parent_session_id:session.parent_session_id,...payload}});
   async function owned(db) {
     const stage=(await db.query('SELECT * FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];
     assert(stage?.run_id===job.run.id && stage.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da tarefa expirada ou cancelada.',409);
@@ -30,9 +32,10 @@ export function createAgentSessionStore(pool,job) {
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);await owned(db);
         const existing=await find(db);
         if(existing)return existing;
-        return (await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,test_part_id,agent,mode,status,task,policy,context,message_id,parent_session_id,execution_phase)
+        const session=(await db.query(`INSERT INTO research.agent_sessions(id,project_id,run_id,stage_id,attempt_id,automation_part_id,requirement_part_id,test_part_id,agent,mode,status,task,policy,context,message_id,parent_session_id,execution_phase)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'agent/v1','running',$10,$11,$12,$13,$14,$15) RETURNING *`,
           [randomUUID(),job.run.project_id,job.run.id,job.stage.id,job.attemptId,job.message?null:job.automationPart?.id ?? null,job.message?null:job.part?.id ?? null,job.message?null:job.testPart?.id ?? null,job.message?.recipient ?? job.stage.agent,task,policy,context,job.message?.id ?? null,job.message?.parent_session_id ?? null,phase])).rows[0];
+        await event(db,session,'session_started',`session:${session.id}:started`,{objective:task.objective});return session;
       });
     },
     async get(id) {return (await pool.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND run_id=$2 AND attempt_id=$3',[id,job.run.id,job.attemptId])).rows[0];},
@@ -46,7 +49,7 @@ export function createAgentSessionStore(pool,job) {
         assert(!(await db.query("SELECT id FROM research.agent_steps WHERE session_id=$1 AND status='requested'",[id])).rowCount,'Turno anterior sem resposta; requer interrupção explícita.',409);
         const sequence=(await db.query('SELECT COALESCE(max(sequence),0)+1 AS n FROM research.agent_steps WHERE session_id=$1',[id])).rows[0].n;
         const step=(await db.query("INSERT INTO research.agent_steps(id,session_id,sequence,status,request) VALUES($1,$2,$3,'requested',$4) RETURNING *",[randomUUID(),id,sequence,request])).rows[0];
-        await db.query('UPDATE research.agent_sessions SET model_turns=model_turns+1 WHERE id=$1',[id]);return step;
+        await db.query('UPDATE research.agent_sessions SET model_turns=model_turns+1 WHERE id=$1',[id]);await event(db,session,'model_turn_requested',`step:${step.id}:requested`,{step_id:step.id,sequence:step.sequence,request});return step;
       });
     },
     async completeStep(id,stepId,response,metadata,checkpoint=null,elapsed=0) {
@@ -60,7 +63,8 @@ export function createAgentSessionStore(pool,job) {
         assert(tokens==null || (Number.isSafeInteger(tokens) && tokens>=0),'Contagem de tokens inválida.',422);
         await db.query('UPDATE research.agent_sessions SET total_tokens=total_tokens+$2,usage_unknown=usage_unknown OR $3 WHERE id=$1',[id,tokens ?? 0,tokens==null]);
         if(checkpoint)await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,checkpoint,elapsed]);
-        return (await db.query("UPDATE research.agent_steps SET status='completed',response=$3,provider_metadata=$4,finished_at=now() WHERE session_id=$1 AND id=$2 RETURNING *",[id,stepId,response,metadata])).rows[0];
+        const completed=(await db.query("UPDATE research.agent_steps SET status='completed',response=$3,provider_metadata=$4,finished_at=now() WHERE session_id=$1 AND id=$2 RETURNING *",[id,stepId,response,metadata])).rows[0];
+        await event(db,session,'model_turn_completed',`step:${stepId}:completed`,{step_id:stepId,response,tokens_reported:tokens ?? null});return completed;
       });
     },
     async beginCall(id,stepId,call,argsRef) {
@@ -75,7 +79,7 @@ export function createAgentSessionStore(pool,job) {
         assert(previous<session.policy.limits.max_tool_calls && used<session.policy.run_limits.max_tool_calls,'Orçamento de ferramentas esgotado.',422);
         const row=(await db.query(`INSERT INTO research.agent_tool_calls(id,session_id,step_id,call_id,name,tool_version,arguments,status)
           VALUES($1,$2,$3,$4,$5,'1.0.0',$6,'requested') RETURNING *`,[randomUUID(),id,stepId,call.id,call.name,argsRef])).rows[0];
-        await db.query('UPDATE research.agent_sessions SET tool_calls=tool_calls+1 WHERE id=$1',[id]);return row;
+        await db.query('UPDATE research.agent_sessions SET tool_calls=tool_calls+1 WHERE id=$1',[id]);await event(db,session,'tool_requested',`call:${row.id}:requested`,{call_id:row.id,name:call.name,arguments:argsRef});return row;
       });
     },
     async completeCall(id,callId,observation,{rejected=false,duration_ms=0,checkpoint=null,elapsed=0}={}) {
@@ -85,17 +89,18 @@ export function createAgentSessionStore(pool,job) {
         assert(call,'Chamada fora da sessão.',409);
         if(call.status!=='requested'){assert(call.observation?.sha256===observation.sha256,'Observação não pode ser substituída.',409);return call;}
         if(checkpoint)await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,checkpoint,elapsed]);
-        return (await db.query('UPDATE research.agent_tool_calls SET status=$3,observation=$4,duration_ms=$5,finished_at=now() WHERE id=$1 AND session_id=$2 RETURNING *',[callId,id,rejected?'rejected':'completed',observation,duration_ms])).rows[0];
+        const completed=(await db.query('UPDATE research.agent_tool_calls SET status=$3,observation=$4,duration_ms=$5,finished_at=now() WHERE id=$1 AND session_id=$2 RETURNING *',[callId,id,rejected?'rejected':'completed',observation,duration_ms])).rows[0];
+        await event(db,session,rejected?'tool_rejected':'tool_observed',`call:${callId}:observed`,{call_id:callId,name:completed.name,observation,duration_ms});return completed;
       });
     },
     async checkpoint(id,context,elapsed) {return transaction(pool,async db=>{const s=await locked(db,id);assert(s.status==='running','Sessão encerrada.',409);await db.query('UPDATE research.agent_sessions SET context=$2,elapsed_ms=$3 WHERE id=$1',[id,context,elapsed]);});},
     async recordLateResponse(id,stepId,response,metadata) {
       return transaction(pool,async db=>{
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);
-        const session=(await db.query('SELECT id FROM research.agent_sessions WHERE id=$1 AND attempt_id=$2 FOR UPDATE',[id,job.attemptId])).rows[0];
+        const session=(await db.query('SELECT * FROM research.agent_sessions WHERE id=$1 AND attempt_id=$2 FOR UPDATE',[id,job.attemptId])).rows[0];
         assert(session,'Sessão fora da tentativa.',409);
         const result=await db.query("UPDATE research.agent_steps SET response=$3,provider_metadata=$4,status='interrupted',finished_at=now() WHERE session_id=$1 AND id=$2 AND response IS NULL RETURNING id",[id,stepId,response,{...metadata,late_response:true}]);
-        if(result.rowCount){const n=metadata?.usage?.totalTokenCount;await db.query('UPDATE research.agent_sessions SET usage_unknown=true,total_tokens=total_tokens+$2 WHERE id=$1',[id,Number.isSafeInteger(n)&&n>=0?n:0]);}
+        if(result.rowCount){const n=metadata?.usage?.totalTokenCount;await db.query('UPDATE research.agent_sessions SET usage_unknown=true,total_tokens=total_tokens+$2 WHERE id=$1',[id,Number.isSafeInteger(n)&&n>=0?n:0]);await event(db,session,'model_response_late',`step:${stepId}:late`,{step_id:stepId,response});}
       });
     },
     async adoptStep(id,pending) {
@@ -108,6 +113,7 @@ export function createAgentSessionStore(pool,job) {
         const sequence=(await db.query('SELECT COALESCE(max(sequence),0)+1 AS n FROM research.agent_steps WHERE session_id=$1',[id])).rows[0].n;
         const stepId=randomUUID();
         await db.query("INSERT INTO research.agent_steps(id,session_id,sequence,status,request,response,provider_metadata,finished_at) VALUES($1,$2,$3,'completed',$4,$5,$6,now())",[stepId,id,sequence,pending.request_ref,pending.response_ref,{reused_from_step_id:pending.step_id,usage:null,cost:null}]);
+        await event(db,s,'model_step_reused',`step:${stepId}:reused`,{step_id:stepId,reused_from_step_id:pending.step_id});
         return stepId;
       });
     },
@@ -125,7 +131,8 @@ export function createAgentSessionStore(pool,job) {
           const interrupted=await db.query("UPDATE research.agent_steps SET status='interrupted',finished_at=now() WHERE session_id=$1 AND status='requested' RETURNING id",[id]);
           if(interrupted.rowCount)await db.query('UPDATE research.agent_sessions SET usage_unknown=true WHERE id=$1',[id]);
         }
-        return (await db.query('UPDATE research.agent_sessions SET status=$2,stop_reason=$3,output=$4,elapsed_ms=$5,finished_at=now() WHERE id=$1 RETURNING *',[id,status,reason,output,elapsed])).rows[0];
+        const finished=(await db.query('UPDATE research.agent_sessions SET status=$2,stop_reason=$3,output=$4,elapsed_ms=$5,finished_at=now() WHERE id=$1 RETURNING *',[id,status,reason,output,elapsed])).rows[0];
+        await event(db,session,'session_finished',`session:${id}:finished`,{status,reason,elapsed_ms:elapsed});return finished;
       });
     },
   };

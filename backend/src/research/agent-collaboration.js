@@ -6,6 +6,7 @@ import {createAgentToolRegistry} from './agent-tools.js';
 import {createAgentSessionStore} from './agent-sessions.js';
 import {runAgentTask,taskFingerprint} from './agent-runtime.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {recordMessageEvent,recordHumanEvent} from './run-events.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string={type:'string'};
@@ -47,6 +48,7 @@ export function createCollaborationService({pool,store}) {
         const row=(await db.query('SELECT * FROM research.agent_messages WHERE id=$1 AND run_id=$2 FOR UPDATE',[id,runId])).rows[0];assert(row?.status==='answered' && row.review_status==='pending','Mensagem não está aberta para revisão.',409);
         assert(input.decision!=='acknowledged' || (await store.json(row.response)).status!=='unavailable','Consulta indisponível deve ser rejeitada ou exigir nova análise.',422);
         const after=(await db.query('UPDATE research.agent_messages SET review_status=$3,review_justification=$4,reviewed_at=now() WHERE id=$1 AND run_id=$2 RETURNING *',[id,runId,input.decision,justification])).rows[0];
+        await recordHumanEvent(db,store,{run_id:runId,stage_id:row.stage_id,source_key:`message:${id}:review`,entity_type:'message',entity_id:id,decision:input.decision,justification,before:{review_status:row.review_status},after:{review_status:after.review_status}});
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'stage',$3,$4,$5,$6,$7,'admin')`,[randomUUID(),runId,row.stage_id,input.decision==='acknowledged'?'approved':input.decision==='rejected'?'rejected':'edited',justification,{message_id:id,review_status:row.review_status},{message_id:id,review_status:after.review_status}]);
         return after;
@@ -66,8 +68,9 @@ export function createCollaborationService({pool,store}) {
         assert(stage?.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da solicitação expirada.',409);
         const existing=(await db.query('SELECT * FROM research.agent_messages WHERE run_id=$1 AND request_key=$2',[job.run.id,requestKey])).rows[0];if(existing)return existing;
         assert((await db.query("SELECT id FROM research.agent_messages WHERE run_id=$1 AND kind='requirement_clarification'",[job.run.id])).rowCount<2,'Limite de duas consultas entre agentes por análise atingido.',422);
-        return (await db.query(`INSERT INTO research.agent_messages(id,run_id,stage_id,source_attempt_id,source_session_id,sender,recipient,kind,request_key,requirement_id,requirement_revision,request)
+        const created=(await db.query(`INSERT INTO research.agent_messages(id,run_id,stage_id,source_attempt_id,source_session_id,sender,recipient,kind,request_key,requirement_id,requirement_revision,request)
           VALUES($1,$2,$3,$4,$5,'tests','requirements','requirement_clarification',$6,$7,$8,$9) RETURNING *`,[randomUUID(),job.run.id,job.stage.id,job.attemptId,parent.id,requestKey,requirement.id,requirement.revision,requestRef])).rows[0];
+        await recordMessageEvent(db,created,'request',request);return created;
       });
       if(message.status==='answered')return {message_id:message.id,...await store.json(message.response)};
       const documents=snapshot.documents.map(doc=>({...doc,pages:doc.pages.filter(p=>requirement.content.sources.some(s=>s.document_id===doc.id && s.page===p.page))})).filter(doc=>doc.pages.length);
@@ -86,7 +89,7 @@ export function createCollaborationService({pool,store}) {
       await transaction(pool,async db=>{
         await db.query('SELECT id FROM research.runs WHERE id=$1 FOR UPDATE',[job.run.id]);
         const stage=(await db.query('SELECT status,lease_token,lease_until FROM research.stages WHERE id=$1 FOR UPDATE',[job.stage.id])).rows[0];assert(stage?.status==='running' && stage.lease_token===job.token && new Date(stage.lease_until)>new Date(),'Posse da resposta expirada.',409);
-        await db.query("UPDATE research.agent_messages SET response=$2,status='answered',answered_at=now() WHERE id=$1 AND status='pending'",[message.id,responseRef]);
+        const answered=(await db.query("UPDATE research.agent_messages SET response=$2,status='answered',answered_at=now() WHERE id=$1 AND status='pending' RETURNING *",[message.id,responseRef])).rows[0];if(answered)await recordMessageEvent(db,answered,'response',response);
       });
       return {message_id:message.id,...response};
     },

@@ -7,7 +7,7 @@ import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {createEvaluationService} from './evaluation.js';
 import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './workflow-policy.js';
-import {appendRunEvent} from './run-events.js';
+import {appendRunEvent,recordHumanEvent} from './run-events.js';
 
 export const EXECUTION_INSTRUCTION='Serviço A3 determinístico v2.2: executar os bundles do plano autorizado com scripts/revisões/hashes aprovados e fontes do SHA, em serviço autenticado com política do perfil validada. Cada bundle tem checkpoint e identidade de transporte estáveis; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';
 export function createExecutionService({pool,store,client=createExecutorClient()}) {
@@ -73,6 +73,7 @@ export function createExecutionService({pool,store,client=createExecutorClient()
         const row=(await db.query("SELECT * FROM research.execution_proposals WHERE id=$1 AND run_id=$2 AND phase='diagnosis' FOR UPDATE",[id,runId])).rows[0];assert(row?.review_status==='pending','Diagnóstico não está aberto para revisão.',409);
         await db.query('UPDATE research.execution_proposals SET review_status=$2,reviewed_at=now() WHERE id=$1',[id,input.decision]);
         await db.query("INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor) VALUES($1,$2,$3,'stage',$3,$4,$5,$6,$7,'admin')",[randomUUID(),runId,row.stage_id,input.decision==='accepted'?'approved':input.decision==='rejected'?'rejected':'edited',justification,{proposal_id:id,review_status:'pending'},{proposal_id:id,review_status:input.decision}]);
+        await recordHumanEvent(db,store,{run_id:runId,stage_id:row.stage_id,source_key:`diagnosis:${id}:review`,entity_type:'execution_diagnosis',entity_id:id,decision:input.decision,justification,before:{...row,output_data:await store.json(row.output)},after:{review_status:input.decision}});
         return {review_status:input.decision};
       });
     },

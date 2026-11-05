@@ -402,6 +402,16 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AH-02]`. **Próximo passo:** AH-03, eventos, snapshots e stream.
 
+## 05/11/2026 — AH-03: eventos duráveis e artefatos históricos
+
+**Estado:** concluído. Base `a6ae2aa`. Eventos do worker, sessões, turnos, ferramentas, consultas, admissões, cancelamentos e decisões humanas são registrados com ordem estável por análise. Pedido/resposta têm correlação comum; indisponibilidade é evento do sistema, sem fala inventada. Entradas, saídas normalizadas, códigos locais/globais e versões são preservados com hash, incluindo código dos scripts e alterações humanas antes/depois. Respostas tardias ficam identificadas e não são aplicadas.
+
+**Consulta:** API paginada e detalhe com pertencimento à análise; SSE com cursor/Last-Event-ID, heartbeat e limpeza ao desconectar/terminar. JSON/CSV incluem ledger, snapshots e contagens. Histórico anterior ao ledger usa somente referências/timestamps existentes, rotulado como legado. Consultas, respostas indisponíveis, ciclos completos por par e repetições técnicas são medidas separadas; subetapas/lotes normais não contam como repetição.
+
+**Verificação:** 128 testes backend aprovados na suíte completa. Novos testes cobrem edição posterior sem mudar snapshot antigo, escopo entre análises, paginação, legado, exportação, repetição técnica e SSE ao vivo/reconexão/cancelamento. O fluxo nativo verifica duas consultas com quatro eventos de pedido/resposta, snapshots de scripts e nenhuma repetição falsa. Fixture de provedor indisponível verifica ausência de resposta inventada. Sem chamadas a modelos ou execução real de fontes. Banco local isolado; migração 027 já aplicada na AH-01, sem nova migração nesta tarefa.
+
+**Limites científicos:** a instrumentação permite examinar a trajetória pública e os artefatos efetivamente usados. Quantidade de mensagens não prova colaboração útil, qualidade semântica ou ganho de testes. Não expõe pensamento interno do provedor como conversa. O piloto com LLM real e a avaliação independente continuam pendentes. Rastreabilidade: commit `[AH-03]`. Próxima tarefa: AH-04, interface e julgamento posterior.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

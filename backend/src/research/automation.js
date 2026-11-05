@@ -7,7 +7,7 @@ import {planModuleScopes} from './module-scopes.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {admitProduced,assertInitialGrant} from './workflow-policy.js';
-import {appendRunEvent} from './run-events.js';
+import {appendRunEvent,recordHumanEvent} from './run-events.js';
 
 export function createAutomationService({pool,store}) {
   async function inputFor(runId,stage,db=pool,caseIds=stage.context.case_ids) {
@@ -134,6 +134,7 @@ export function createAutomationService({pool,store}) {
           WHERE id=$1 AND run_id=$2 RETURNING *`,[id,runId,files,input.decision==='edited' ? 'pending' : input.decision,input.files ? 1 : 0])).rows[0];
         await db.query(`INSERT INTO research.reviews(id,run_id,stage_id,entity_type,entity_id,decision,justification,before_value,after_value,actor)
           VALUES($1,$2,$3,'automated_test',$4,$5,$6,$7,$8,'admin')`,[randomUUID(),runId,stage.id,id,input.decision,justification,JSON.stringify(row),JSON.stringify(after)]);
+        await recordHumanEvent(db,store,{run_id:runId,stage_id:stage.id,source_key:`script:${id}:review:${after.revision}`,entity_type:'automated_test',entity_id:id,decision:input.decision,justification,before:{...row,files_data:await store.json(row.files)},after:{...after,files_data:await store.json(after.files)}});
         return after;
       });
     },
