@@ -95,7 +95,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
         assert(retry.retry_number<(policy.model_retry?.max_attempts ?? 1),'Retentativas do modelo esgotadas.',422);
         phase='model_retry_wait';
         const delay=Math.max(0,retry.not_before-Date.now());
-        if(delay)await wait(delay,undefined,{signal:controller.signal});
+        if(delay)try{await wait(delay,undefined,{signal:controller.signal});}catch(error){throw controller.signal.aborted?controller.signal.reason:error;}
       }
       controller.signal.throwIfAborted();assert(remaining()>0,'Orçamento de tempo esgotado.',422);
       const step=await sessions.beginStep(session.id,requestRef,retry?.step_id ?? null);

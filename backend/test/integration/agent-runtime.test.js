@@ -94,6 +94,10 @@ test('falha do provedor registra status sem vazar mensagem ou credenciais',{skip
 
 const retryPolicy=(extra={})=>createAgentPolicy({modes:{automation:'agent/v1'},model_retry:{initial_delay_ms:1,max_delay_ms:4},...extra});
 const unavailable=status=>Object.assign(new Error('private-transport'),{name:'ApiError',status});
+test('espera respeita prazo total e encerra como orçamento esgotado',{skip:!url},async()=>environment(async env=>{
+  let sends=0;await assert.rejects(runAgentTask(config(env,{policy:retryPolicy({limits:{max_duration_ms:500},model_retry:{initial_delay_ms:1000,max_delay_ms:1000}}),generateTurn:async()=>{sends++;throw unavailable(502);}})),/Orçamento/);
+  assert.ok(sends<=1);assert.equal((await env.pool.query('SELECT status FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0].status,'exhausted');
+}));
 test('503 recupera o mesmo contexto sem repetir ferramentas e conta cada envio real',{skip:!url},async()=>environment(async env=>{
   let sends=0,reads=0;const requests=[],tools=createAutomationAgentTools({...env,store:env.store});
   const result=await runAgentTask(config(env,{policy:retryPolicy(),tools:{...tools,execute:call=>{if(call.name==='read_source')reads++;return tools.execute(call);}},generateTurn:async({contents})=>{
