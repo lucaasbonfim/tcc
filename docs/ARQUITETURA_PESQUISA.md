@@ -2,6 +2,8 @@
 
 Estado implementado em 30/10/2026. A aplicação preserva React/Vite/Tailwind, Express, PostgreSQL e Gemini. API, worker de agentes e serviço executor têm responsabilidades separadas. As rotas atuais estão em `backend/src/research/routes.js`.
 
+**Evolução planejada em 04/11/2026:** o [plano de implementação dos agentes](PLANO_IMPLEMENTACAO_AGENTES.md) define a introdução de ferramentas e decisões em ciclos limitados, começando por A2/automação. O [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) registra o que for efetivamente entregue. Esse plano ainda não altera o estado implementado descrito abaixo.
+
 **Situação operacional:** análise, geração, execução Node/Java e avaliação possuem perfil local explícito `docker-desktop-dev`, iniciado por `npm run dev:local`, além do perfil padrão `dedicated-vm`. A imagem Node passou em 14 controles e dez cenários sintéticos reais; Java/JUnit passou nos mesmos controles e em sete cenários. O modo local registra Docker Desktop compartilhado/cgroupfs, sem alegar VM dedicada/rootless; produção o recusa. Swing, banco, bibliotecas Java externas e implantação dedicada permanecem pendentes. Fixtures continuam separadas de resultados de repositórios públicos. [Operação local](DESENVOLVIMENTO_LOCAL.md).
 
 ## Componentes

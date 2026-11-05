@@ -193,6 +193,8 @@ O segundo comando inspeciona fonte pública e valida geração real de um script
 
 ## Documentação
 
+- [Plano de implementação dos agentes — tarefas, critérios e commits](docs/PLANO_IMPLEMENTACAO_AGENTES.md).
+- [Diário técnico da implementação — registro para a escrita do TCC](docs/DIARIO_IMPLEMENTACAO_AGENTES.md).
 - [Diagnóstico e decisões](docs/PLANO_EVOLUCAO.md).
 - [Arquitetura, entidades, estados, segurança e limitações](docs/ARQUITETURA_PESQUISA.md).
 - [Procedimento de repetição e critérios de avaliação](docs/PROTOCOLO_REPRODUCAO.md).
