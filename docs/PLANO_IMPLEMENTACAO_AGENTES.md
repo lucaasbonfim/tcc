@@ -182,6 +182,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Commit: `feat(frontend): apresenta modo e historico dos agentes [AG-08]`.
 
 - [ ] **AG-09 — Validar M1 e registrar um piloto técnico real.** Depende de AG-08.
+  - [x] **AG-09a — Corrigir classificação de testes legados, esclarecer escopo e fixar catálogo por análise.** Subtarefa surgida no piloto real: leitor 2.2.0, instrução agent/1.0.1 e definição/ferramentas preservadas no snapshot. A primeira tentativa permanece registrada como falha de escopo.
   - Arquivos previstos: cenário de controle, documentação do piloto, `VALIDACAO.md`, `ARQUITETURA_PESQUISA.md`, protocolo e diário.
   - Entrega: primeiro validar o percurso com respostas injetadas; depois exercitar um módulo real compatível, pequeno e com regra documentada, usando Gemini e executor reais.
   - Aceite: histórico demonstra escolha de contexto, retorno de ferramenta e submissão fundamentada; teste verifica a regra e produz evidência real. Também registrar um impedimento ou erro observado e seu tratamento. Não converter fixture em resultado real.

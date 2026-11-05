@@ -170,6 +170,26 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 
 **Rastreabilidade:** commit `[AG-08]`. **Próximo passo:** AG-09.
 
+## 04/11/2026 — AG-09a: correções identificadas no primeiro piloto real
+
+**Estado:** subtarefa concluída; AG-09 continua em andamento. Base: `d6c59f0`.
+
+**Preparação operacional:** serviços iniciados com Docker Desktop, imagens e recibo validados. Antes de migrar o banco existente, confirmada ausência de análises ativas; realizados dump do schema/dados `research` e cópia dos 263 artefatos privados. O cliente pg_dump 17 foi recusado pelo servidor 18.6; o backup foi concluído com pg_dump 18 em imagem oficial fixada por digest. Migração 019 aplicada sozinha, com contagens das oito entidades principais preservadas. Manifesto, dump e artefatos permanecem em `.local/agent-pilot/backup-DFx9yv/`, fora do Git.
+
+**Observação real:** análise `7201747c-75d1-4927-9455-c327b3779bc8`, projeto técnico is-number no SHA `98e8ff1da1a89f93d1397a24d7413ed15421c139`. Gemini reportou `gemini-3.5-flash-lite`. A sessão usou oito turnos, oito ferramentas, 25.179 tokens reportados e 91.673 ms; falhou por `scope_violation`, não por orçamento. No último turno, passou os caminhos dos testes a gerar como `target_paths` do escopo. A ferramenta recusou e nenhum script foi persistido. O agente também havia lido `test.js`, classificado pelo leitor anterior como fonte comum.
+
+**Mudanças:** o leitor 2.2.0 reconhece arquivos convencionais legados `test.js`, `spec.cjs` e equivalentes, além das pastas/padrões anteriores, como testes existentes. Esses arquivos são preservados na inspeção, mas não ficam disponíveis como fontes de implementação ao A2. A instrução `agent/1.0.1` e a descrição da ferramenta distinguem explicitamente fontes existentes de caminhos dos novos testes. Bloqueios de escopo permanecem ativos; o erro agora é indicado na mensagem da etapa.
+
+**Revisão de rastreabilidade:** definição e catálogo agentivos passaram a ser fixados no snapshot e copiados para a etapa. O runtime usa esse catálogo, em vez de substituir silenciosamente as declarações de uma análise antiga pelas constantes do checkout. O fingerprint inclui a definição. Protótipos agentivos sem contrato preservado exigem nova análise; snapshots legados de modo fixo continuam válidos.
+
+**Verificação:** 18 testes focais aprovados, zero falhas/ignorados, incluindo classificação/recusa de testes legados, recusa dos caminhos gerados como fontes, catálogo correspondente ao snapshot e regressões de integração/retomada. PostgreSQL local isolado e respostas injetadas. A falha real anterior foi exportada integralmente em `.local/agent-pilot/export-eight-turns.json`; não foi descartada ou convertida em sucesso.
+
+**Outras observações:** os dois casos textuais reais foram classificados preliminarmente como `manual_only`, apesar de descreverem uma função pura. Conteúdo e classificação originais foram preservados; a estimativa textual de viabilidade não equivale a uma medição de execução. Revisões deste piloto são técnicas pelo assistente, identificadas como tal, não julgamento humano independente.
+
+**Próximo passo:** nova análise técnica sob condições identificadas, com a instrução corrigida e limite experimental de 12 turnos para acomodar consultas sequenciais. A primeira análise falhou por uso incorreto do escopo; eventual sucesso da nova não permitirá atribuir causalmente a melhora apenas ao limite ou ao prompt, pois há mais de uma mudança.
+
+**Rastreabilidade:** commit `[AG-09a]`.
+
 ## Modelo para a próxima entrada
 
 Copiar o bloco abaixo para uma entrada datada, preenchendo-o antes de concluir a tarefa e criar o commit:

@@ -41,6 +41,7 @@ test('modo agentivo integra consultas, escopo escolhido, revisão e execução s
   await assert.rejects(automation.start(run.id,{inspection_id:inspection.inspection_id,module_root:'',execution_mode:'fixed/v1',justification:'Troca indevida.'}),/snapshot/);
   await automation.start(run.id,{inspection_id:inspection.inspection_id,module_root:'',justification:'Controle agentivo.'});
   await services.processor.processOne();let detail=await services.runs.detail(run.id);
+  assert.deepEqual(detail.stages.find(s=>s.agent==='automation').context.agent_definition,detail.snapshot_data.automation_agent_definition);
   assert.equal(detail.status,'awaiting_review');assert.equal(turns,3);
   const [script]=await automation.list(run.id);assert.equal(script.review_status,'pending');
   const request=await services.runs.artifact(run.id,script.generation_attempt_id,'input');

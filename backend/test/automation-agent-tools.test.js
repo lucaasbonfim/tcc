@@ -13,7 +13,7 @@ import {boundedObservation} from '../src/research/agent-tools.js';
 test('agente consulta fontes fixadas, prepara dependências e submete com escopo efetivo sem executar código',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'agent-tools-')),store=createArtifactStore(dir);
   try {
-    const fixture=repositoryFixture({'package.json':'{"type":"module"}','src/a.js':"import {value} from './b.js';export function sum(a,b){return a+b+value;}",'src/b.js':'export const value=0;','src/gui.js':"import external from 'unavailable';export const ui=external;",'nested/package.json':'{"type":"module"}','nested/x.js':'export const secret=2;'});
+    const fixture=repositoryFixture({'package.json':'{"type":"module"}','test.js':'export const expected=5;','src/a.js':"import {value} from './b.js';export function sum(a,b){return a+b+value;}",'src/b.js':'export const value=0;','src/gui.js':"import external from 'unavailable';export const ui=external;",'nested/package.json':'{"type":"module"}','nested/x.js':'export const secret=2;'});
     const inspection=await inspectRepository({repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)},fixture.fetch);
     const scope=buildScope(inspection,'',['src/b.js']),id=randomUUID();
     const input={scope,test_cases:[{id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}],requirements:[{code:'RF-001',description:'Somar dois números.',sources:[]}],generated_paths:[{test_case_id:id,...generatedPath(id,scope.module.adapter)}]};
@@ -22,7 +22,8 @@ test('agente consulta fontes fixadas, prepara dependências e submete com escopo
     assert.equal((await call('find_symbols',{query:'sum'})).observation.matches[0].path,'src/a.js');
     assert.match((await call('read_source',{path:'src/a.js',offset:0,length:20})).observation.content,/import/);
     assert.equal((await call('get_approved_case',{case_id:id})).observation.generated_path.path,input.generated_paths[0].path);
-    for(const path of ['../.env','nested/x.js','https://example.com/file'])await assert.rejects(call('read_source',{path,offset:0,length:10}));
+    for(const path of ['../.env','nested/x.js','test.js','https://example.com/file'])await assert.rejects(call('read_source',{path,offset:0,length:10}));
+    await assert.rejects(call('prepare_automation_scope',{target_paths:[input.generated_paths[0].path]}),/fora do módulo/);
     await assert.rejects(call('get_approved_case',{case_id:'foreign'}),/fora/);
     await assert.rejects(call('prepare_automation_scope',{target_paths:['src/gui.js']}),/externa/);
     const prepared=(await call('prepare_automation_scope',{target_paths:['src/a.js']})).observation;
