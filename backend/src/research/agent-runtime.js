@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {setTimeout as wait} from 'node:timers/promises';
 import {assert} from './errors.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
+import {providerRetryAfterMs,MAX_PROVIDER_WAIT_MS} from './provider-retry.js';
 
 export const taskFingerprint=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 async function abortable(action,signal) {
@@ -107,11 +108,13 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
         if(controller.signal.aborted)throw error;
         const status=Number(error.status ?? error.statusCode),http_status=Number.isInteger(status)&&status>=400&&status<=599?status:null;
         const retry_number=(retry?.retry_number ?? 0)+1,retryPolicy=policy.model_retry;
-        const canRetry=[429,502,503,504].includes(http_status) && retry_number<(retryPolicy?.max_attempts ?? 1);
-        const delay=canRetry?Math.min(retryPolicy.max_delay_ms,retryPolicy.initial_delay_ms*2**(retry_number-1)):0;
+        const serverDelay=retryPolicy?.respect_retry_after?providerRetryAfterMs(error):null;
+        const clientDelay=retryPolicy?Math.min(retryPolicy.max_delay_ms,retryPolicy.initial_delay_ms*2**(retry_number-1)):0;
+        const delay=Math.max(clientDelay,serverDelay ?? 0);
+        const canRetry=[429,502,503,504].includes(http_status) && retry_number<(retryPolicy?.max_attempts ?? 1) && (serverDelay===null||(serverDelay<=MAX_PROVIDER_WAIT_MS && delay<remaining()));
         if(canRetry)checkpoint.model_retry={request_sha256:requestRef.sha256,step_id:step.id,retry_number,not_before:Date.now()+delay};
         else delete checkpoint.model_retry;
-        await sessions.failStep(session.id,step.id,{http_status,usage_unknown:true},canRetry?{retry_number,delay_ms:delay,not_before:checkpoint.model_retry.not_before}:null,await save(),activeElapsed());
+        await sessions.failStep(session.id,step.id,{http_status,usage_unknown:true,...(serverDelay!==null?{provider_retry_after_ms:serverDelay}:{})},canRetry?{retry_number,delay_ms:delay,delay_reason:serverDelay!==null&&serverDelay>=clientDelay?'provider_retry_after':'exponential_backoff',not_before:checkpoint.model_retry.not_before}:null,await save(),activeElapsed());
         if(!canRetry)throw error;
         continue;
       }

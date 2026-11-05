@@ -1,6 +1,6 @@
 import {assert} from './errors.js';
 
-export const AGENT_POLICY_VERSION='1.1.0';
+export const AGENT_POLICY_VERSION='1.2.0';
 export const DEFAULT_MODEL_RETRY=Object.freeze({max_attempts:4,initial_delay_ms:5000,max_delay_ms:20000});
 export const STAGE_NAMES=Object.freeze(['requirements','tests','automation','execution','evaluation']);
 export const DEFAULT_AGENT_LIMITS=Object.freeze({max_model_turns:12,max_tool_calls:16,max_duration_ms:180000,
@@ -23,11 +23,13 @@ export function createAgentPolicy(input={}) {
   object(input,'Política');
   for(const key of Object.keys(input))assert(['version','modes','limits','run_limits','model_retry'].includes(key),'Campo desconhecido na política.',422);
   const version=input.version ?? AGENT_POLICY_VERSION;
-  assert(['1.0.0',AGENT_POLICY_VERSION].includes(version),'Versão da política não suportada.',422);
+  assert(['1.0.0','1.1.0',AGENT_POLICY_VERSION].includes(version),'Versão da política não suportada.',422);
   assert(version!=='1.0.0' || input.model_retry===undefined,'Política antiga não admite retentativas.',422);
-  const retry={...DEFAULT_MODEL_RETRY,...(input.model_retry ?? {})};
+  const retryDefaults={...DEFAULT_MODEL_RETRY,...(version==='1.2.0'?{respect_retry_after:true}:{})};
+  const retry={...retryDefaults,...(input.model_retry ?? {})};
   if(input.model_retry!==undefined)object(input.model_retry,'Retentativas');
-  for(const key of Object.keys(retry))assert(Object.hasOwn(DEFAULT_MODEL_RETRY,key),'Campo desconhecido nas retentativas.',422);
+  for(const key of Object.keys(retry))assert(Object.hasOwn(retryDefaults,key),'Campo desconhecido nas retentativas.',422);
+  if(version==='1.2.0')assert(typeof retry.respect_retry_after==='boolean','Política de espera do provedor inválida.',422);
   assert(Number.isSafeInteger(retry.max_attempts) && retry.max_attempts>=1 && retry.max_attempts<=4,'Limite de retentativas inválido.',422);
   for(const key of ['initial_delay_ms','max_delay_ms'])assert(Number.isSafeInteger(retry[key]) && retry[key]>=1 && retry[key]<=60000,'Espera de retentativa inválida.',422);
   assert(retry.max_delay_ms>=retry.initial_delay_ms,'Espera máxima inferior à inicial.',422);
