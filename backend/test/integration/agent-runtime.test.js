@@ -84,3 +84,10 @@ test('retorno tardio preserva resposta mas não conclui etapa de outro worker',{
   const steps=(await env.pool.query('SELECT s.status,s.response,s.provider_metadata FROM research.agent_steps s JOIN research.agent_sessions a ON a.id=s.session_id WHERE a.attempt_id=$1',[env.job.attemptId])).rows;
   assert.equal(steps[0].status,'interrupted');assert.ok(steps[0].response);assert.equal(steps[0].provider_metadata.late_response,true);
 }));
+test('falha do provedor registra status sem vazar mensagem ou credenciais',{skip:!url},async()=>environment(async env=>{
+  await assert.rejects(runAgentTask(config(env,{generateTurn:async()=>{throw Object.assign(new Error('sensitive-api-key-must-not-leak'),{name:'ApiError',status:429});}})),/HTTP 429/);
+  const session=(await env.pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0];
+  const diagnostic=await env.store.json(session.output);
+  assert.equal(diagnostic.http_status,429);assert.equal(diagnostic.phase,'model_turn');assert.equal(session.usage_unknown,true);
+  assert.ok(!JSON.stringify(diagnostic).includes('sensitive-api-key'));
+}));
