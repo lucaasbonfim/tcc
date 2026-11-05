@@ -1,6 +1,8 @@
 import {randomUUID} from 'node:crypto';
 import {assert,text,transaction} from './errors.js';
 import {EVALUATION,CLASSIFICATIONS} from './evaluation-contract.js';
+import {agentMode} from './agent-policy.js';
+import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 
 export function createEvaluationService({pool,store}) {
   const service={
@@ -9,7 +11,11 @@ export function createEvaluationService({pool,store}) {
       assert(count>0,'Avaliação requer evidência independente de executor.',409);
       const stage=(await db.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='evaluation' FOR UPDATE",[runId])).rows[0];
       assert(stage && stage.attempt_count===0 && ['not_supported','blocked'].includes(stage.status),'Avaliação já iniciada. Use repetição de falha ou nova execução.',409);
-      await db.query("UPDATE research.stages SET status='pending',instruction_version=$2,instruction=$3,context=$4,message='Evidências disponíveis para análise.' WHERE id=$1",[stage.id,EVALUATION.version,EVALUATION.instruction,{schema:EVALUATION.schema}]);
+      const run=(await db.query('SELECT snapshot FROM research.runs WHERE id=$1',[runId])).rows[0],snapshot=await store.json(run.snapshot);
+      const isAgent=agentMode(snapshot,'evaluation')==='agent/v1';
+      const definition=isAgent?snapshot.evaluation_agent_definition:(snapshot.evaluation_definition || EVALUATION);
+      assert(definition && (!isAgent || definition.contract_version===AGENT_CONTRACT_VERSION),'Definição de A4 ausente/incompatível.',422);
+      await db.query("UPDATE research.stages SET status='pending',instruction_version=$2,instruction=$3,context=$4,message='Evidências disponíveis para análise.' WHERE id=$1",[stage.id,definition.version,definition.instruction,{schema:definition.schema || EVALUATION.schema,...(isAgent?{execution_mode:'agent/v1',agent_definition:definition}:{})}]);
       await db.query("UPDATE research.runs SET status='pending',finished_at=NULL WHERE id=$1",[runId]);
     },
     async start(runId,input) {
