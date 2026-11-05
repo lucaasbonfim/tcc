@@ -1,6 +1,7 @@
 import {assert} from './errors.js';
 
-export const AGENT_POLICY_VERSION='1.0.0';
+export const AGENT_POLICY_VERSION='1.1.0';
+export const DEFAULT_MODEL_RETRY=Object.freeze({max_attempts:4,initial_delay_ms:5000,max_delay_ms:20000});
 export const STAGE_NAMES=Object.freeze(['requirements','tests','automation','execution','evaluation']);
 export const DEFAULT_AGENT_LIMITS=Object.freeze({max_model_turns:12,max_tool_calls:16,max_duration_ms:180000,
   max_observation_chars:12000,max_context_chars:150000,max_total_tokens:60000});
@@ -20,8 +21,16 @@ function limits(value,defaults,name) {
 
 export function createAgentPolicy(input={}) {
   object(input,'Política');
-  for(const key of Object.keys(input))assert(['version','modes','limits','run_limits'].includes(key),'Campo desconhecido na política.',422);
-  assert(input.version===undefined || input.version===AGENT_POLICY_VERSION,'Versão da política não suportada.',422);
+  for(const key of Object.keys(input))assert(['version','modes','limits','run_limits','model_retry'].includes(key),'Campo desconhecido na política.',422);
+  const version=input.version ?? AGENT_POLICY_VERSION;
+  assert(['1.0.0',AGENT_POLICY_VERSION].includes(version),'Versão da política não suportada.',422);
+  assert(version!=='1.0.0' || input.model_retry===undefined,'Política antiga não admite retentativas.',422);
+  const retry={...DEFAULT_MODEL_RETRY,...(input.model_retry ?? {})};
+  if(input.model_retry!==undefined)object(input.model_retry,'Retentativas');
+  for(const key of Object.keys(retry))assert(Object.hasOwn(DEFAULT_MODEL_RETRY,key),'Campo desconhecido nas retentativas.',422);
+  assert(Number.isSafeInteger(retry.max_attempts) && retry.max_attempts>=1 && retry.max_attempts<=4,'Limite de retentativas inválido.',422);
+  for(const key of ['initial_delay_ms','max_delay_ms'])assert(Number.isSafeInteger(retry[key]) && retry[key]>=1 && retry[key]<=60000,'Espera de retentativa inválida.',422);
+  assert(retry.max_delay_ms>=retry.initial_delay_ms,'Espera máxima inferior à inicial.',422);
   const requested=input.modes ?? {};object(requested,'Modos');
   for(const [stage,mode] of Object.entries(requested)) {
     assert(STAGE_NAMES.includes(stage),'Etapa desconhecida na política.',422);
@@ -31,11 +40,11 @@ export function createAgentPolicy(input={}) {
   const session=limits(input.limits ?? {},DEFAULT_AGENT_LIMITS,'Limites da sessão');
   const run=limits(input.run_limits ?? {},DEFAULT_RUN_LIMITS,'Limites da análise');
   for(const key of Object.keys(run))assert(run[key]>=session[key],`Orçamento da análise inferior ao da sessão: ${key}.`,422);
-  return Object.freeze({version:AGENT_POLICY_VERSION,modes,limits:session,run_limits:run});
+  return Object.freeze({version,modes,limits:session,run_limits:run,...(version==='1.0.0'?{}:{model_retry:Object.freeze(retry)})});
 }
 
 // Old snapshots have no agent_policy. Reading them never changes the stored artifact.
-export function resolveAgentPolicy(snapshot={}) {return createAgentPolicy(snapshot.agent_policy ?? {});}
+export function resolveAgentPolicy(snapshot={}) {return createAgentPolicy({version:'1.0.0',...(snapshot.agent_policy ?? {})});}
 export function agentMode(snapshot,stage) {
   assert(STAGE_NAMES.includes(stage),'Etapa desconhecida.',422);
   return resolveAgentPolicy(snapshot).modes[stage];

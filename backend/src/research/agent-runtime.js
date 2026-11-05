@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {setTimeout as wait} from 'node:timers/promises';
 import {assert} from './errors.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
 
@@ -87,11 +88,35 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
       }
       const request={model,parameters,instruction,instruction_version,contents:checkpoint.contents,tools:toolDefinitions};
       assert(JSON.stringify(request).length<=policy.limits.max_context_chars,'Contexto do agente excede o limite.',422);
-      const requestRef=await store.put(request),step=await sessions.beginStep(session.id,requestRef);
+      const requestRef=await store.put(request);
+      const retry=checkpoint.model_retry;
+      if(retry){
+        assert(retry.request_sha256===requestRef.sha256,'Contexto da retentativa mudou.',409);
+        assert(retry.retry_number<(policy.model_retry?.max_attempts ?? 1),'Retentativas do modelo esgotadas.',422);
+        phase='model_retry_wait';
+        const delay=Math.max(0,retry.not_before-Date.now());
+        if(delay)await wait(delay,undefined,{signal:controller.signal});
+      }
+      controller.signal.throwIfAborted();assert(remaining()>0,'Orçamento de tempo esgotado.',422);
+      const step=await sessions.beginStep(session.id,requestRef,retry?.step_id ?? null);
       controller.signal.throwIfAborted();
       phase='model_turn';
-      const response=await abortable(()=>generateTurn({...request,signal:controller.signal,timeout_ms:Math.min(90000,remaining()),max_context_chars:policy.limits.max_context_chars}),controller.signal);
+      let response;
+      try{response=await abortable(()=>generateTurn({...request,signal:controller.signal,timeout_ms:Math.min(90000,remaining()),max_context_chars:policy.limits.max_context_chars}),controller.signal);}
+      catch(error){
+        if(controller.signal.aborted)throw error;
+        const status=Number(error.status ?? error.statusCode),http_status=Number.isInteger(status)&&status>=400&&status<=599?status:null;
+        const retry_number=(retry?.retry_number ?? 0)+1,retryPolicy=policy.model_retry;
+        const canRetry=[429,502,503,504].includes(http_status) && retry_number<(retryPolicy?.max_attempts ?? 1);
+        const delay=canRetry?Math.min(retryPolicy.max_delay_ms,retryPolicy.initial_delay_ms*2**(retry_number-1)):0;
+        if(canRetry)checkpoint.model_retry={request_sha256:requestRef.sha256,step_id:step.id,retry_number,not_before:Date.now()+delay};
+        else delete checkpoint.model_retry;
+        await sessions.failStep(session.id,step.id,{http_status,usage_unknown:true},canRetry?{retry_number,delay_ms:delay,not_before:checkpoint.model_retry.not_before}:null,await save(),activeElapsed());
+        if(!canRetry)throw error;
+        continue;
+      }
       phase='checkpoint';
+      delete checkpoint.model_retry;
       const responseRef=await store.put(response);
       const complete=Array.isArray(response.calls) && response.calls.length>0 && new Set(response.calls.map(call=>call.id)).size===response.calls.length && !response.metadata?.finish_reasons?.includes('MAX_TOKENS');
       checkpoint.pending=complete ? {step_id:step.id,request_ref:requestRef,response_ref:responseRef,content:response.content,calls:response.calls,done:[]} : null;

@@ -85,9 +85,45 @@ test('retorno tardio preserva resposta mas não conclui etapa de outro worker',{
   assert.equal(steps[0].status,'interrupted');assert.ok(steps[0].response);assert.equal(steps[0].provider_metadata.late_response,true);
 }));
 test('falha do provedor registra status sem vazar mensagem ou credenciais',{skip:!url},async()=>environment(async env=>{
-  await assert.rejects(runAgentTask(config(env,{generateTurn:async()=>{throw Object.assign(new Error('sensitive-api-key-must-not-leak'),{name:'ApiError',status:429});}})),/HTTP 429/);
+  await assert.rejects(runAgentTask(config(env,{policy:createAgentPolicy({version:'1.0.0',modes:{automation:'agent/v1'}}),generateTurn:async()=>{throw Object.assign(new Error('sensitive-api-key-must-not-leak'),{name:'ApiError',status:429});}})),/HTTP 429/);
   const session=(await env.pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0];
   const diagnostic=await env.store.json(session.output);
   assert.equal(diagnostic.http_status,429);assert.equal(diagnostic.phase,'model_turn');assert.equal(session.usage_unknown,true);
   assert.ok(!JSON.stringify(diagnostic).includes('sensitive-api-key'));
+}));
+
+const retryPolicy=(extra={})=>createAgentPolicy({modes:{automation:'agent/v1'},model_retry:{initial_delay_ms:1,max_delay_ms:4},...extra});
+const unavailable=status=>Object.assign(new Error('private-transport'),{name:'ApiError',status});
+test('503 recupera o mesmo contexto sem repetir ferramentas e conta cada envio real',{skip:!url},async()=>environment(async env=>{
+  let sends=0,reads=0;const requests=[],tools=createAutomationAgentTools({...env,store:env.store});
+  const result=await runAgentTask(config(env,{policy:retryPolicy(),tools:{...tools,execute:call=>{if(call.name==='read_source')reads++;return tools.execute(call);}},generateTurn:async({contents})=>{
+    sends++;if(sends===1)return fixtureTurn([read,prepare]);requests.push(JSON.stringify(contents));if(sends===2)throw unavailable(503);return finishTurn(contents,env.input);
+  }}));
+  assert.equal(result.output.artifacts.length,1);assert.equal(sends,3);assert.equal(reads,1);assert.equal(requests[0],requests[1]);
+  const session=(await env.pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0];
+  assert.equal(session.model_turns,3);assert.equal(session.usage_unknown,true);assert.equal(session.status,'completed');
+  const steps=(await env.pool.query('SELECT * FROM research.agent_steps WHERE session_id=$1 ORDER BY sequence',[session.id])).rows;
+  assert.deepEqual(steps.map(s=>s.status),['completed','interrupted','completed']);assert.equal(steps[1].provider_metadata.http_status,503);assert.equal(steps[1].request.sha256,steps[2].request.sha256);
+  const events=(await env.pool.query("SELECT kind,payload FROM research.run_events WHERE run_id=$1 AND kind LIKE 'model_%' ORDER BY sequence",[env.job.run.id])).rows;
+  assert.equal(events.filter(e=>e.kind==='model_retry_scheduled').length,1);assert.equal(events.filter(e=>e.payload.retry_of).length,1);assert.ok(!JSON.stringify(events).includes('private-transport'));
+}));
+test('retentativas são limitadas e falhas permanentes não repetem',{skip:!url},async()=>environment(async env=>{
+  let sends=0;await assert.rejects(runAgentTask(config(env,{policy:retryPolicy(),generateTurn:async()=>{sends++;throw unavailable(503);}})),/HTTP 503/);assert.equal(sends,4);
+  const session=(await env.pool.query('SELECT * FROM research.agent_sessions WHERE attempt_id=$1',[env.job.attemptId])).rows[0];assert.equal(session.status,'failed');assert.equal(session.model_turns,4);assert.equal(session.usage_unknown,true);
+}));
+test('400 não repete e 429 respeita orçamento de chamadas',{skip:!url},async()=>environment(async env=>{
+  let sends=0;await assert.rejects(runAgentTask(config(env,{policy:retryPolicy(),generateTurn:async()=>{sends++;throw unavailable(400);}})),/HTTP 400/);assert.equal(sends,1);
+}));
+test('retentativa não ultrapassa orçamento cumulativo',{skip:!url},async()=>environment(async env=>{
+  let sends=0;await assert.rejects(runAgentTask(config(env,{policy:retryPolicy({limits:{max_model_turns:2}}),generateTurn:async()=>{sends++;throw unavailable(429);}})),/Orçamento/);assert.equal(sends,2);
+}));
+test('cancelamento durante espera não envia outra chamada e preserva checkpoint',{skip:!url},async()=>environment(async env=>{
+  const controller=new AbortController(),sessions=createAgentSessionStore(env.pool,env.job);let sends=0;
+  const wrapped={...sessions,failStep:async(...args)=>{await sessions.failStep(...args);controller.abort();}};
+  await assert.rejects(runAgentTask(config(env,{sessions:wrapped,policy:retryPolicy(),signal:controller.signal,generateTurn:async()=>{sends++;throw unavailable(504);}})),{name:'AbortError'});
+  assert.equal(sends,1);const session=(await sessions.find());assert.equal(session.status,'interrupted');assert.equal((await env.store.json(session.context)).model_retry.retry_number,1);
+  const attemptId=randomUUID(),job={...env.job,attemptId};
+  await env.pool.query("INSERT INTO research.attempts(id,stage_id,number,status,automation_part_id) VALUES($1,$2,2,'running',$3)",[attemptId,job.stage.id,job.automationPart.id]);
+  let resumed=0;await runAgentTask(config({...env,job},{policy:retryPolicy(),generateTurn:async({contents})=>++resumed===1?fixtureTurn([read,prepare]):finishTurn(contents,env.input)}));
+  assert.equal(resumed,2);assert.equal((await env.pool.query('SELECT sum(model_turns)::int AS n FROM research.agent_sessions WHERE run_id=$1',[job.run.id])).rows[0].n,3);
 }));

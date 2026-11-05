@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {projectAgentMap} from '../src/utils/agent-map.js';
 const event=(kind,agent,extra={})=>({kind,agent,payload:{},...extra}),run={status:'running',stages:[]};
+test('espera do provedor não inventa conversa entre agentes',()=>{
+  const events=[event('session_started','requirements',{session_id:'s'}),event('model_retry_scheduled','requirements',{session_id:'s',payload:{delay_ms:5000}})],map=projectAgentMap(run,events);
+  assert.match(map.nodes[0].activity,/Aguardando provedor/);assert.equal(map.messages.length,0);
+});
 test('falhar no A1 não apresenta etapas não iniciadas como concluídas',()=>{
   const map=projectAgentMap({status:'failed',stages:[{agent:'requirements',status:'failed'},{agent:'tests',status:'blocked'}]},[event('attempt_started','requirements',{attempt_id:'a'}),event('attempt_failed','requirements',{attempt_id:'a'})]);
   assert.deepEqual(map.nodes.map(n=>n.state),['failed','idle','idle','idle']);assert.equal(map.terminal,true);
