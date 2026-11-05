@@ -238,14 +238,14 @@ export function createProcessor({ pool, store, generate, executorClient, generat
             const inspectionRef=(await pool.query('SELECT artifact FROM research.inspections WHERE id=$1 AND code_version_id=$2',[job.stage.context.inspection_id,job.run.code_version_id])).rows[0]?.artifact;
             assert(inspectionRef,'Inspeção da tarefa não encontrada.',422);
             const inspection=await store.json(inspectionRef);
-            const tools=createAutomationAgentTools({input,inspection,store,maxObservationChars:policy.limits.max_observation_chars});
+            const tools=createAutomationAgentTools({input,inspection,store,definition,maxObservationChars:policy.limits.max_observation_chars});
             const task={...tools.task,module_root:input.scope.module.root,commit_sha:input.scope.commit_sha,
               fingerprint:taskFingerprint({cases:input.test_cases,requirements:input.requirements,inspection:inspectionRef.sha256,model:job.run.model,parameters:job.run.parameters,policy,definition})};
             const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:'Automatizar todos os casos atribuídos preservando as regras aprovadas.',
               case_catalog:input.test_cases.map(row=>({id:row.id,title:row.content.title,requirement_codes:row.content.requirement_codes})),
               requirement_codes:tools.task.requirement_codes,generated_paths:input.generated_paths,module_root:task.module_root,commit_sha:task.commit_sha,limits:policy.limits}})}]}];
             const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
-              model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:definition.tools,signal:controller.signal});
+              model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,signal:controller.signal});
             input=terminal.input;
             inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
             return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};

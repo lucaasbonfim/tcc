@@ -10,6 +10,8 @@ import {repositoryFixture} from '../test-support/repository-fixture.js';
 import {buildScope,generatedPath} from '../src/research/automation-contract.js';
 import {createAutomationAgentTools} from '../src/research/automation-agent-tools.js';
 import {boundedObservation} from '../src/research/agent-tools.js';
+import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../src/research/agent-contract.js';
+import {automationDeclarations} from '../src/research/automation-agent-bindings.js';
 test('agente consulta fontes fixadas, prepara dependências e submete com escopo efetivo sem executar código',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'agent-tools-')),store=createArtifactStore(dir);
   try {
@@ -18,6 +20,10 @@ test('agente consulta fontes fixadas, prepara dependências e submete com escopo
     const scope=buildScope(inspection,'',['src/b.js']),id=randomUUID();
     const input={scope,test_cases:[{id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}],requirements:[{code:'RF-001',description:'Somar dois números.',sources:[]}],generated_paths:[{test_case_id:id,...generatedPath(id,scope.module.adapter)}]};
     const tools=createAutomationAgentTools({input,inspection,store});let n=0;
+    const ids=tools.declarations.find(t=>t.name==='submit_automation').parameters.properties.output.properties.artifacts.items.properties.test_case_id;
+    assert.deepEqual(ids.enum,[id]);assert.equal(ids.enum[0].includes('-'),true);
+    assert.deepEqual(automationDeclarations(input,{tools:AUTOMATION_AGENT_TOOLS}),AUTOMATION_AGENT_TOOLS);
+    assert.equal(AUTOMATION_AGENT_TOOLS.find(t=>t.name==='submit_automation').parameters.properties.output.properties.artifacts.items.properties.test_case_id.enum,undefined);
     const call=(name,args)=>tools.execute({id:String(++n),name,args});
     assert.equal((await call('find_symbols',{query:'sum'})).observation.matches[0].path,'src/a.js');
     assert.match((await call('read_source',{path:'src/a.js',offset:0,length:20})).observation.content,/import/);
@@ -33,10 +39,21 @@ test('agente consulta fontes fixadas, prepara dependências e submete com escopo
       targets:[{path:'src/a.js',symbols:['sum']}],rationale:'Confere soma.',expected_result:'Retorna 5.',expected_sources:[{requirement_code:'RF-001',quote:'Somar dois números.'}],limitations:[]}],unsupported_cases:[],warnings:[]};
     const submitted=await call('submit_automation',{scope_id:prepared.scope_id,output});
     assert.equal(submitted.terminal.input.scope.target_paths[0],'src/a.js');assert.equal(submitted.observation.requires_human_review,true);
+    const wrong={...output,artifacts:[{...output.artifacts[0],test_case_id:id.replaceAll('-','')}]},before=JSON.stringify(wrong);
+    await assert.rejects(call('submit_automation',{scope_id:prepared.scope_id,output:wrong}),error=>error.statusCode===422&&error.message.includes(id)&&error.message.includes('hífens'));
+    assert.equal(JSON.stringify(wrong),before);
     const restored=createAutomationAgentTools({input,inspection,store});await restored.restore(prepared);
     await restored.execute({id:'restored',name:'submit_automation',args:{scope_id:prepared.scope_id,output}});
     await assert.rejects(call('submit_automation',{scope_id:prepared.scope_id,output:{...output,artifacts:[{...output.artifacts[0],expected_result:'Mudar para passar.'}]}}),/Esperado/);
   }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('restrição por tarefa não muda o perfil congelado nem aceita IDs de outro caso',()=>{
+  const input={test_cases:[{id:'9184b591-f954-4ae5-a5f1-f59feaf0cd11'}],requirements:[{code:'RF01'}],generated_paths:[{path:'__research_generated__/ct_9184b591f9544ae5a5f1f59feaf0cd11.test.mjs'}]};
+  const before=JSON.stringify(AUTOMATION_AGENT_TOOLS),defs=automationDeclarations(input,AUTOMATION_AGENT),output=defs.find(t=>t.name==='submit_automation').parameters.properties.output.properties;
+  assert.deepEqual(output.unsupported_cases.items.properties.test_case_id.enum,input.test_cases.map(c=>c.id));
+  assert.deepEqual(output.artifacts.items.properties.files.items.properties.path.enum,input.generated_paths.map(c=>c.path));
+  assert.equal(JSON.stringify(AUTOMATION_AGENT_TOOLS),before);
 });
 test('observações longas sinalizam truncamento e respeitam o limite serializado',()=>{
   const value={text:'"\\\n'.repeat(10000)};const bounded=boundedObservation(value,1000);
