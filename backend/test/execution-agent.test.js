@@ -8,6 +8,8 @@ test('planejador exige capacidades/leitura, não executa e rejeita scripts exter
   const id=randomUUID(),test_case_id=randomUUID(),scope={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40),module:{adapter:'node-test/v2'},files:[source]};
   const input={runId:randomUUID(),scope,receipt:{ready:true},entries:[{script:{id,test_case_id,version:1,revision:1,content:{}},scope,test_case:{content:{expected_result:'Retorna 1.'}},files:[{path:`__research_generated__/ct_${test_case_id.replaceAll('-','')}.test.mjs`,code:'// fixture'}]}]};
   const tools=createExecutionPlanningTools({input}),output={groups:[{script_ids:[id],rationale:'Escopo único.'}],rationale:'Plano técnico.',limitations:[]};
+  await assert.rejects(tools.execute({id:'oversized',name:'list_execution_scripts',args:{offset:0,limit:20}}),/Use um inteiro de 1 a 10/);
+  assert.equal((await tools.execute({id:'page',name:'list_execution_scripts',args:{offset:0,limit:10}})).observation.scripts[0].id,id);
   await assert.rejects(tools.execute({id:'early',name:'submit_execution_plan',args:{output}}),/capacidades/);
   await assert.rejects(tools.execute({id:'exec',name:'execute',args:{}}),/não permitida/);
   await tools.execute({id:'caps',name:'get_execution_capabilities',args:{}});

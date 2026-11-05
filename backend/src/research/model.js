@@ -6,11 +6,23 @@ export const GENERATION_PARAMETERS = Object.freeze({ temperature:0.2, maxOutputT
 
 // Limites numéricos/coleções multiplicam a complexidade aceita pelo Gemini.
 // O contrato completo permanece na entrada auditada e na validação local obrigatória.
-export function providerSchema(value) {
-  if (Array.isArray(value)) return value.map(providerSchema);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
-    .filter(([key]) => !['maxItems','minItems','minimum','maximum','additionalProperties'].includes(key))
-    .map(([key,item]) => [key,providerSchema(item)]));
+export const TOOL_SCHEMA_PROJECTION='bounds-description/v1';
+export function providerSchema(value,{describeBounds=false}={}) {
+  if (Array.isArray(value)) return value.map(item=>providerSchema(item,{describeBounds}));
+  if (value && typeof value === 'object') {
+    const projected=Object.fromEntries(Object.entries(value)
+      .filter(([key]) => !['maxItems','minItems','minimum','maximum','additionalProperties'].includes(key))
+      .map(([key,item]) => [key,providerSchema(item,{describeBounds})]));
+    if(describeBounds && ['integer','number','array'].includes(value.type)){
+      const notes=[];
+      if(value.minimum!==undefined)notes.push(`valor mínimo: ${value.minimum}`);
+      if(value.maximum!==undefined)notes.push(`valor máximo: ${value.maximum}`);
+      if(value.minItems!==undefined)notes.push(`mínimo de itens: ${value.minItems}`);
+      if(value.maxItems!==undefined)notes.push(`máximo de itens: ${value.maxItems}`);
+      if(notes.length)projected.description=[value.description,`Limites obrigatórios (${notes.join('; ')}).`].filter(Boolean).join(' ');
+    }
+    return projected;
+  }
   return value;
 }
 
@@ -47,7 +59,7 @@ export function createAgentTurnGateway(clientFactory=createGeminiClient) {
       const client=clientFactory();
       const operation=client.models.generateContent({model,contents,config:{
         temperature:parameters.temperature,maxOutputTokens:parameters.maxOutputTokens,systemInstruction:instruction,
-        tools:[{functionDeclarations:tools.map(tool=>({name:tool.name,description:tool.description,parametersJsonSchema:providerSchema(tool.parameters)}))}],
+        tools:[{functionDeclarations:tools.map(tool=>({name:tool.name,description:tool.description,parametersJsonSchema:providerSchema(tool.parameters,{describeBounds:true})}))}],
         toolConfig:{functionCallingConfig:{mode:'ANY',allowedFunctionNames:tools.map(tool=>tool.name)}},
         abortSignal:controller.signal,httpOptions:{timeout:timeout_ms,retryOptions:{attempts:1}},
       }});
@@ -66,7 +78,7 @@ export function createAgentTurnGateway(clientFactory=createGeminiClient) {
       const raw=JSON.stringify({content,prompt_feedback:response.promptFeedback ?? null,
         finish_reasons:response.candidates?.map(item=>item.finishReason) ?? []});
       assert(raw.length<=1000000,'Resposta agentiva excede o limite.',422);
-      return {raw,content,calls,metadata:{requested_model:model,model_version:response.modelVersion ?? null,
+      return {raw,content,calls,metadata:{tool_schema_projection:TOOL_SCHEMA_PROJECTION,requested_model:model,model_version:response.modelVersion ?? null,
         response_id:response.responseId ?? null,usage:response.usageMetadata ?? null,
         finish_reasons:response.candidates?.map(item=>item.finishReason) ?? [],cost:null}};
     }finally{
