@@ -20,8 +20,11 @@ O runner aplica somente arquivos em `database/migrations`, sob transação e adv
 | 016 | Decisão de edição separada da aprovação, preservando antes/depois |
 | 017 | Lotes/checkpoints de casos, códigos dos requisitos, mapeamentos e vínculo às tentativas |
 | 018 | Lotes de scripts, cenários-alvo, decisões por cenário e tentativas de geração |
+| 019 | Sessões, turnos e chamadas de ferramentas dos agentes; vínculos, contadores e idempotência |
 
 API e worker recusam iniciar com migração pendente ou checksum divergente. A atualização não remove tabelas/dados históricos. Evidências e resultados possuem FKs para a cadeia da execução; não há importação manual de evidências pelo painel.
+
+Para verificar a evolução dos agentes em um banco separado, dentro de `backend`, use `node scripts/test-agents-local.mjs`. Configure `TEST_DATABASE_URL` para um banco existente `tcc_test_*`; opcionalmente salve essa variável em `.local/agent-tests.env` na raiz, ignorado pelo Git. O helper valida o destino, passa a URL ao processo de testes sem exibi-la e não infere nem cria o destino a partir do banco da pesquisa. Aceita caminhos de testes como argumentos. Fixtures permanecem no banco de teste, separado dos dados reais.
 
 Os scripts do experimento anterior foram removidos do repositório e permanecem consultáveis no histórico do Git. A numeração da migração atual foi mantida para preservar os registros e checksums de ambientes já inicializados. Nenhuma tabela existente é apagada ou convertida pela remoção desses arquivos.
 

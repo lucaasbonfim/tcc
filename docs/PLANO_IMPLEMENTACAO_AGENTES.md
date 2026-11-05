@@ -2,7 +2,7 @@
 
 Data: 04/11/2026. Base inspecionada: `f1a6722`.
 
-**Estado: implementação em andamento; AG-00 e AG-01 concluídas.**
+**Estado: implementação em andamento; AG-00–AG-02 concluídas.**
 
 O objetivo é introduzir agentes com escolha de ferramentas, observação dos resultados e decisões limitadas por tarefa, aproveitando a plataforma existente. Cada tarefa abaixo deve ser concluída, verificada, registrada no [diário técnico](DIARIO_IMPLEMENTACAO_AGENTES.md) e commitada antes da seguinte. O planejamento e o diário são documentação técnica versionada; conversas, contexto pessoal, credenciais e dados brutos locais não fazem parte deles.
 
@@ -132,7 +132,7 @@ No piloto de engenharia, propõe-se começar com no máximo oito interações co
   - Verificação: testes dos limites e das transições com dados válidos e inválidos, sem Gemini.
   - Commit: `feat(agents): define contratos e politica do ciclo [AG-01]`.
 
-- [ ] **AG-02 — Persistir sessões, passos e chamadas.** Depende de AG-01.
+- [x] **AG-02 — Persistir sessões, passos e chamadas.** Depende de AG-01.
   - Arquivos previstos: próxima migração aditiva, inicialmente `database/migrations/019_agent_sessions.sql`, novo `agent-sessions.js`, testes de integração e `database/README.md`.
   - Entrega: estrutura descrita na seção 3, vínculos consistentes, sequência/idempotência e operações transacionais curtas para reivindicar/registrar/concluir passos.
   - Aceite: migração reexecutável, histórico antigo legível, vínculo entre análises recusado e submissão/retomada concorrente sem duplicação.
@@ -279,4 +279,4 @@ Não preencher resultados previstos como observações realizadas. O diário é 
 - API de ferramentas: [documentação oficial de function calling do Gemini](https://ai.google.dev/gemini-api/docs/function-calling). Conferir compatibilidade com o SDK instalado antes de copiar exemplos.
 - Distinção operacional entre workflows e agentes: [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Não substitui a fundamentação acadêmica do TCC.
 
-Próxima tarefa: **AG-02**. AG-01 entrega contratos e política; a integração operacional do agente depende das tarefas seguintes.
+Próxima tarefa: **AG-03**. Contratos, política e persistência foram entregues; a integração operacional do agente depende das tarefas seguintes.

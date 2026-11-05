@@ -9,7 +9,7 @@ Este registro documenta decisões e mudanças efetivamente realizadas para apoia
 | Marco | Estado | Evidência |
 | --- | --- | --- |
 | M0 — planejamento | Concluído | Documentos e commit identificados por AG-00 |
-| M1 — A2 com ferramentas | Em implementação | AG-01 concluída; próxima tarefa: AG-02 |
+| M1 — A2 com ferramentas | Em implementação | AG-01–AG-02 concluídas; próxima tarefa: AG-03 |
 | M2 — outros papéis e colaboração | Planejado | Depende da avaliação de M1 |
 | M3 — planejamento/diagnóstico da execução | Planejado | Depende das entregas anteriores e da necessidade do recorte |
 | M4 — protocolo de coleta | Planejado | Critérios ainda não congelados |
@@ -73,6 +73,22 @@ O ID de tarefa também consta no assunto do commit. Para encontrar o hash de uma
 **Limite da entrega:** ainda não há ciclo executando ferramentas nem persistência de sessão; esses contratos constituem a interface para AG-02–AG-06. Não equivalem a um agente operacional.
 
 **Rastreabilidade:** commit com ID `[AG-01]`. **Próximo passo:** AG-02, persistência de sessões/passos/chamadas.
+
+## 04/11/2026 — AG-02: persistência da trajetória e orçamento
+
+**Estado:** concluído. Base: `15876c5`.
+
+**Mudança implementada:** migração aditiva 019 com sessões, turnos e chamadas; FKs para análise/etapa/tentativa/parte, identificadores únicos e somente uma sessão ativa por parte. `agent-sessions.js` registra requisição antes da chamada, resposta/uso do provedor e observações imutáveis por hash; reserva contadores em transações curtas com locks na ordem análise → etapa → sessão.
+
+**Decisões:** a posse da tarefa é conferida por lease/token em toda escrita; outro worker não pode concluir a sessão. Repetir a mesma resposta/chamada não soma novamente tokens nem efeitos. Uma nova tentativa da mesma parte herda o consumo acumulado para os limites de chamadas/tokens/ferramentas, além do teto global da análise. Resposta ausente é marcada como consumo desconhecido quando o turno é interrompido. Estados detalhados não alteram os estados históricos da plataforma.
+
+**Verificação:** `node scripts/test-agents-local.mjs test/integration/agent-sessions.test.js test/integration/database.test.js`, no backend: dois testes de integração aprovados, zero falhas/ignorados. Cobrem migração reexecutável, concorrência ao reservar turno, orçamento herdado, contabilização idempotente, recusa de token alheio e vínculos inválidos. Primeiras verificações foram feitas em banco remoto separado de desenvolvimento; a conferência final usou PostgreSQL 17 local isolado em `127.0.0.1:55439`, banco `tcc_test_agents_dev`, com fixtures.
+
+**Ambiente:** para evitar a latência do servidor remoto nas próximas tarefas, foi iniciado um cluster local de teste sob `.local/agent-test-pg`, escutando somente em loopback. A configuração do destino fica em `.local/agent-tests.env`, ignorado. O helper versionado exige destino `tcc_test_*` explícito e não cria/migra o banco real. A migração 019 não foi aplicada ao banco da pesquisa nesta tarefa.
+
+**Limitações:** ainda não há integração do runtime ao worker; retomada de conversa e tratamento de retorno tardio serão exercitados com o ciclo em AG-05/AG-06. Não há chamada de IA ou resultado experimental nesta validação.
+
+**Rastreabilidade:** commit `[AG-02]`. **Próximo passo:** AG-03, turnos Gemini com ferramentas.
 
 ## Modelo para a próxima entrada
 
