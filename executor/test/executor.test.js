@@ -77,8 +77,8 @@ test('serviço autenticado: indisponibilidade, trabalho idempotente e evidência
 test('falha de limpeza bloqueia trabalhos já enfileirados',async()=>{
   const root=await mkdtemp(join(tmpdir(),'tcc-executor-stop-')),token='test-token-for-executor-only-32-bytes';
   const status={ready:true,validated_at:new Date().toISOString(),deployment_id:'fixture-only',images:{'node-test/v2':{reference:'sha256:'+'b'.repeat(64),image_id:'sha256:'+'b'.repeat(64)}}};
-  let release,calls=0;
-  const service=createExecutionService({token,status,policy:{},root,verify:async()=>{},execute:async()=>{calls++;await new Promise(resolve=>{release=resolve;});throw new Error('Container cleanup failed');}});
+  let release,calls=0,renewals=0;
+  const service=createExecutionService({token,status,policy:{},root,revalidate:async()=>{renewals++;return {...status,ready:true};},verify:async()=>{},execute:async()=>{calls++;await new Promise(resolve=>{release=resolve;});throw new Error('Container cleanup failed');}});
   const server=createServer((req,res)=>service.handle(req,res));server.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
   const base=`http://127.0.0.1:${server.address().port}`,headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const first=executionFixture(),second=executionFixture();
@@ -91,5 +91,57 @@ test('falha de limpeza bloqueia trabalhos já enfileirados',async()=>{
     assert.equal(status.ready,false);assert.equal(calls,1);
     assert.equal((await (await fetch(base+`/v1/jobs/${second.job_id}`,{headers})).json()).status,'pending');
     assert.equal((await send(executionFixture())).status,503);
+    status.validated_at=new Date(Date.now()-7200000).toISOString();
+    assert.equal((await (await fetch(base+'/v1/health',{headers})).json()).ready,false);
+    assert.equal(renewals,0);
+  }finally{await service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(root,{recursive:true,force:true});}
+});
+
+test('recibo expirado renova probes uma vez para verificações concorrentes e admissão continua protegida',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'tcc-executor-renew-')),token='test-token-for-executor-only-32-bytes',image='sha256:'+'b'.repeat(64);
+  const policy={deployment_id:'renew-test',images:{'node-test/v2':image}};
+  const receipt=()=>({ready:true,validated_at:new Date().toISOString(),deployment_id:policy.deployment_id,policy_sha256:sha256(policy),images:{'node-test/v2':{reference:image,image_id:image}}});
+  const status={...receipt(),validated_at:new Date(Date.now()-7200000).toISOString()};
+  let renewals=0,release,unavailable=false,calls=0;
+  const service=createExecutionService({token,status,policy,root,revalidate:async received=>{
+    assert.equal(received,policy);renewals++;
+    if(renewals===1)await new Promise(resolve=>{release=resolve;});
+    if(unavailable)throw new Error('Docker offline');return receipt();
+  },verify:async()=>{},execute:async bundle=>{calls++;return {status:'reported',report:fixtureResult(bundle)};}});
+  const server=createServer((req,res)=>service.handle(req,res));server.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+  const base=`http://127.0.0.1:${server.address().port}`,headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
+  const health=()=>fetch(base+'/v1/health',{headers}).then(r=>r.json());
+  const send=bundle=>fetch(base+'/v1/jobs',{method:'POST',headers,body:JSON.stringify({bundle,request_sha256:sha256(bundle)})});
+  try {
+    assert.equal((await fetch(base+'/v1/health')).status,401);assert.equal(renewals,0);
+    const first=health(),second=health();
+    for(let i=0;!release && i<50;i++)await new Promise(r=>setTimeout(r,5));
+    assert.ok(release);release();const responses=await Promise.all([first,second]);
+    assert.ok(responses.every(r=>r.ready));assert.equal(renewals,1);
+    assert.equal(responses[0].images['node-test/v2'].image_id,image);
+    await health();assert.equal(renewals,1);
+    // Renew before the one-hour deadline, including direct POST without prior health.
+    status.validated_at=new Date(Date.now()-1900000).toISOString();
+    const bundle=executionFixture();assert.equal((await send(bundle)).status,202);assert.equal(renewals,2);
+    let record;for(let i=0;i<50;i++){record=await (await fetch(base+`/v1/jobs/${bundle.job_id}`,{headers})).json();if(record.status==='finished')break;await new Promise(r=>setTimeout(r,5));}
+    validateExecutionResult(record.result,bundle,sha256(bundle));assert.equal(calls,1);
+    status.validated_at=new Date(Date.now()-7200000).toISOString();unavailable=true;
+    assert.equal((await health()).ready,false);assert.match(status.reason,/revalidation failed/);
+    assert.equal((await send(executionFixture())).status,503);assert.equal(calls,1);
+    // A temporary Docker outage may recover by performing the probes again.
+    unavailable=false;assert.equal((await health()).ready,true);assert.equal(status.reason,undefined);
+  }finally{await service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(root,{recursive:true,force:true});}
+});
+
+test('renovação não admite identidade ou imagem divergente da política fixada',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'tcc-executor-renew-policy-')),token='test-token-for-executor-only-32-bytes',image='sha256:'+'b'.repeat(64);
+  const policy={deployment_id:'renew-test',images:{'node-test/v2':image}},status={ready:false,images:{}};
+  let changedImage=false;
+  const service=createExecutionService({token,status,policy,root,revalidate:async()=>({ready:true,validated_at:new Date().toISOString(),deployment_id:policy.deployment_id,
+    policy_sha256:changedImage?sha256(policy):'a'.repeat(64),images:{'node-test/v2':{reference:image,image_id:'sha256:'+'c'.repeat(64)}}})});
+  const server=createServer((req,res)=>service.handle(req,res));server.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+  try {
+    const health=()=>fetch(`http://127.0.0.1:${server.address().port}/v1/health`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
+    assert.equal((await health()).ready,false);changedImage=true;assert.equal((await health()).ready,false);
   }finally{await service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(root,{recursive:true,force:true});}
 });

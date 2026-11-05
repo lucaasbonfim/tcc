@@ -10,7 +10,9 @@ let status;
 const bind=process.env.EXECUTOR_BIND || '127.0.0.1';
 if(policy.mode==='docker-desktop-dev')ensure(['127.0.0.1','::1'].includes(bind),'Development executor must bind to loopback');
 try{status=await validateIsolation(policy);}catch(error){status={ready:false,reason:error.message.slice(0,600),isolation_profile:policy.mode || 'dedicated-vm',development_only:policy.mode==='docker-desktop-dev',images:{}};}
-const service=createExecutionService({policy,status,token:process.env.EXECUTOR_TOKEN,root:process.env.EXECUTOR_JOURNAL_DIR || './journal'});
+// Only a successfully initialized/recovered service can renew itself. A failed
+// startup still requires operator restart so old journals cannot be bypassed.
+const service=createExecutionService({policy,status,revalidate:status.ready ? validateIsolation : undefined,token:process.env.EXECUTOR_TOKEN,root:process.env.EXECUTOR_JOURNAL_DIR || './journal'});
 if(status.ready)await service.recover();
 const listener=(req,res)=>service.handle(req,res).catch(()=>{if(!res.headersSent)res.writeHead(500,{'Content-Type':'application/json'});res.end('{"error":"Executor failed"}');});
 const tls=process.env.EXECUTOR_TLS_CERT && process.env.EXECUTOR_TLS_KEY;

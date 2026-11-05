@@ -552,3 +552,11 @@ Verificação: sete testes unitários de avaliação/diagnóstico e dez testes d
 
 Quinto piloto real isolado `93b97ec3-3e30-4d8a-85db-1cf25e063c2d`: todos os papéis concluíram, dois requisitos, dois casos, dois scripts, um trabalho Docker, dois resultados aprovados e duas propostas A4 `compatible`, com revisão humana pendente. Foram 33 envios, 107247 tokens reportados e 125933 ms de fluxo. Houve um 429 recuperado após 58000 ms informados pelo provedor; consumo dessa chamada é desconhecido. Não houve consultas entre agentes nesta rodada, nem retomada manual. A análise original permaneceu inalterada. [Inventário e limites de interpretação](PILOTO_AGENTES_CONJUNTO.md).
 
+# EX-RENEW-01 — 05/11/2026 — Formulário bloqueado após expiração do executor
+
+O usuário não conseguia iniciar outra análise. Diagnóstico autenticado confirmou processo ativo, mas `ready:false`: a validação feita no startup tinha aproximadamente 140 minutos, acima do TTL de uma hora. Disponibilidade de API/frontend não garantia prontidão do executor. O aviso da interface era genérico.
+
+Renovação sob demanda após 30 minutos, em health autenticado e antes de admitir/drenar trabalhos, com probes reais e promessa compartilhada. Validade continua uma hora; identidade/política/imagens são conferidas. Falhas de limpeza/journal não são recuperadas automaticamente. Falha inicial de validação continua exigindo reinício com recuperação de journal. Nenhuma análise/autoridade do usuário foi criada ou alterada.
+
+Onze testes do executor aprovados. Controle com recibo realmente expirado, listener separado, Docker real e cliente do backend passou a `ready:true`, validando Node/Java. Banco de pesquisa ocioso confirmado antes de reiniciar serviços; executor pronto, frontend/API HTTP 200 após reinício. [Plano, evidências e limites](PLANO_REVALIDACAO_EXECUTOR.md). Mudanças commitadas localmente, sem push. SQLs e `atual.java` preservados.
+
