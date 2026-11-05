@@ -7,8 +7,8 @@ Diagnóstico real: piloto is-number `918097ed-bda2-48d6-aa4e-36f3fdcbc571`. O ag
 - [x] Devolver diagnóstico com IDs esperados/recebidos quando uma submissão viola a identidade dos casos.
 - [x] Reproduzir a rejeição real e validar correção por fixtures/persistência em banco isolado.
 - [x] Testar geração real isolada com a entrada preservada do piloto, sem alterar a análise original.
-- [ ] Conferir o fluxo completo em piloto separado se o controle real de scripts passar; preservar falhas e autorizações.
-- [ ] Atualizar diário, commitar a tarefa e reiniciar serviços quando estiverem ociosos.
+- [x] Conferir o fluxo completo em piloto separado se o controle real de scripts passar; preservar falhas e autorizações.
+- [x] Atualizar diário e commitar as correções por tarefa; reinício local registrado no fechamento.
 
 Escopo: identidade e feedback da automação; limites, regras, esperados, autorizações e isolamento mantidos. O perfil antigo continua descrito no snapshot. Não reabrir nem editar análises históricas, não alterar os arquivos SQL abertos no IDE nem `atual.java`.
 
@@ -19,7 +19,7 @@ O primeiro controle real após A2-ID-01 gerou dois scripts válidos e chegou ao 
 - [x] Preservar limites numéricos e de coleções nas descrições enviadas ao modelo, sem relaxar validação nem modificar o schema original.
 - [x] Informar os intervalos permitidos no feedback local de rejeição.
 - [x] Testar regressão de paginação e projeção, registrar a versão da projeção nos metadados e commitar.
-- [ ] Repetir piloto real separado até A4 ou registrar o bloqueio concreto restante.
+- [x] Repetir piloto real separado até A4 ou registrar o bloqueio concreto restante.
 
 ## PAGES-01 — Retomada de leitura parcial
 
@@ -36,4 +36,14 @@ O terceiro controle chegou ao Docker, mas a API devolveu HTTP 429 na abertura do
 
 - [x] Política 1.2.0 para novas análises respeita `google.rpc.RetryInfo`, até 60 s e dentro do prazo total. Políticas anteriores preservadas.
 - [x] Cada envio continua contado, com espera/razão registradas e corpo/credenciais omitidos.
-- [ ] Validar regressões, repetir piloto completo com a nova política e registrar todas as rodadas.
+- [x] Validar regressões, repetir piloto completo com a nova política e registrar todas as rodadas.
+
+## A4-LITERAL-01 — Referência ao observado real
+
+O quarto controle atravessou a janela real de cota e concluiu A3. A4 leu contextos integralmente, mas reescreveu `observed_excerpt` como “sistema retornou true/false”, enquanto o relatório efetivamente dizia que a asserção passou. A validação recusou a invenção, com mensagem insuficiente para correção.
+
+- [x] Schema da avaliação vincula observado aos textos reais, quando cabem no limite do schema, além dos IDs permitidos. Classificação/justificativa continuam propostas do LLM.
+- [x] Rejeição fornece os literais esperados quando curtos ou orienta a consulta aos campos exatos. Sem reescrever ou aceitar a saída inválida.
+- [x] Regredir, executar piloto completo independente e documentar as falhas anteriores.
+
+Fechamento: [piloto conjunto e inventário das rodadas](PILOTO_AGENTES_CONJUNTO.md). A terceira rodada terminou com sucesso após respostas 429 intercaladas com respostas válidas; a interpretação preliminar de bloqueio definitivo foi corrigida a partir do relatório final. A quinta concluiu os quatro agentes com política 1.2.0 e o contrato A4 atualizado.
