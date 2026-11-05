@@ -10,8 +10,13 @@ import {PART_SCHEMA,validatePart,consolidateParts} from './requirement-parts.js'
 import {citationRequest,resolveCitations,preservedOutput} from './citations.js';
 import {assertTestCoverage,persistTestPart,testCoverage} from './test-parts.js';
 import {assert} from './errors.js';
+import {agentMode,resolveAgentPolicy} from './agent-policy.js';
+import {createAgentTurnGateway} from './model.js';
+import {createAgentSessionStore} from './agent-sessions.js';
+import {createAutomationAgentTools} from './automation-agent-tools.js';
+import {runAgentTask,taskFingerprint} from './agent-runtime.js';
 
-export function createProcessor({ pool, store, generate, executorClient }) {
+export function createProcessor({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});
   const execution=createExecutionService({pool,store,client:executorClient});
   const evaluation=createEvaluationService({pool,store});
@@ -128,6 +133,7 @@ export function createProcessor({ pool, store, generate, executorClient }) {
           for (const stage of stages) {
             await db.query("UPDATE research.attempts SET status='interrupted',finished_at=now(),error='Worker interrompido ou prazo da etapa excedido.' WHERE stage_id=$1 AND status='running'",[stage.id]);
             await db.query("UPDATE research.stages SET status='failed',message='Worker interrompido. Repetição explícita necessária.',lease_token=NULL,lease_until=NULL WHERE id=$1",[stage.id]);
+            await db.query("UPDATE research.agent_sessions SET status='interrupted',stop_reason='worker_interrupted',finished_at=now(),usage_unknown=usage_unknown OR EXISTS(SELECT 1 FROM research.agent_steps p WHERE p.session_id=research.agent_sessions.id AND p.status='requested') WHERE stage_id=$1 AND status='running'",[stage.id]);
           }
           await db.query("UPDATE research.runs SET status='failed',finished_at=now() WHERE id=$1",[run.id]);
           await db.query("UPDATE research.execution_jobs SET status='failed',error='Worker interrompido; consulte o executor antes de repetir.',finished_at=now() WHERE run_id=$1 AND status='running'",[run.id]);
@@ -145,6 +151,8 @@ export function createProcessor({ pool, store, generate, executorClient }) {
       let inputRef = null, outputRef = null, metadata = null, output = null, error = null,automationValidated=false;
       try {
         const snapshot = await store.json(job.run.snapshot);
+        const isAgent=job.stage.agent==='automation' && agentMode(snapshot,'automation')==='agent/v1';
+        const policy=isAgent ? resolveAgentPolicy(snapshot) : null;
         let input;
         if(job.automationPart)input=await automation.partInput(job.automationPart);
         else if(job.testPart)input=await store.json(job.testPart.input);
@@ -173,10 +181,27 @@ export function createProcessor({ pool, store, generate, executorClient }) {
         },2000);
         try {
           const emptyPart=job.part && input.documents.every(doc=>doc.pages.every(page=>!page.text.trim()));
-          const operation=emptyPart ? Promise.resolve({raw:JSON.stringify({requirements:[],alerts:[{kind:'extraction_limitation',description:'Parte sem texto interpretável. Confira/transcreva o documento original.',sources:[]}]}),metadata:{provider:'deterministic-empty-page',usage:null,cost:null}}) :
+          const agentOperation=async()=>{
+            assert(job.stage.context.execution_mode==='agent/v1','Modo da etapa diverge do snapshot.',422);
+            const inspectionRef=(await pool.query('SELECT artifact FROM research.inspections WHERE id=$1 AND code_version_id=$2',[job.stage.context.inspection_id,job.run.code_version_id])).rows[0]?.artifact;
+            assert(inspectionRef,'Inspeção da tarefa não encontrada.',422);
+            const inspection=await store.json(inspectionRef);
+            const tools=createAutomationAgentTools({input,inspection,store,maxObservationChars:policy.limits.max_observation_chars});
+            const task={...tools.task,module_root:input.scope.module.root,commit_sha:input.scope.commit_sha,
+              fingerprint:taskFingerprint({cases:input.test_cases,requirements:input.requirements,inspection:inspectionRef.sha256,model:job.run.model,parameters:job.run.parameters,policy})};
+            const initialContents=[{role:'user',parts:[{text:JSON.stringify({untrusted_task:{objective:'Automatizar todos os casos atribuídos preservando as regras aprovadas.',
+              case_catalog:input.test_cases.map(row=>({id:row.id,title:row.content.title,requirement_codes:row.content.requirement_codes})),
+              requirement_codes:tools.task.requirement_codes,generated_paths:input.generated_paths,module_root:task.module_root,commit_sha:task.commit_sha,limits:policy.limits}})}]}];
+            const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
+              model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,signal:controller.signal});
+            input=terminal.input;
+            inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
+            return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};
+          };
+          const operation=isAgent ? agentOperation() : emptyPart ? Promise.resolve({raw:JSON.stringify({requirements:[],alerts:[{kind:'extraction_limitation',description:'Parte sem texto interpretável. Confira/transcreva o documento original.',sources:[]}]}),metadata:{provider:'deterministic-empty-page',usage:null,cost:null}}) :
             job.stage.agent==='execution' ? execution.perform(input,controller.signal).then(result=>({raw:JSON.stringify(result),metadata:{provider:'deterministic-executor'}})) : generate({...request,signal:controller.signal});
           const result = await Promise.race([operation,new Promise((_,reject) => {
-            timer = setTimeout(() => { controller.abort(); reject(new Error('Prazo de 95 segundos excedido na chamada ao modelo.')); },95000);
+            timer = setTimeout(() => { controller.abort(); reject(new Error('Prazo da operação excedido.')); },isAgent ? policy.limits.max_duration_ms+5000 : 95000);
           })]);
           metadata = result.metadata;
           let resolved=false,automationErrors=[];

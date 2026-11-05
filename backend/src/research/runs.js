@@ -9,6 +9,7 @@ import {createParts,continuationParts} from './requirement-parts.js';
 import {preservedOutput} from './citations.js';
 import {createTestParts,testCoverage} from './test-parts.js';
 import {automationCoverage} from './automation-parts.js';
+import {createAgentPolicy} from './agent-policy.js';
 
 export function createRunService({ pool, store, configuration = () => { getGeminiApiKey(); return { model:getGeminiModel(), parameters:GENERATION_PARAMETERS }; } }) {
   async function get(id, db = pool, lock = false) {
@@ -59,7 +60,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         const length = documents.reduce((sum,doc) => sum + doc.pages.reduce((n,p) => n + p.text.length,0),0);
         assert(length > 0, 'Inclua documento com camada textual ou requisitos complementares antes da análise.', 422);
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:createAgentPolicy(input.agent_policy ?? {}) });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters)
@@ -286,6 +287,7 @@ export function createRunService({ pool, store, configuration = () => { getGemin
         await db.query("UPDATE research.requirement_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.test_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
         await db.query("UPDATE research.automation_parts SET status='cancelled',error='Execução cancelada pelo pesquisador.' WHERE run_id=$1 AND status IN ('pending','running','failed')",[runId]);
+        await db.query("UPDATE research.agent_sessions SET status='cancelled',stop_reason='cancelled_by_researcher',finished_at=now(),usage_unknown=usage_unknown OR EXISTS(SELECT 1 FROM research.agent_steps s WHERE s.session_id=research.agent_sessions.id AND s.status='requested') WHERE run_id=$1 AND status IN ('pending','running','interrupted')",[runId]);
         if (stage) await review(db,runId,stage.id,'run',runId,'cancelled',justification,{status:run.status},{status:'cancelled'});
         return get(runId, db);
       });
