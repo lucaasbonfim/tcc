@@ -23,6 +23,24 @@ O pesquisador escolhe o módulo inteiro, sem selecionar fontes manualmente. O pa
 
 ## Testes no navegador
 
+Para validar a interface sem banco de dados, execute a suíte com respostas HTTP simuladas:
+
+```powershell
+npx playwright install chromium
+npx playwright test --config playwright.ui.config.js
+```
+
+No Windows, é possível usar o Edge instalado com `$env:PLAYWRIGHT_CHANNEL='msedge'`.
+Essa suíte usa a porta 5189 e verifica navegação móvel, proteção de rascunhos,
+fontes vinculadas ao item selecionado, paginação e teclado no histórico, busca
+sem resultados e conferência das entradas antes de iniciar a análise.
+
+A revisão apresenta um item por vez, selecionado pela URL, com suas fontes ao lado.
+O histórico oferece lista e diagrama, em páginas de até 50 eventos; filtros e página
+ficam na URL. Fontes IBM Plex são distribuídas com a aplicação, sem requisições a um CDN.
+
+Para o fluxo integrado com persistência, use a suíte abaixo:
+
 ```powershell
 npx playwright install chromium
 $env:TEST_DATABASE_URL='postgresql://usuario:senha@localhost:5432/tcc_test_browser'

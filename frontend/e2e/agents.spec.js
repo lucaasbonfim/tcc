@@ -12,7 +12,7 @@ test('A2 consulta A1 e o pesquisador revisa a resposta antes dos casos',async({p
   await page.getByLabel('Justificativa da revisão do esclarecimento',{exact:true}).fill('Fonte conferida no controle E2E, sem julgamento científico.');
   await page.getByRole('button',{name:'Reconhecer esclarecimento',exact:true}).click();await expect(page.getByText('Esclarecimento reconhecido',{exact:false})).toBeVisible();
   await expect(page.getByRole('button',{name:'Aprovar todos e continuar'})).toBeEnabled();
-  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
+  await page.getByRole('link',{name:'Configuração e registros',exact:true}).click();await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
 });
 
 test('A2 textual consulta os requisitos e apresenta casos sujeitos à revisão',async({page})=>{
@@ -25,7 +25,7 @@ test('A2 textual consulta os requisitos e apresenta casos sujeitos à revisão',
   await page.getByRole('button',{name:'Revisar agora',exact:true}).click();await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Cenário para RF-001',exact:true})).toBeVisible({timeout:20000});
-  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();
+  await page.getByRole('link',{name:'Configuração e registros',exact:true}).click();
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
   await expect(page.getByText('Consultar requisito para os casos',{exact:true})).toBeVisible();
 });
@@ -38,7 +38,7 @@ test('A1 consulta documentos e apresenta sua trajetória e citações para revis
   await page.getByText('Configurações avançadas da análise',{exact:true}).click();await page.getByLabel('Análise de requisitos com ferramentas',{exact:true}).check();
   await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
   await page.waitForURL(/\/admin\/runs\//);
-  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();
+  await page.getByRole('link',{name:'Configuração e registros',exact:true}).click();
   await expect(page.locator('.heading-actions .status-awaiting_review')).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
   await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
@@ -75,7 +75,7 @@ for(const variant of ['budget','cancel'])test(`trajetória do agente registra ${
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
   await expect(page.getByText(variant==='budget'?'Orçamento da tarefa esgotado':'Cancelada pelo pesquisador',{exact:true})).toBeVisible();
   current=await detail();expect(current.automated_tests).toEqual([]);expect(current.execution_jobs).toEqual([]);
-  await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();
+  await page.getByRole('link',{name:'Agentes e histórico',exact:true}).click();
   await expect(page.getByText('Histórico preservado',{exact:true})).toBeVisible();
   await expect(page.locator('.timeline-event').filter({hasText:variant==='cancel'?'Execução cancelada':'Tarefa falhou'})).toBeVisible();
   await page.setViewportSize({width:390,height:844});

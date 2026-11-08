@@ -32,14 +32,14 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Corrigir conteúdo'}).click();
   await page.getByRole('textbox',{name:'Título',exact:true}).fill('Consulta de projetos revisada');
   await expect(page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'})).toBeDisabled();
-  await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();
+  await page.getByRole('link',{name:'Agentes e histórico',exact:true}).click();
   await expect(page.getByRole('alertdialog',{name:'Há alterações não salvas'})).toBeVisible();
   await page.getByRole('button',{name:'Voltar à edição',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Título',exact:true})).toHaveValue('Consulta de projetos revisada');
   await page.getByRole('button',{name:'Salvar correção',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Consulta de projetos revisada',exact:true})).toBeVisible();
   await expect(page.locator('.review-item .status-pending')).toBeVisible();
-  await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();
+  await page.getByRole('link',{name:'Agentes e histórico',exact:true}).click();
   await page.locator('.timeline-event').filter({hasText:'Saída preservada'}).filter({hasText:'A1 · Requisitos'}).click();
   await expect(page.locator('.timeline-detail').getByRole('heading',{name:'RF-001 · Consulta de projetos',exact:true})).toBeVisible();
   await expect(page.locator('.timeline-detail')).not.toContainText('Consulta de projetos revisada');
@@ -58,7 +58,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Gerar scripts de todos os cenários aprovados'}).click();
   await expect(page.getByRole('heading',{name:'Script · versão 1'})).toBeVisible({timeout:20000});
   await page.getByRole('button',{name:'Aprovar todos os scripts e continuar'}).click();
-  await page.getByRole('button',{name:'Execução',exact:true}).click();
+  await page.getByRole('link',{name:'Execução',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Execução de testes não suportada'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeDisabled();
   await page.request.post('http://localhost:3101/__e2e/enable-executor');
@@ -84,7 +84,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await page.getByRole('button',{name:'Confirmar diagnóstico técnico',exact:true}).click();
   await page.getByRole('button',{name:'Concluir revisão da avaliação'}).click();
   await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
-  await page.getByRole('button',{name:'Histórico e configuração'}).click();
+  await page.getByRole('link',{name:'Configuração e registros'}).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button',{name:'Exportar JSON'}).click();
   const file = await download;
@@ -149,7 +149,7 @@ test('todos os 104 cenários são selecionados e gerados em lotes, com aprovaç�
   await expect(page.getByText('52/52 lotes de scripts concluídos',{exact:true})).toBeVisible({timeout:30000});
   await expect(page.locator('.review-item')).toHaveCount(104);
   const first=page.locator('.review-item').first();await first.getByText('Ver ou corrigir código do script',{exact:true}).click();const editor=first.getByLabel('Código do teste');await editor.fill((await editor.inputValue()).replace("test('consulta'","test('consulta revisada'"));
-  await page.getByRole('button',{name:'Histórico e configuração',exact:true}).click();await expect(page.getByRole('alertdialog')).toBeVisible();await page.getByRole('button',{name:'Voltar à edição',exact:true}).click();await expect(editor).toHaveValue(/consulta revisada/);
+  await page.getByRole('link',{name:'Configuração e registros',exact:true}).click();await expect(page.getByRole('alertdialog')).toBeVisible();await page.getByRole('button',{name:'Voltar à edição',exact:true}).click();await expect(editor).toHaveValue(/consulta revisada/);
   await expect(page.getByRole('button',{name:'Aprovar todos os scripts e continuar'})).toBeDisabled();await first.getByRole('button',{name:'Salvar correção do script'}).click();
   await expect(page.getByRole('heading',{name:'Script · versão 2'})).toBeVisible();
   await page.getByRole('button',{name:'Aprovar todos os scripts e continuar'}).click();await expect(page.locator('.heading-actions .status-completed')).toBeVisible();

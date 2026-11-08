@@ -15,7 +15,7 @@ test('autonomia mostra consulta ao vivo, preserva artefatos e recebe julgamento 
     await page.getByRole('button',{name:'Inspecionar escopo para autonomia'}).click();await expect(page.getByLabel('Módulo autorizado')).toBeVisible();
     await page.getByLabel('Finalidade da autorização inicial').selectOption({label:'Piloto técnico'});
     await expect(start).toBeDisabled();await page.getByRole('checkbox',{name:'Autorizo os agentes a gerar e executar testes'}).check();await start.click();
-    await page.getByRole('button',{name:'Agentes ao vivo e histórico',exact:true}).click();await expect(page.getByRole('heading',{name:'Trajetória dos agentes',exact:true})).toBeVisible();
+    await page.getByRole('link',{name:'Agentes e histórico',exact:true}).click();await expect(page.getByRole('heading',{name:'Trajetória dos agentes',exact:true})).toBeVisible();
     await expect(page.locator('.map-node')).toHaveCount(4);await expect(page.getByRole('group',{name:'Mapa dos quatro agentes',exact:true})).toBeVisible();
     const requestEvent=page.locator('.timeline-event').filter({hasText:'Pedido entre agentes'}).filter({hasText:'A2 · Testes → A1 · Requisitos'});await expect(requestEvent).toBeVisible({timeout:25000});
     await expect(page.getByText('Aguardando resposta',{exact:true})).toBeVisible();await requestEvent.click();await expect(page.locator('.timeline-detail')).toContainText('As fontes especificam o tratamento de entradas inválidas?');

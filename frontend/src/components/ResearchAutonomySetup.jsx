@@ -17,6 +17,6 @@ export default function ResearchAutonomySetup({projectId,version,code,busy,actio
     <details><summary>Versão do código autorizada</summary><code className="artifact-path">{code?.commit_sha}</code></details>
     <ResearchAuthorizationReason label="Finalidade da autorização inicial" disabled={busy} onChange={setReason}/>
     <label className="checkbox-label"><input type="checkbox" checked={authorized} disabled={busy || !module || !receipt?.ready} onChange={event=>setAuthorized(event.target.checked)}/>Autorizo os agentes a gerar e executar testes neste SHA, módulo e ambiente, dentro dos limites registrados.</label>
-    <Button disabled={busy || !hasInputs || !version || !authorized || !reason.trim() || !inspection?.inspection_id || !receipt?.ready || !receipt.images?.[module?.adapter]} onClick={()=>onStart({authorize_execution:true,inspection_id:inspection.inspection_id,module_root:root,justification:reason})}>Iniciar execução autônoma →</Button>
+    <Button disabled={busy || !hasInputs || !version || !authorized || !reason.trim() || !inspection?.inspection_id || !receipt?.ready || !receipt.images?.[module?.adapter]} onClick={()=>onStart({authorize_execution:true,inspection_id:inspection.inspection_id,module_root:root,justification:reason})}>Iniciar execução autônoma</Button>
   </div>;
 }
