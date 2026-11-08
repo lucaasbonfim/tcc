@@ -42,6 +42,13 @@ h1, h2, h3 { text-wrap:balance; }
 .muted,.research-form small { font-size:13px; line-height:1.6; }
 .surface { background:#fff; padding:26px; border:1px solid var(--line); border-radius:8px; min-width:0; }
 .form-page { max-width:900px; }
+.preparation-step { display:block; font-size:13px; color:var(--accent); margin-bottom:8px; }
+.preparation-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 32px; margin-bottom:28px; }
+.preparation-summary dt { color:var(--muted); font-size:13px; margin-bottom:6px; }
+.preparation-summary dd { color:var(--ink); font-size:15px; overflow-wrap:anywhere; }
+.preparation-summary dd span { display:block; }
+.preparation-confirmation { border-top:3px solid var(--accent); }
+@media(max-width:580px) { .preparation-summary { grid-template-columns:1fr; } }
 .research-form label,.justification-label,.stage-approval label { font-size:14px; color:#435a54; }
 .research-form input:not([type=checkbox]),.research-form textarea,.research-form select,.justification-label textarea,.stage-approval textarea,.search-input { font-size:15px; color:var(--ink); border-color:#bdcdc7; border-radius:5px; }
 .research-form .checkbox-label { background:transparent; padding:8px 0; font-size:14px; }
