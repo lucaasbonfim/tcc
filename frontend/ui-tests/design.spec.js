@@ -9,7 +9,7 @@ test.beforeEach(async({page})=>{
   const run=fixture();
   await page.route('**/api/**',async route=>{
     const path=new URL(route.request().url()).pathname;
-    const data=path.endsWith('/auth/me')?{role:'admin'}:path.endsWith('/runs/demo')?run:path.endsWith('/summary')?{projects:1,runs:1}:path.endsWith('/projects')?[]:path.endsWith('/runs')?[]:{};
+    const data=path.endsWith('/auth/me')?{role:'admin'}:path.endsWith('/runs/demo')?run:path.endsWith('/assessments')?[]:path.endsWith('/summary')?{projects:1,runs:1}:path.endsWith('/projects')?[]:path.endsWith('/runs')?[]:{};
     await route.fulfill({json:{data}});
   });
 });
@@ -50,4 +50,26 @@ test('revisão vincula a fonte ao item e protege edições ao trocar de requisit
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.screenshot({path:testInfo.outputPath('bancada-mobile.png'),fullPage:true});
+});
+
+test('histórico móvel pagina eventos e permite inspecionar um registro pelo teclado',async({page},testInfo)=>{
+  const events=Array.from({length:60},(_,i)=>({id:String(i+1),kind:'artifact_produced',agent:'requirements',occurred_at:'2026-11-08T12:00:00Z',payload:{text:`Artefato registrado ${i+1}`}}));
+  await page.route('**/api/research/runs/demo/events?**',route=>route.fulfill({json:{data:{events,has_more:false,cursor:'60',history_mode:'legacy',status:'completed',summary:{requests:0,completed_cycles:0,technical_retries:0,by_pair:[]}}}}));
+  await page.route('**/api/research/runs/demo/events/1',route=>route.fulfill({json:{data:{data:{summary:'Conteúdo preservado do primeiro artefato'}}}}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin/runs/demo?view=timeline');
+  const list=page.getByRole('list',{name:'Eventos da análise'});
+  await expect(list.getByRole('button')).toHaveCount(10);
+  await expect(page.getByRole('status').filter({hasText:'Página'})).toHaveText('Página 2 de 2');
+  await page.getByRole('button',{name:'Eventos anteriores',exact:true}).click();
+  await expect(list.getByRole('button')).toHaveCount(50);
+  await list.getByRole('button').first().focus();await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toContainText('Conteúdo preservado do primeiro artefato');
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(list.getByRole('button').first()).toBeFocused();
+  await page.getByRole('button',{name:'Diagrama',exact:true}).click();
+  await expect(page.getByRole('group',{name:'Diagrama de sequência dos agentes'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await page.getByRole('button',{name:'Lista',exact:true}).click();
+  await page.screenshot({path:testInfo.outputPath('historico-mobile.png'),fullPage:true});
 });
