@@ -29,3 +29,25 @@ test('navegação mantém destinos e troca de etapa em telas pequenas',async({pa
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.screenshot({path:testInfo.outputPath('resumo-mobile.png'),fullPage:true});
 });
+
+test('revisão vincula a fonte ao item e protege edições ao trocar de requisito',async({page},testInfo)=>{
+  await page.goto('/admin/runs/demo?view=requirements');
+  const sources=page.getByRole('complementary',{name:'Fontes do item selecionado'});
+  await expect(sources).toContainText('O sistema deve permitir consultar o projeto 1.');
+  await page.getByRole('button',{name:'Corrigir conteúdo',exact:true}).click();
+  await page.getByRole('textbox',{name:'Título',exact:true}).fill('Título em edição');
+  const list=page.getByRole('navigation',{name:'Selecionar requisito'});
+  await list.getByRole('link',{name:/RF-002/}).click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.getByRole('button',{name:'Voltar à edição',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Título',exact:true})).toHaveValue('Título em edição');
+  await page.getByRole('button',{name:'Descartar alterações',exact:true}).click();
+  await list.getByRole('link',{name:/RF-002/}).click();
+  await expect(page).toHaveURL(/item=req-2/);
+  await expect(sources).toContainText('O sistema deve permitir consultar o projeto 2.');
+  await expect(sources).not.toContainText('O sistema deve permitir consultar o projeto 1.');
+  await page.screenshot({path:testInfo.outputPath('bancada-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await page.screenshot({path:testInfo.outputPath('bancada-mobile.png'),fullPage:true});
+});
