@@ -3,6 +3,7 @@ import {useResearch} from '../hooks/useResearch';
 import {research} from '../services/research.service';
 import {RESULT_LABELS,date,shortId} from '../utils/research';
 import Card from './Card';
+import ResearchStatus from './ResearchStatus';
 import Button from './Button';
 import ErrorMessage from './ErrorMessage';
 import ResearchAuthorizationReason from './ResearchAuthorizationReason';
@@ -30,7 +31,7 @@ export default function ResearchExecutionPanel({run,busy,action}) {
     {autonomous&&<p className="muted">A execução usa a autorização inicial preservada, com código, módulo, ambiente e limites fixados.</p>}
     {(run.execution_plans || []).map(plan=><details key={plan.id}><summary>Plano autorizado · {jobs.filter(j=>j.plan_id===plan.id).length} lotes · {RESULT_LABELS[plan.status]||plan.status}</summary><pre className="code-panel">{JSON.stringify(plan.manifest_data,null,2)}</pre></details>)}
     {jobs.map((job,index)=><section className="review-item" key={job.id}><div className="section-heading"><h3>Lote {index+1}</h3><span>{RESULT_LABELS[job.status]||job.status}</span></div>{job.error&&<ErrorMessage>{job.error}</ErrorMessage>}
-      {job.result_data&&<><p className="muted">{RESULT_LABELS[job.result_data.status]||job.result_data.status} · {job.result_data.duration_ms} ms · {date(job.created_at)}</p><div className="table-scroll"><table><thead><tr><th>Teste</th><th>Resultado observado</th><th>Observação</th></tr></thead><tbody>{run.test_results.filter(r=>r.job_id===job.id).map(result=><tr key={result.id}><td>{result.content.test_name}<small>{run.test_cases.find(t=>t.id===result.test_case_id)?.code}</small></td><td>{RESULT_LABELS[result.status]||result.status}</td><td className="result-observation">{result.content.observed}</td></tr>)}</tbody></table></div>
+      {job.result_data&&<><p className="muted">{RESULT_LABELS[job.result_data.status]||job.result_data.status} · {job.result_data.duration_ms} ms · {date(job.created_at)}</p><div className="table-scroll"><table><thead><tr><th>Teste</th><th>Resultado observado</th><th>Observação</th></tr></thead><tbody>{run.test_results.filter(r=>r.job_id===job.id).map(result=><tr key={result.id}><td>{result.content.test_name}<small>{run.test_cases.find(t=>t.id===result.test_case_id)?.code}</small></td><td><ResearchStatus status={result.status} context="result"/></td><td className="result-observation">{result.content.observed}</td></tr>)}</tbody></table></div>
         <details><summary>Evidências, logs e detalhes técnicos</summary><p>Trabalho {job.id} · {job.adapter} · saída {job.result_data.exit_code??'não informada'}</p>{[['Comandos executados',job.result_data.commands],['Ambiente e limites',job.result_data.environment],['Saída padrão',job.result_data.stdout],['Saída de erro',job.result_data.stderr],['Relatórios do framework',job.result_data.framework_reports],['Limitações',job.result_data.limitations]].map(([label,value])=><details key={label}><summary>{label}</summary><pre className="code-panel">{typeof value==='string'?value||'(vazio)':JSON.stringify(value,null,2)}</pre></details>)}</details></>}
     </section>)}
     {!!jobs.length&&<p className="muted">Um teste reprovado não comprova um defeito funcional. Consulte as evidências e a avaliação do A4.</p>}

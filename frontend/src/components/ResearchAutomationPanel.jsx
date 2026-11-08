@@ -11,7 +11,7 @@ function Script({script,editable,busy,action,runId,onDirty,caseCode}) {
   const changed=JSON.stringify(files)!==JSON.stringify(script.files_data);
   useEffect(()=>{onDirty(script.id,changed);return()=>onDirty(script.id,false);},[script.id,changed,onDirty]);
   function review(decision){return action(()=>research.post(`/runs/${runId}/automated-tests/${script.id}/review`,{decision,revision:script.revision,justification:reason.trim() || (decision==='edited' ? 'Código corrigido pelo pesquisador antes da aprovação dos scripts.' : 'Decisão do pesquisador na revisão dos scripts.'),...(changed ? {files} : {})}));}
-  return <article className="review-item"><div className="section-heading"><div><span className="item-code">{caseCode || 'Caso vinculado'}</span><h3>Script · versão {script.version}</h3></div><ResearchStatus status={script.review_status}/></div>
+  return <article className="review-item"><div className="section-heading"><div><span className="item-code">{caseCode || 'Caso vinculado'}</span><h3>Script · versão {script.version}</h3></div><ResearchStatus status={script.review_status} context="review"/></div>
     <p>{script.content.rationale}</p><div className="item-tags">{script.content.requirement_codes.map(code=><span key={code}>{code}</span>)}<span>Contrato compatível; compilação/execução ainda exigem validação</span></div>
     <p className="muted mt-3">Esperado: {script.content.expected_result}</p>
     {script.processing_status==='eligible' && script.review_status==='pending' && <p className="muted">Admitido pela plataforma · sem aprovação humana.</p>}
