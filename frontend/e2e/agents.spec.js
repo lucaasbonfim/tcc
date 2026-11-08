@@ -43,7 +43,7 @@ test('A1 consulta documentos e apresenta sua trajetória e citações para revis
   await page.getByRole('button',{name:'Consultar sessão',exact:true}).click();
   await expect(page.getByRole('heading',{name:/A1.*Análise de requisitos/})).toBeVisible();
   await expect(page.getByText('Consultar trechos dos documentos',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Requisitos',exact:true}).click();
+  await page.getByRole('link',{name:'Requisitos',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Consulta de projetos',exact:true})).toBeVisible();
 });
 

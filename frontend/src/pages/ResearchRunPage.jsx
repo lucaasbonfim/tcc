@@ -9,6 +9,8 @@ import Loading from '../components/Loading';
 import ErrorMessage from '../components/ErrorMessage';
 import ResearchStatus from '../components/ResearchStatus';
 import ResearchReviewItem from '../components/ResearchReviewItem';
+import ResearchRunNavigation from '../components/ResearchRunNavigation';
+import {RUN_VIEWS} from '../utils/run-views';
 import ResearchAutomationPanel from '../components/ResearchAutomationPanel';
 import ResearchExecutionPanel from '../components/ResearchExecutionPanel';
 import ResearchEvaluationPanel from '../components/ResearchEvaluationPanel';
@@ -21,7 +23,6 @@ import ResearchRunOverview from '../components/ResearchRunOverview';
 import UnsavedChangesGuard from '../components/UnsavedChangesGuard';
 import {nextRunAction} from '../utils/run-journey';
 
-const tabs = [['overview','Resumo'],['requirements','Requisitos'],['tests','Casos de teste'],['automation','Scripts'],['evidence','Execução'],['analysis','Resultados'],['timeline','Agentes ao vivo e histórico'],['history','Histórico e configuração']];
 function clean(content) {return Object.fromEntries(Object.entries(content).map(([key,value]) => [key,Array.isArray(value) && value.every(item => typeof item==='string') ? value.map(item => item.trim()).filter(Boolean) : value]));}
 
 export default function ResearchRunPage() {
@@ -29,7 +30,8 @@ export default function ResearchRunPage() {
   const navigate=useNavigate();
   const {data:run,error,loading,reload} = useResearch(`/runs/${runId}`,true);
   const [params,setParams] = useSearchParams();
-  const tab = params.get('view') || 'overview';
+  const requestedView=params.get('view');
+  const tab = RUN_VIEWS.some(([value])=>value===requestedView)?requestedView:'overview';
   const [busy,setBusy] = useState(false);
   const [actionError,setActionError] = useState('');
   const [justification,setJustification] = useState('');
@@ -58,7 +60,7 @@ export default function ResearchRunPage() {
     {run.continuations?.length>0 && <p className="notice">Esta análise possui continuação: {run.continuations.map(next=><Link key={next.id} to={`/admin/runs/${next.id}`}>abrir {shortId(next.id)} ({next.status}) </Link>)}.</p>}
 
     {!autonomous && run.status==='failed' && !run.continuations?.some(next=>['pending','running','awaiting_review'].includes(next.status)) && run.stages.some(stage=>stage.agent==='requirements' && stage.status==='failed') && run.requirement_parts?.some(part=>part.status==='completed') && run.requirement_parts.some(part=>part.status!=='completed') && <Card><h2>Continuar a partir das partes concluídas</h2><p className="muted">Uma nova análise vinculada reutiliza os checkpoints válidos. Documentos, condição e histórico anteriores ficam preservados.</p><Button disabled={busy} onClick={()=>action(async()=>{const next=await research.post(`/runs/${runId}/resume`,{operation_record:'system/v1'});navigate(`/admin/runs/${next.id}`);},false)}>Continuar a partir dos checkpoints</Button></Card>}
-    <nav className="result-tabs" aria-label="Resultados da execução">{tabs.map(([value,label]) => <button key={value} aria-current={tab===value?'page':undefined} className={tab===value ? 'selected' : ''} onClick={() => setParams({view:value})}>{label}</button>)}</nav>
+    <ResearchRunNavigation view={tab} run={run}/>
     {tab==='overview'&&<ResearchRunOverview run={run} onView={onView}/>}
     {blocked&&<Card><h2>Esta etapa ainda não está disponível</h2><p className="muted">{tab==='tests'?'Conclua a revisão dos requisitos primeiro.':tab==='automation'?'Conclua a revisão dos casos de teste primeiro.':tab==='evidence'?'Gere e aprove os scripts antes de preparar a execução.':'Execute testes para obter evidências antes da avaliação.'}</p><Button onClick={()=>onView(next.view)}>{next.label}</Button></Card>}
     {tab==='tests'&&<ResearchAgentMessages run={run} onChange={reload}/>}

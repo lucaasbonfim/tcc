@@ -102,7 +102,18 @@ details>summary { color:#4c665e; font-size:14px; line-height:1.6; }
 .agent-progress { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; }.agent-progress>div { display:grid; gap:8px; border-left:2px solid #c3d5ce; padding-left:16px; }.agent-progress strong { color:var(--accent); font-size:14px; }.agent-progress>div>span:not(.research-status) { color:var(--ink); font-size:15px; }.agent-progress .research-status { justify-self:start; }
 .agent-progress>div { min-width:0; }.agent-progress .research-status { white-space:normal; max-width:100%; }
 .result-counts { display:flex; flex-wrap:wrap; gap:26px; margin-bottom:20px; }.result-counts dt { font-size:14px; color:var(--muted); }.result-counts dd { font-size:27px; color:var(--ink); margin-top:5px; }
-.result-tabs { gap:22px; }.result-tabs button { font-size:14px; padding:14px 0; }.result-tabs button.selected { border-color:var(--accent); color:var(--accent); }
+.result-tabs { gap:22px; }
+.result-tabs a { font-size:14px; padding:14px 0; color:var(--muted); border-bottom:2px solid transparent; white-space:nowrap; }
+.result-tabs a.selected { border-color:var(--accent); color:var(--accent); font-weight:600; }
+.run-secondary-nav { display:flex; flex-wrap:wrap; gap:12px 24px; padding-block:12px; font-size:14px; color:var(--muted); }
+.run-secondary-nav [aria-current] { color:var(--accent); font-weight:600; text-decoration:underline; }
+.mobile-view-picker { display:none; }
+.review-count { color:var(--pending); font-size:14px; margin-top:8px; }
+@media(max-width:580px) {
+  .run-navigation>.result-tabs { display:none; }
+  .mobile-view-picker { display:grid; gap:8px; color:var(--muted); font-size:14px; }
+  .mobile-view-picker select { width:100%; min-height:44px; }
+}
 .unsaved-overlay { position:fixed; inset:0; z-index:200; display:grid; place-items:center; padding:20px; background:#18332966; }.unsaved-dialog { background:white; border-radius:8px; padding:28px; width:min(100%,500px); box-shadow:0 15px 55px #10231c33; }.unsaved-dialog h2 { font-size:21px; font-weight:600; }.unsaved-dialog p { font-size:15px; line-height:1.6; color:var(--muted); margin:14px 0 24px; }
 .authorization-panel { border-top:1px solid var(--line); padding-top:24px; margin-top:10px; }.authorization-panel h3,.plan-review h3 { font-size:18px; font-weight:600; }.plan-review { padding:20px; background:#f5f8f6; border-radius:5px; }.plan-review>div { margin-top:16px; }.plan-review p { color:var(--muted); line-height:1.6; margin-top:8px; }
 .execution-readiness { display:flex; flex-wrap:wrap; gap:8px 22px; color:var(--muted); font-size:14px; }.environment-status { color:var(--accent); margin-bottom:20px; font-size:14px; }.generation-progress { padding:18px 0; }.generation-progress p { line-height:1.7; }

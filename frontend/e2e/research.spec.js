@@ -44,14 +44,14 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.locator('.timeline-detail').getByRole('heading',{name:'RF-001 · Consulta de projetos',exact:true})).toBeVisible();
   await expect(page.locator('.timeline-detail')).not.toContainText('Consulta de projetos revisada');
   await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Requisitos',exact:true}).click();
+  await page.getByRole('link',{name:'Requisitos',exact:true}).click();
   await page.getByRole('button',{name:'Aprovar todos e gerar casos de teste'}).click();
   await expect(page.getByRole('heading',{name:'Consultar projetos cadastrados',exact:true})).toBeVisible({timeout:20000});
   await expect(page.getByText('1/1 requisitos com casos vinculados',{exact:true})).toBeVisible();
   await expect(page.getByText('1/1 lotes de casos concluídos.',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Aprovar todos e continuar'}).click();
   await expect(page.locator('.heading-actions .status-completed')).toBeVisible();
-  await page.getByRole('button',{name:'Scripts',exact:true}).click();
+  await page.getByRole('link',{name:'Scripts',exact:true}).click();
   await page.getByRole('button',{name:'Inspecionar fontes deste commit'}).click();
   await expect(page.getByText('Módulo compatível com geração de scripts.',{exact:false})).toBeVisible();
   await expect(page.getByRole('textbox',{name:'Justificativa do escopo e da geração'})).toHaveCount(0);
@@ -73,7 +73,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   await expect(page.getByRole('button',{name:'Autorizar execução isolada'})).toBeEnabled();
   await page.getByRole('button',{name:'Autorizar execução isolada'}).click();
   await expect(page.getByRole('cell',{name:'Fixture: assert sem falha.',exact:true})).toBeVisible({timeout:20000});
-  await page.getByRole('button',{name:'Resultados',exact:true}).click();
+  await page.getByRole('link',{name:'Resultados',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Comportamento compatível no cenário'})).toBeVisible({timeout:20000});
   await page.getByRole('textbox',{name:'Justificativa da decisão humana'}).fill('Evidência sintética conferida no teste da interface.');
   await page.getByRole('button',{name:'Confirmar classificação'}).click();
@@ -116,7 +116,7 @@ test('pesquisador cadastra projeto, importa documento, revisa agentes e exporta 
   expect(exported.reviews[0].before_value.content.title).toBe('Consulta de projetos');
   expect(exported.reviews[0].decision).toBe('edited');
   expect(exported.reviews.filter(review=>review.entity_type==='stage' && review.after_value?.approval_mode==='bulk')).toHaveLength(3);
-  await page.getByRole('button',{name:'Resumo',exact:true}).click();await expect(page.getByRole('heading',{name:'Etapas da análise',exact:true})).toBeVisible();await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:testInfo.outputPath('resumo-desktop.png'),fullPage:true});
+  await page.getByRole('link',{name:'Resumo',exact:true}).click();await expect(page.getByRole('heading',{name:'Etapas da análise',exact:true})).toBeVisible();await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:testInfo.outputPath('resumo-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await expect(page.getByRole('navigation',{name:'Navegação principal'})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
