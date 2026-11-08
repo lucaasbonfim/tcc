@@ -73,3 +73,33 @@ test('histórico móvel pagina eventos e permite inspecionar um registro pelo te
   await page.getByRole('button',{name:'Lista',exact:true}).click();
   await page.screenshot({path:testInfo.outputPath('historico-mobile.png'),fullPage:true});
 });
+
+test('busca mantém o filtro na URL e orienta quando não há resultados',async({page})=>{
+  await page.route('**/api/research/runs',route=>route.fulfill({json:{data:[{id:'demo',project_name:'Catálogo de projetos',commit_sha:'abcdef12345',model:'Modelo experimental',status:'completed',created_at:'2026-11-08T12:00:00Z'}]}}));
+  await page.goto('/admin/runs');
+  await page.getByLabel('Buscar projeto',{exact:true}).fill('inexistente');
+  await expect(page).toHaveURL(/q=inexistente/);
+  await expect(page.getByRole('status')).toContainText('Nenhuma análise encontrada');
+  await page.reload();await expect(page.getByLabel('Buscar projeto',{exact:true})).toHaveValue('inexistente');
+  await page.getByRole('button',{name:'Limpar busca',exact:true}).click();
+  await expect(page.getByRole('table')).toContainText('Catálogo de projetos');
+});
+
+test('preparação resume as entradas e preserva o modo assistido ao iniciar',async({page},testInfo)=>{
+  const project={id:'project',name:'Catálogo de projetos',repository_url:'https://github.com/example/repo',complementary_text:'O sistema deve consultar projetos.',versions:[{id:'version',requested_ref:'main',commit_sha:'abcdef123456',inspection:{}}],documents:[{id:'doc',name:'Requisitos.txt',version:1,page_count:2}],runs:[]};
+  await page.route('**/api/research/projects/project',route=>route.fulfill({json:{data:project}}));
+  let submitted;
+  await page.route('**/api/research/projects/project/runs',route=>{submitted=route.request().postDataJSON();return route.fulfill({json:{data:{id:'demo'}}});});
+  await page.goto('/admin/projects/project');
+  await expect(page.getByText('Etapa 1 de 3',{exact:true})).toBeVisible();
+  await expect(page.getByText('Etapa 2 de 3',{exact:true})).toBeVisible();
+  await expect(page.getByText('Etapa 3 de 3',{exact:true})).toBeVisible();
+  const summary=page.locator('.preparation-summary');
+  await expect(summary).toContainText('Requisitos.txt (v1)');await expect(summary).toContainText('main');
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await page.screenshot({path:testInfo.outputPath('preparacao-mobile.png'),fullPage:true});
+  await page.getByRole('button',{name:'Iniciar análise de requisitos'}).click();
+  await expect(page).toHaveURL(/runs\/demo/);
+  expect(submitted.workflow_mode).toBe('assisted/v1');expect(submitted.document_ids).toEqual(['doc']);expect(submitted).not.toHaveProperty('autonomy');
+});

@@ -127,10 +127,10 @@ function AdminLoginPage() {
 
           <Button
             className="w-full text-base"
-            disabled={isSubmitting}
+            loading={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Entrando..." : "Entrar"}
+            {isSubmitting ? "Entrando…" : "Entrar"}
           </Button>
         </form>
       </Card>

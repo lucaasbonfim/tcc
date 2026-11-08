@@ -1,7 +1,7 @@
-function Loading({ children = "Carregando..." }) {
+function Loading({ children = "Carregando…" }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
-      {children}
+    <section role="status" className="loading-state">
+      <span className="loading-spinner" aria-hidden="true" />{children}
     </section>
   );
 }

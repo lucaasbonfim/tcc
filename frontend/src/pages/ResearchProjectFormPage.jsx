@@ -37,7 +37,7 @@ export default function ResearchProjectFormPage() {
       <label>Requisitos complementares em texto<textarea rows={6} maxLength={50000} {...field('complementary_text')}/><small>O texto será preservado no snapshot de cada nova execução. PDFs podem ser adicionados após salvar.</small></label>
       </div></details>
       <p className="muted">Usaremos a branch padrão quando nenhuma versão específica for informada.</p>
-      <div className="inline-actions"><Button type="submit" disabled={busy}>{busy ? 'Salvando projeto…' : 'Salvar projeto'}</Button><Link to={projectId?`/admin/projects/${projectId}`:'/admin/projects'}>Cancelar</Link></div>
+      <div className="inline-actions"><Button type="submit" loading={busy}>{busy ? 'Salvando projeto…' : 'Salvar projeto'}</Button><Link to={projectId?`/admin/projects/${projectId}`:'/admin/projects'}>Cancelar</Link></div>
     </fieldset></form></Card>}
   </div>;
 }
