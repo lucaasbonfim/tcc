@@ -4,6 +4,7 @@ import {EVALUATION,CLASSIFICATIONS} from './evaluation-contract.js';
 import {agentMode} from './agent-policy.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
 import {recordHumanEvent} from './run-events.js';
+import {verifyEvaluationProvenance} from './evaluation-provenance.js';
 
 export function createEvaluationService({pool,store}) {
   const service={
@@ -39,14 +40,26 @@ export function createEvaluationService({pool,store}) {
       const cases=(await db.query("SELECT id,content FROM research.test_cases WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) ORDER BY code",[runId])).rows;
       const requirements=(await db.query("SELECT id,code,content FROM research.requirements WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status) ORDER BY code",[runId])).rows;
       const scripts=(await db.query("SELECT id,test_case_id,version,revision,generation_attempt_id,content,files FROM research.automated_tests WHERE run_id=$1 AND research.artifact_eligible(run_id,review_status,processing_status)",[runId])).rows;
-      const records=[];for(const row of evidence)records.push({id:row.id,origin:row.origin,data:await store.json(row.artifact)});
+      const records=[];for(const row of evidence)records.push({id:row.id,job_id:row.job_id,origin:row.origin,data:await store.json(row.artifact)});
       const approvedScripts=[];for(const script of scripts)approvedScripts.push({...script,files_data:await store.json(script.files)});
+      const jobs=(await db.query('SELECT * FROM research.execution_jobs WHERE run_id=$1',[runId])).rows;
+      const plans=(await db.query('SELECT * FROM research.execution_plans WHERE run_id=$1',[runId])).rows;
+      const bundles=new Map(),manifests=new Map(),provenance=new Map();
+      for(const result of results) {
+        const job=jobs.find(row=>row.id===result.job_id),plan=plans.find(row=>row.id===job?.plan_id);
+        assert(job && plan,'Trabalho/plano da evidência não encontrado.',409);
+        if(!bundles.has(job.id))bundles.set(job.id,await store.json(job.bundle));
+        if(!manifests.has(plan.id))manifests.set(plan.id,await store.json(plan.manifest));
+        const record=records.find(row=>row.id===result.evidence_id && row.job_id===job.id);
+        provenance.set(result.id,verifyEvaluationProvenance({runId,result,job,plan,bundle:bundles.get(job.id),manifest:manifests.get(plan.id),
+          script:approvedScripts.find(row=>row.id===result.automated_test_id),evidence:record?.data}));
+      }
       return {requirements:requirements.map(r=>({id:r.id,code:r.code,...r.content})),
         original_source_excerpts:requirements.flatMap(r=>r.content.sources.map(s=>({requirement_code:r.code,...s}))),
         test_cases:cases,automated_tests:approvedScripts,
         environments:records.map(row=>({evidence_id:row.id,environment:row.data.environment,commands:row.data.commands,exit_code:row.data.exit_code,status:row.data.status,limitations:row.data.limitations})),
         results:results.map(row=>({id:row.id,evidence_id:row.evidence_id,test_case_id:row.test_case_id,automated_test_id:row.automated_test_id,status:row.status,
-          test_name:row.content.test_name,observed_excerpt:row.content.observed.slice(0,8000),omitted_characters:Math.max(0,row.content.observed.length-8000)}))};
+          execution_provenance:provenance.get(row.id),test_name:row.content.test_name,observed_excerpt:row.content.observed.slice(0,8000),omitted_characters:Math.max(0,row.content.observed.length-8000)}))};
     },
     async persist(db,job,output) {
       for(const finding of output.findings) {

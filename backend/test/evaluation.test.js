@@ -5,7 +5,7 @@ import {validateEvaluation,evaluationRequestSchema,EVALUATION_SCHEMA} from '../s
 import {validateShape} from '../src/research/agents.js';
 function sample(status) {
   const test_case_id=randomUUID(),automated_test_id=randomUUID(),id=randomUUID();
-  const input={results:[{id,test_case_id,automated_test_id,status,observed_excerpt:'Observação real do fixture executor.',omitted_characters:0}],test_cases:[{id:test_case_id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}]};
+  const input={results:[{id,test_case_id,automated_test_id,status,observed_excerpt:'Observação real do fixture executor.',omitted_characters:0}],test_cases:[{id:test_case_id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}],automated_tests:[{id:automated_test_id}],requirements:[{code:'RF-001'}]};
   const finding={test_result_id:id,test_case_id,automated_test_id,requirement_code:'RF-001',classification:'inconclusive',expected_behavior:'Retorna 5.',observed_behavior:input.results[0].observed_excerpt,evidence_quote:'Observação real',justification:'Evidência limitada.',limitations:[]};
   return {input,finding};
 }
