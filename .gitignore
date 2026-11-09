@@ -3,6 +3,7 @@ node_modules/
 dist/
 build/
 .local/
+/var/
 artifacts/
 coverage/
 test-results/
