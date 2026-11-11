@@ -1,0 +1,41 @@
+/* Requisita: tokens do sistema visual (editorial científico).
+   Papel, tinta e um único acento. Toda cor da interface sai daqui. */
+:root {
+  --paper: #f6f2ea;
+  --surface: #fbf9f4;
+  --ink: #1d1a16;
+  --muted: #5d574d;
+  --faint: #8a8275;
+  --line: #ddd5c6;
+  --line-strong: #c4b9a5;
+
+  --accent: #a33b1f;
+  --accent-hover: #83300f;
+  --accent-soft: #f1e3da;
+
+  --pending: #7a5200;
+  --pending-soft: #f6e9c9;
+  --pending-line: #dfc27f;
+  --success: #2f5a3a;
+  --success-soft: #e4ecdc;
+  --danger: #8a2530;
+  --danger-soft: #f3dcdc;
+  --running: #2d4a6b;
+  --running-soft: #e1e8ef;
+  --neutral-soft: #ece6d9;
+
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  --fs-s: 13px;
+  --fs-m: 15px;
+  --fs-l: 18px;
+  --fs-xl: 24px;
+  --fs-2xl: 32px;
+
+  --radius-s: 2px;
+  --radius-m: 4px;
+
+  --ease: 140ms ease-out;
+}

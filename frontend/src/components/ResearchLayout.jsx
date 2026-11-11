@@ -15,7 +15,7 @@ export default function ResearchLayout() {
   return <div className="research-shell">
     <a className="skip-link" href="#research-content">Pular para o conteúdo</a>
     <aside className="research-sidebar">
-      <NavLink to="/admin" className="brand"><span className="brand-mark" aria-hidden="true">R</span><span>Requisita<span className="brand-subtitle">Requisitos e testes</span></span></NavLink>
+      <NavLink to="/admin" className="brand">Requisita<span className="brand-subtitle">Requisitos e testes</span></NavLink>
       <nav aria-label="Navegação principal">{links.map(([label,to]) => <NavLink key={to} to={to} end={to==='/admin'} className={({isActive}) => `sidebar-link ${isActive ? 'active' : ''}`}>{label}</NavLink>)}</nav>
       <button className="logout-button" onClick={logout}>Sair da sessão <span aria-hidden="true">↗</span></button>
     </aside>
