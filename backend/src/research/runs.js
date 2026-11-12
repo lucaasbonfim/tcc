@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { AGENTS, validateRequirement, validateTestCase } from './agents.js';
+import {validateRequirement,validateTestCase} from './agents.js';
+import {AGENTS,REQUIREMENTS_AGENT,TESTS_AGENT,EVALUATION_AGENT,snapshotAgentProfiles} from './agents/registry.js';
 import { GENERATION_PARAMETERS } from './model.js';
 import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
 import { assert, text, transaction, uuid } from './errors.js';
@@ -12,15 +13,7 @@ import {automationCoverage} from './automation-parts.js';
 import {createAgentPolicy,agentMode} from './agent-policy.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 import {createAgentHistoryService} from './agent-history.js';
-import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
-import {REQUIREMENTS_AGENT} from './requirements-agent.js';
-import {TESTS_AGENT} from './tests-agent.js';
-import {EVALUATION_AGENT} from './evaluation-agent.js';
-import {EVALUATION} from './evaluation-contract.js';
-import {CLARIFICATION_AGENT,createCollaborationService} from './agent-collaboration.js';
-import {EXECUTION_PLANNING_AGENT} from './execution-agent.js';
-import {EXECUTION_DIAGNOSIS_AGENT} from './execution-diagnostics.js';
-import {SCRIPT_REVIEW_AGENT} from './script-review-agent.js';
+import {createCollaborationService} from './agent-collaboration.js';
 import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
 import {createTimelineService} from './timeline.js';
@@ -90,7 +83,7 @@ export function createRunService({ pool, store, executorClient, configuration = 
         assert(length <= 4100000, 'Seleção excede 4,1 milhões de caracteres. Reduza a seleção de documentos.', 422);
         const workflow=await prepareWorkflowPolicy({db,store,version,input,executorClient});
         const policy=createAgentPolicy(input.agent_policy ?? (workflow.mode==='autonomous/v1'?{modes:{requirements:'agent/v1',tests:'agent/v1',automation:'agent/v1',execution:'agent/v1',evaluation:'agent/v1'}}:{}));
-        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,workflow_policy:workflow,requirements_agent_definition:REQUIREMENTS_AGENT,tests_agent_definition:TESTS_AGENT,evaluation_agent_definition:EVALUATION_AGENT,evaluation_definition:EVALUATION,clarification_agent_definition:CLARIFICATION_AGENT,script_review_agent_definition:SCRIPT_REVIEW_AGENT,execution_agent_definitions:{planning:EXECUTION_PLANNING_AGENT,diagnosis:EXECUTION_DIAGNOSIS_AGENT},automation_agent_definition:{...AUTOMATION_AGENT,tools:AUTOMATION_AGENT_TOOLS} });
+        const snapshot = await store.put({ format_version:1,project,code_version:version,documents,agent_definitions:AGENTS,agent_policy:policy,workflow_policy:workflow,...snapshotAgentProfiles() });
         try {
           const id = randomUUID();
           await db.query(`INSERT INTO research.runs(id,project_id,code_version_id,status,snapshot,model,parameters,workflow_mode)
