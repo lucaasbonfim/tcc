@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {citationRequest,resolveCitations,preservedOutput} from '../src/research/agents/requirements/citations.js';
 import {requirementsOutputSchema} from '../src/research/agents/requirements/contracts.js';
-import {validateOutput} from '../src/research/agents.js';
+import {validateOutput} from '../src/research/agents/validation.js';
 
 test('catálogo resolve a citação literal sem pedir que o modelo a reescreva',()=>{
   const text='Se o usuário for um funcionário ou cliente, ele terá acesso às seguintes opções:\n- Editar informações da reserva.\n- Realizar o pagamento.';

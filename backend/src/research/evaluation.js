@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {assert,text,transaction} from './errors.js';
 import {EVALUATION,CLASSIFICATIONS} from './evaluation-contract.js';
 import {agentMode} from './agent-policy.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {recordHumanEvent} from './run-events.js';
 import {verifyEvaluationProvenance} from './evaluation-provenance.js';
 

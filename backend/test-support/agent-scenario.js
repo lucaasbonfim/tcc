@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {scenarioServices,textualScenario} from './research-scenario.js';
 import {createAutomationService} from '../src/research/automation.js';
-import {generatedPath} from '../src/research/automation-contract.js';
+import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 
 export async function claimedAutomationScenario(pool,store) {
   const services=scenarioServices(pool,store),{run,inspection}=await textualScenario(services);

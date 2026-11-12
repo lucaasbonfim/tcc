@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {planTestParts,assertTestCoverage,testCoverage} from '../src/research/test-parts.js';
+import {planTestParts,assertTestCoverage,testCoverage} from '../src/research/agents/tests/cases/parts.js';
 
 test('lotes de testes preservam todos os requisitos sem cortar conteúdo e limitam contexto',()=>{
   const requirements=Array.from({length:78},(_,i)=>({code:`RF-${i+1}`,description:'Regra '.repeat(300)}));

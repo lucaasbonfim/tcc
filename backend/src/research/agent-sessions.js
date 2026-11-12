@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {assert,transaction} from './errors.js';
-import {assertSessionTransition} from './agent-contract.js';
+import {assertSessionTransition} from './runtime/session-contract.js';
 import {appendRunEvent} from './run-events.js';
 
 export function createAgentSessionStore(pool,job) {

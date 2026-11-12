@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {planAutomationParts,automationCoverage} from '../src/research/automation-parts.js';
+import {planAutomationParts,automationCoverage} from '../src/research/agents/tests/scripts/parts.js';
 
 test('104 cenários mantêm identidade e todos os caminhos em lotes pequenos com requisitos pertinentes',()=>{
   const cases=Array.from({length:104},(_,i)=>({id:randomUUID(),content:{code:`CT-${i+1}`,requirement_codes:[`RF-${i%3}`]}}));

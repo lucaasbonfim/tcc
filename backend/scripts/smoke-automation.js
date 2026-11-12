@@ -3,7 +3,8 @@ import 'dotenv/config';
 import {randomUUID} from 'node:crypto';
 import {resolveRepository} from '../src/research/github.js';
 import {inspectRepository} from '../src/research/inspection.js';
-import {AUTOMATION,buildScope,generatedPath,validateAutomation} from '../src/research/automation-contract.js';
+import {AUTOMATION} from '../src/research/agents/tests/scripts/definition.js';
+import {buildScope,generatedPath,validateAutomation} from '../src/research/agents/tests/scripts/contracts.js';
 import {createModelGateway,GENERATION_PARAMETERS} from '../src/research/model.js';
 import {getGeminiModel,getGeminiApiKey} from '../src/config/gemini.js';
 

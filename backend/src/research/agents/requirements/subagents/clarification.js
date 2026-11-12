@@ -6,7 +6,7 @@ import {citationRequest} from '../citations.js';
 import {createAgentToolRegistry} from '../../../agent-tools.js';
 import {createAgentSessionStore} from '../../../agent-sessions.js';
 import {runAgentTask,taskFingerprint} from '../../../agent-runtime.js';
-import {AGENT_CONTRACT_VERSION} from '../../../agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 import {recordMessageEvent,recordHumanEvent} from '../../../run-events.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});

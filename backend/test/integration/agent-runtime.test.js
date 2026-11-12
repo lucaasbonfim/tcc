@@ -9,7 +9,7 @@ import {migrate} from '../../src/research/migrate.js';
 import {createArtifactStore} from '../../src/research/artifacts.js';
 import {createAgentSessionStore} from '../../src/research/agent-sessions.js';
 import {createAgentPolicy} from '../../src/research/agent-policy.js';
-import {createAutomationAgentTools} from '../../src/research/automation-agent-tools.js';
+import {createAutomationAgentTools} from '../../src/research/agents/tests/scripts/tools.js';
 import {runAgentTask,taskFingerprint} from '../../src/research/agent-runtime.js';
 import {claimedAutomationScenario,agentFixtureOutput,fixtureTurn} from '../../test-support/agent-scenario.js';
 const url=process.env.TEST_DATABASE_URL;

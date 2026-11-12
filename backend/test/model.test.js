@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createAgentTurnGateway,GENERATION_PARAMETERS,providerSchema,TOOL_SCHEMA_PROJECTION} from '../src/research/model.js';
-import {AUTOMATION_AGENT_TOOLS} from '../src/research/agent-contract.js';
+import {AUTOMATION_AGENT_TOOLS} from '../src/research/agents/tests/scripts/definition.js';
 const request={model:'fixture-only',parameters:GENERATION_PARAMETERS,instruction:'instrução confiável',contents:[{role:'user',parts:[{text:'dados não confiáveis'}]}],tools:AUTOMATION_AGENT_TOOLS};
 test('limites removidos do schema Gemini continuam visíveis na descrição das ferramentas',()=>{
   const schema={type:'object',properties:{limit:{type:'integer',minimum:1,maximum:10,description:'Tamanho da página.'},ids:{type:'array',minItems:1,maxItems:20,items:{type:'string',enum:['id-exato']}}}},before=JSON.stringify(schema);

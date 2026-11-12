@@ -1,6 +1,6 @@
 import {assert} from '../../errors.js';
 import {validateShape} from '../../shared/validation.js';
-import {validateOutput} from '../../agents.js';
+import {validateOutput} from '../validation.js';
 import {validatePart} from './parts.js';
 import {resolveCitations} from './citations.js';
 import {createAgentToolRegistry} from '../../agent-tools.js';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createScriptReviewTools} from '../src/research/script-review-agent.js';
+import {createScriptReviewTools} from '../src/research/agents/tests/subagents/script-review.js';
 test('A2 consultado exige contexto, preserva esperado e não executa ou delega',async()=>{
   const context={script:{id:'s',version:1,revision:2,files:{sha256:'original'},content:{},files_data:[]},test_case:{id:'c',content:{expected_result:'Retorna 5.'}},requirements:[],scope:{}};
   const tools=createScriptReviewTools({context}),output={status:'no_change',answer:'Não há evidência suficiente para corrigir o teste.',expected_result:'Retorna 5.',files:[]};

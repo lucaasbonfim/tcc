@@ -4,7 +4,7 @@ import {createExecutorClient} from './executor-client.js';
 import {sha256,validateBundle,validateExecutionResult} from '../../../shared/execution-protocol.js';
 import {buildExecutionBundles} from './execution-plan.js';
 import {agentMode} from './agent-policy.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {createEvaluationService} from './evaluation.js';
 import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';

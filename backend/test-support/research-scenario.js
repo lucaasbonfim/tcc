@@ -3,7 +3,7 @@ import {createRunService} from '../src/research/runs.js';
 import {createProcessor} from '../src/research/processor.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {repositoryFixture} from './repository-fixture.js';
-import {generatedPath} from '../src/research/automation-contract.js';
+import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 
 export function scenarioServices(pool,store,options={}) {
   const repository=repositoryFixture(options.repositoryFiles ?? {'package.json':'{"type":"module"}','src/calc.js':'export function sum(a,b){return a+b;}'});

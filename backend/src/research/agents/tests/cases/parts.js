@@ -1,9 +1,9 @@
 import {randomUUID} from 'node:crypto';
-import {assert} from './errors.js';
-import {AGENTS} from './agents.js';
-import {agentMode} from './agent-policy.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
-import {isEligible} from './workflow-policy.js';
+import {assert} from '../../../errors.js';
+import {AGENTS} from '../../../agents.js';
+import {agentMode} from '../../../agent-policy.js';
+import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
+import {isEligible} from '../../../workflow-policy.js';
 
 export function testCoverage(requirements,cases) {
   const approved=requirements.filter(isEligible);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateOutput} from '../src/research/agents.js';
+import {validateOutput} from '../src/research/agents/validation.js';
 import { createModelGateway, GENERATION_PARAMETERS, providerSchema } from '../src/research/model.js';
 
 export const requirement = {

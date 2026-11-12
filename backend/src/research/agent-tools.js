@@ -1,5 +1,5 @@
 import {assert} from './errors.js';
-import {validateAgentCall} from './agent-contract.js';
+import {validateAgentCall} from './agents/tests/scripts/call-validation.js';
 
 export function boundedObservation(value,maxChars) {
   const serialized=JSON.stringify(value);

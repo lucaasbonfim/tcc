@@ -7,11 +7,11 @@ import {join} from 'node:path';
 import {createArtifactStore} from '../src/research/artifacts.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
-import {buildScope,generatedPath} from '../src/research/automation-contract.js';
-import {createAutomationAgentTools} from '../src/research/automation-agent-tools.js';
+import {buildScope,generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
+import {createAutomationAgentTools} from '../src/research/agents/tests/scripts/tools.js';
 import {boundedObservation} from '../src/research/agent-tools.js';
-import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../src/research/agent-contract.js';
-import {automationDeclarations} from '../src/research/automation-agent-bindings.js';
+import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../src/research/agents/tests/scripts/definition.js';
+import {automationDeclarations} from '../src/research/agents/tests/scripts/bindings.js';
 test('agente consulta fontes fixadas, prepara dependências e submete com escopo efetivo sem executar código',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'agent-tools-')),store=createArtifactStore(dir);
   try {

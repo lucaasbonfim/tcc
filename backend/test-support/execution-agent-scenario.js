@@ -3,7 +3,7 @@ import {scenarioServices,textualScenario} from './research-scenario.js';
 import {executionAgentFixtureTurn} from './execution-agent-fixture.js';
 import {createAutomationService} from '../src/research/automation.js';
 import {createExecutionService} from '../src/research/execution.js';
-import {generatedPath} from '../src/research/automation-contract.js';
+import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 import {fixtureResult} from '../../shared/execution-fixture.js';
 export async function executionAgentScenario(pool,store,{count=1,generateTurn=executionAgentFixtureTurn,status='passed',limits={}}={}) {
   const sent=[],receipt={ready:true,deployment_id:'a3-fixture',policy_sha256:'a'.repeat(64),images:{'node-test/v2':{image_id:'sha256:'+'b'.repeat(64)}}};

@@ -11,7 +11,7 @@ import {inspectRepository} from '../../src/research/inspection.js';
 import {repositoryFixture} from '../../test-support/repository-fixture.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 import {createAutomationService} from '../../src/research/automation.js';
-import {generatedPath} from '../../src/research/automation-contract.js';
+import {generatedPath} from '../../src/research/agents/tests/scripts/contracts.js';
 import {createExecutionService} from '../../src/research/execution.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');

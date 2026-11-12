@@ -2,7 +2,7 @@ import {assert} from './errors.js';
 import {validateShape} from './shared/validation.js';
 import {createAgentToolRegistry} from './agent-tools.js';
 import {createRecordReader} from './agent-records.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'},list=(items,maxItems,minItems=0)=>({type:'array',items,maxItems,minItems});
 export const EXECUTION_DIAGNOSIS_SCHEMA=obj({diagnostics:list(obj({result_id:string,script_id:string,script_version:{type:'integer',minimum:1,maximum:2147483647},kind:{type:'string',enum:['compatible','assertion_failure','test_issue','environment_issue','inconclusive']},action:{type:'string',enum:['no_change','review_script','check_environment','inconclusive']},expected_behavior:string,observed_behavior:string,evidence_quote:string,rationale:string,limitations:list(string,30)}),200,1),summary:string,limitations:list(string,30)});
 export const EXECUTION_DIAGNOSIS_AGENT={agent:'execution',version:'diagnosis/1.1.1',contract_version:AGENT_CONTRACT_VERSION,schema:EXECUTION_DIAGNOSIS_SCHEMA,

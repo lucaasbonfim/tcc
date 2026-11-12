@@ -18,7 +18,7 @@ import {createExecutionService} from '../src/research/execution.js';
 import {createEvaluationService} from '../src/research/evaluation.js';
 import {repositoryFixture} from './repository-fixture.js';
 import {inspectRepository} from '../src/research/inspection.js';
-import {generatedPath} from '../src/research/automation-contract.js';
+import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 import {fixtureResult} from '../../shared/execution-fixture.js';
 import {fixtureTurn} from './agent-scenario.js';
 import {testCasesFixtureTurn} from './tests-agent-fixture.js';

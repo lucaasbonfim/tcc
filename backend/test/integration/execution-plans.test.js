@@ -10,7 +10,7 @@ import {createArtifactStore} from '../../src/research/artifacts.js';
 import {createAutomationService} from '../../src/research/automation.js';
 import {createExecutionService} from '../../src/research/execution.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
-import {generatedPath} from '../../src/research/automation-contract.js';
+import {generatedPath} from '../../src/research/agents/tests/scripts/contracts.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');

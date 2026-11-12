@@ -1,4 +1,4 @@
-import {buildScope} from './automation-contract.js';
+import {buildScope} from './agents/tests/scripts/contracts.js';
 import {assert} from './errors.js';
 
 export function planModuleScopes(inspection,root,targetPaths) {

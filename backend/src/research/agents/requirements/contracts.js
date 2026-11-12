@@ -31,4 +31,3 @@ export function validateRequirement(value, documents) {
   validateSources(value.sources,documents);
   return value;
 }
-

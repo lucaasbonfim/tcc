@@ -19,4 +19,3 @@ export function validateShape(value, schema, path = 'resultado') {
   }
   return value;
 }
-

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {validateRequirement} from './agents/requirements/contracts.js';
-import {validateTestCase} from './agents.js';
+import {validateTestCase} from './agents/tests/cases/contracts.js';
 import {AGENTS,REQUIREMENTS_AGENT,TESTS_AGENT,EVALUATION_AGENT,snapshotAgentProfiles} from './agents/registry.js';
 import { GENERATION_PARAMETERS } from './model.js';
 import { getGeminiApiKey, getGeminiModel } from '../config/gemini.js';
@@ -9,8 +9,8 @@ import { createAutomationService } from './automation.js';
 import {createExecutionService} from './execution.js';
 import {createParts,continuationParts} from './agents/requirements/parts.js';
 import {preservedOutput} from './agents/requirements/citations.js';
-import {createTestParts,testCoverage} from './test-parts.js';
-import {automationCoverage} from './automation-parts.js';
+import {createTestParts,testCoverage} from './agents/tests/cases/parts.js';
+import {automationCoverage} from './agents/tests/scripts/parts.js';
 import {createAgentPolicy,agentMode} from './agent-policy.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 import {createAgentHistoryService} from './agent-history.js';

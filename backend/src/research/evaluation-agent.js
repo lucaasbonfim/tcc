@@ -2,7 +2,7 @@ import {assert} from './errors.js';
 import {validateShape} from './shared/validation.js';
 import {EVALUATION_SCHEMA,evaluationRequestSchema,validateEvaluation} from './evaluation-contract.js';
 import {createAgentToolRegistry} from './agent-tools.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {nextUnreadOffset} from './agent-records.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});

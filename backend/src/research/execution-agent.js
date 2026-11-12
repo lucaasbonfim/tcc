@@ -2,7 +2,7 @@ import {assert} from './errors.js';
 import {validateShape} from './shared/validation.js';
 import {createAgentToolRegistry} from './agent-tools.js';
 import {createRecordReader} from './agent-records.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {buildExecutionBundles} from './execution-plan.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string={type:'string'},list=(items,maxItems,minItems=0)=>({type:'array',items,maxItems,minItems});

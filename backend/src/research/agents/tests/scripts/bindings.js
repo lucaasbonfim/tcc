@@ -1,4 +1,4 @@
-import {AUTOMATION_AGENT_TOOLS} from './agent-contract.js';
+import {AUTOMATION_AGENT_TOOLS} from './definition.js';
 
 // Per-task restrictions are derived from immutable input; old definitions remain unchanged.
 export function automationDeclarations(input,definition) {

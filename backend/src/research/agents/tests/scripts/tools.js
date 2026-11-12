@@ -1,9 +1,9 @@
-import {assert} from './errors.js';
-import {safePath} from './inspection.js';
-import {buildScope,validateAutomation} from './automation-contract.js';
-import {createAgentToolRegistry} from './agent-tools.js';
-import {AUTOMATION_AGENT} from './agent-contract.js';
-import {automationDeclarations} from './automation-agent-bindings.js';
+import {assert} from '../../../errors.js';
+import {safePath} from '../../../inspection.js';
+import {buildScope,validateAutomation} from './contracts.js';
+import {createAgentToolRegistry} from '../../../agent-tools.js';
+import {AUTOMATION_AGENT} from './definition.js';
+import {automationDeclarations} from './bindings.js';
 
 export function createAutomationAgentTools({input,inspection,store,maxObservationChars=12000,definition=AUTOMATION_AGENT}) {
   assert(inspection.commit_sha===input.scope.commit_sha && inspection.repository_url===input.scope.repository_url,'Inspeção diverge da versão da tarefa.',409);

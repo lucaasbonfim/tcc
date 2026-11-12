@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createTestsAgentTools} from '../src/research/tests-agent.js';
+import {createTestsAgentTools} from '../src/research/agents/tests/cases/tools.js';
 const requirement=code=>({code,title:'Somar',description:'O sistema deve somar dois números.',acceptance_criteria:[],sources:[]});
 const scenario=code=>({code:`CT-${code.slice(3)}`,title:'Somar',objective:'Verificar soma.',requirement_codes:[code],preconditions:[],input_data:['2, 3'],steps:['Somar os valores.'],expected_result:'Retorna 5.',scenario:'positive',automation:{feasibility:'needs_inspection',rationale:'Necessário inspecionar.'}});
 test('A2 textual exige leitura e todos os vínculos, sem ferramentas de código ou requisitos externos',async()=>{

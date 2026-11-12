@@ -3,7 +3,7 @@
 import {PART_SCHEMA} from './parts.js';
 import {citationRequest} from './citations.js';
 
-import {AGENT_CONTRACT_VERSION} from '../../agent-contract.js';
+import {AGENT_CONTRACT_VERSION} from '../../runtime/session-contract.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string={type:'string'},integer=(minimum,maximum)=>({type:'integer',minimum,maximum});
@@ -15,4 +15,3 @@ export const REQUIREMENTS_AGENT={agent:'requirements',version:'agent/1.0.0',cont
     {name:'submit_requirements',description:'Submeter requisitos e alertas após consultar todas as fontes atribuídas. Não aprova o resultado.',parameters:obj({output:citationRequest({documents:[]},PART_SCHEMA).schema})},
   ]};
 function freeze(value){if(value && typeof value==='object'){Object.values(value).forEach(freeze);Object.freeze(value);}return value;}freeze(REQUIREMENTS_AGENT);
-
