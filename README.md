@@ -204,6 +204,7 @@ O segundo comando inspeciona fonte pública e valida geração real de um script
 ## Documentação
 
 - [Onde estão os quatro agentes — definições, ferramentas, scripts e roteiro de apresentação](docs/GUIA_DOS_AGENTES.md).
+- [Plano de reorganização — orquestrador, agentes, subagentes e ferramentas](docs/PLANO_REORGANIZACAO_AGENTES.md).
 - [Plano de implementação dos agentes — tarefas, critérios e commits](docs/PLANO_IMPLEMENTACAO_AGENTES.md).
 - [Protocolo científico em preparação — perguntas, referência, métricas e condições](docs/PROTOCOLO_EXPERIMENTO.md).
 - [Formulário vazio para preparar a referência humana](docs/MODELO_REFERENCIA.md).
