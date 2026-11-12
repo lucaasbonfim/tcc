@@ -4,6 +4,10 @@ Base funcional do TCC **“Análise de Requisitos e Testes de Software com Intel
 
 A aplicação existente foi evoluída mantendo React/Vite/Tailwind/Router, Express, PostgreSQL, autenticação administrativa e Gemini (`@google/genai`). O fluxo ativo é utilizado pelo pesquisador; participantes, grupos e questionários pertencem ao histórico preservado.
 
+Para localizar o orquestrador, os quatro agentes, seus subagentes e ferramentas,
+comece pelo [mapa do núcleo de pesquisa](backend/src/research/README.md) e pelo
+[guia dos agentes](docs/GUIA_DOS_AGENTES.md).
+
 ## Desenvolvimento com Docker Desktop
 
 Com dependências e `backend/.env` já configurados, ligue o Docker Desktop e execute **na raiz**:

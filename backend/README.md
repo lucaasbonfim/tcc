@@ -2,7 +2,7 @@
 
 Express e PostgreSQL com autenticação administrativa reaproveitada. Instalação e variáveis: [README principal](../README.md). Execute os comandos dentro de `backend`.
 
-Para localizar A1, A2, A3 e A4 no código, comece pelo [guia dos agentes](../docs/GUIA_DOS_AGENTES.md): ele relaciona cada papel às instruções, ferramentas, processamento, scripts gerados e registros. O fluxo ativo fica em `src/research`; os diretórios tradicionais de controllers/services também conservam arquivos do experimento anterior.
+Para localizar A1, A2, A3 e A4 no código, comece pelo [guia dos agentes](../docs/GUIA_DOS_AGENTES.md): ele relaciona cada papel às instruções, ferramentas, processamento, scripts gerados e registros. O fluxo ativo começa pelo [mapa de `src/research`](src/research/README.md), pelo [orquestrador](src/research/orchestrator/index.js) e pelo [catálogo dos agentes](src/research/agents/registry.js); os diretórios tradicionais de controllers/services também conservam arquivos do experimento anterior.
 
 ```powershell
 npm ci
