@@ -1,5 +1,4 @@
-import {assert} from './errors.js';
-import {validateAgentCall} from './agents/tests/scripts/call-validation.js';
+import {assert} from '../errors.js';
 
 export function boundedObservation(value,maxChars) {
   const serialized=JSON.stringify(value);
@@ -13,7 +12,8 @@ export function boundedObservation(value,maxChars) {
   return result;
 }
 
-export function createAgentToolRegistry({task,handlers,maxObservationChars,validateCall=validateAgentCall}) {
+export function createAgentToolRegistry({task,handlers,maxObservationChars,validateCall}) {
+  assert(typeof validateCall==='function','Validador explícito das ferramentas obrigatório.',422);
   return async (call,context={})=>{
     validateCall(call,task);
     const handler=handlers[call.name];assert(handler,'Ferramenta não implementada.',403);

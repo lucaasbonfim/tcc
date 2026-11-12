@@ -5,7 +5,7 @@ import {resolveRepository} from '../src/research/github.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {AUTOMATION} from '../src/research/agents/tests/scripts/definition.js';
 import {buildScope,generatedPath,validateAutomation} from '../src/research/agents/tests/scripts/contracts.js';
-import {createModelGateway,GENERATION_PARAMETERS} from '../src/research/model.js';
+import {createModelGateway,GENERATION_PARAMETERS} from '../src/research/runtime/model-gateway.js';
 import {getGeminiModel,getGeminiApiKey} from '../src/config/gemini.js';
 
 const key=getGeminiApiKey();

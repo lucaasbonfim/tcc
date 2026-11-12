@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import {AGENTS} from '../src/research/agents/registry.js';
 import {validateOutput} from '../src/research/agents/validation.js';
-import { createModelGateway, GENERATION_PARAMETERS } from '../src/research/model.js';
+import { createModelGateway, GENERATION_PARAMETERS } from '../src/research/runtime/model-gateway.js';
 import { getGeminiModel, getGeminiApiKey } from '../src/config/gemini.js';
 
 const model = getGeminiModel();

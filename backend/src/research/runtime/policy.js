@@ -1,4 +1,4 @@
-import {assert} from './errors.js';
+import {assert} from '../errors.js';
 
 export const AGENT_POLICY_VERSION='1.2.0';
 export const DEFAULT_MODEL_RETRY=Object.freeze({max_attempts:4,initial_delay_ms:5000,max_delay_ms:20000});

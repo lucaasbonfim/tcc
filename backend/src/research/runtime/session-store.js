@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
-import {assert,transaction} from './errors.js';
-import {assertSessionTransition} from './runtime/session-contract.js';
-import {appendRunEvent} from './run-events.js';
+import {assert,transaction} from '../errors.js';
+import {assertSessionTransition} from './session-contract.js';
+import {appendRunEvent} from '../run-events.js';
 
 export function createAgentSessionStore(pool,job) {
   const unitColumn=job.message?'message_id':job.automationPart?'automation_part_id':job.part?'requirement_part_id':job.testPart?'test_part_id':'stage_id';

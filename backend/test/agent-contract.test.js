@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createAgentPolicy,resolveAgentPolicy,agentMode} from '../src/research/agent-policy.js';
+import {createAgentPolicy,resolveAgentPolicy,agentMode} from '../src/research/runtime/policy.js';
 import {validateAgentCall} from '../src/research/agents/tests/scripts/call-validation.js';
 import {assertSessionTransition,stageStatusForSession} from '../src/research/runtime/session-contract.js';
 import {AUTOMATION_AGENT_TOOLS} from '../src/research/agents/tests/scripts/definition.js';

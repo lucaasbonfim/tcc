@@ -5,7 +5,7 @@ import {generatedPath,validateAutomation} from './agents/tests/scripts/contracts
 import {testCoverage} from './agents/tests/cases/parts.js';
 import {planAutomationParts} from './agents/tests/scripts/parts.js';
 import {planModuleScopes} from './module-scopes.js';
-import {agentMode} from './agent-policy.js';
+import {agentMode} from './runtime/policy.js';
 import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {admitProduced,assertInitialGrant} from './workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';

@@ -1,7 +1,8 @@
+import {validateAgentCall} from './call-validation.js';
 import {assert} from '../../../errors.js';
 import {safePath} from '../../../inspection.js';
 import {buildScope,validateAutomation} from './contracts.js';
-import {createAgentToolRegistry} from '../../../agent-tools.js';
+import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
 import {AUTOMATION_AGENT} from './definition.js';
 import {automationDeclarations} from './bindings.js';
 
@@ -55,7 +56,10 @@ export function createAutomationAgentTools({input,inspection,store,maxObservatio
         terminal:{output,input:effectiveInput,scope_ref:prepared?.ref ?? null}};
     },
   };
-  return {task,declarations:automationDeclarations(input,definition),execute:createAgentToolRegistry({task,handlers,maxObservationChars}),
+  return {task,declarations:automationDeclarations(input,definition),execute:createAgentToolRegistry({task,handlers,maxObservationChars,validateCall:validateAgentCall}),
+    async restoreCompletedCall(call,observation) {
+      if(call.name==='prepare_automation_scope')await this.restore(observation);
+    },
     async restore(observation) {
       if(observation?.scope_ref) {
         const scope=await store.json(observation.scope_ref);

@@ -1,12 +1,12 @@
 import {randomUUID} from 'node:crypto';
 import {assert,transaction} from '../../../errors.js';
 import {validateShape} from '../../../shared/validation.js';
-import {createAgentToolRegistry} from '../../../agent-tools.js';
-import {createRecordReader} from '../../../agent-records.js';
+import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
+import {createRecordReader} from '../../../runtime/record-reader.js';
 import {validateAutomationArtifact} from '../scripts/contracts.js';
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
-import {createAgentSessionStore} from '../../../agent-sessions.js';
-import {runAgentTask,taskFingerprint} from '../../../agent-runtime.js';
+import {createAgentSessionStore} from '../../../runtime/session-store.js';
+import {runAgentTask,taskFingerprint} from '../../../runtime/run-agent.js';
 import {recordMessageEvent} from '../../../run-events.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'};
 const responseSchema=obj({status:{type:'string',enum:['proposed_revision','no_change','inconclusive']},answer:string,expected_result:string,files:{type:'array',items:obj({path:string,code:string}),minItems:0,maxItems:1}});

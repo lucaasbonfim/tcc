@@ -12,11 +12,11 @@ import {PART_SCHEMA,validatePart,consolidateParts} from './agents/requirements/p
 import {citationRequest,resolveCitations,preservedOutput} from './agents/requirements/citations.js';
 import {assertTestCoverage,persistTestPart,testCoverage} from './agents/tests/cases/parts.js';
 import {assert} from './errors.js';
-import {agentMode,resolveAgentPolicy} from './agent-policy.js';
-import {createAgentTurnGateway} from './model.js';
-import {createAgentSessionStore} from './agent-sessions.js';
+import {agentMode,resolveAgentPolicy} from './runtime/policy.js';
+import {createAgentTurnGateway} from './runtime/model-gateway.js';
+import {createAgentSessionStore} from './runtime/session-store.js';
 import {createAutomationAgentTools} from './agents/tests/scripts/tools.js';
-import {runAgentTask,taskFingerprint} from './agent-runtime.js';
+import {runAgentTask,taskFingerprint} from './runtime/run-agent.js';
 import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {createRequirementsAgentTools} from './agents/requirements/tools.js';
 import {createTestsAgentTools} from './agents/tests/cases/tools.js';
@@ -249,7 +249,7 @@ export function createProcessor({ pool, store, generate, executorClient, generat
               case_catalog:input.test_cases.map(row=>({id:row.id,title:row.content.title,requirement_codes:row.content.requirement_codes})),
               requirement_codes:tools.task.requirement_codes,generated_paths:input.generated_paths,module_root:task.module_root,commit_sha:task.commit_sha,limits:policy.limits}})}]}];
             const terminal=await runAgentTask({sessions:createAgentSessionStore(pool,job),store,generateTurn,tools,task,policy,initialContents,
-              model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,signal:controller.signal});
+              model:job.run.model,parameters:job.run.parameters,instruction:request.instruction,instruction_version:request.instruction_version,toolDefinitions:tools.declarations,terminalTool:'submit_automation',signal:controller.signal});
             input=terminal.input;
             inputRef=await store.put({...request,input,execution_mode:'agent/v1'});
             return {raw:JSON.stringify(terminal.output),metadata:{provider:'agent-runtime',execution_mode:'agent/v1',cost:null}};

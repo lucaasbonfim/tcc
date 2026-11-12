@@ -1,3 +1,4 @@
+import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../../src/research/agents/tests/scripts/definition.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -7,10 +8,10 @@ import {join} from 'node:path';
 import pg from 'pg';
 import {migrate} from '../../src/research/migrate.js';
 import {createArtifactStore} from '../../src/research/artifacts.js';
-import {createAgentSessionStore} from '../../src/research/agent-sessions.js';
-import {createAgentPolicy} from '../../src/research/agent-policy.js';
+import {createAgentSessionStore} from '../../src/research/runtime/session-store.js';
+import {createAgentPolicy} from '../../src/research/runtime/policy.js';
 import {createAutomationAgentTools} from '../../src/research/agents/tests/scripts/tools.js';
-import {runAgentTask,taskFingerprint} from '../../src/research/agent-runtime.js';
+import {runAgentTask,taskFingerprint} from '../../src/research/runtime/run-agent.js';
 import {claimedAutomationScenario,agentFixtureOutput,fixtureTurn} from '../../test-support/agent-scenario.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
@@ -20,7 +21,7 @@ async function environment(action) {
 }
 function config(env,extra={}) {
   const policy=createAgentPolicy({modes:{automation:'agent/v1'}});
-  return {sessions:createAgentSessionStore(env.pool,env.job),store:env.store,policy,
+  return {instruction:AUTOMATION_AGENT.instruction,instruction_version:AUTOMATION_AGENT.version,toolDefinitions:AUTOMATION_AGENT_TOOLS,terminalTool:'submit_automation',sessions:createAgentSessionStore(env.pool,env.job),store:env.store,policy,
     task:{fingerprint:taskFingerprint(env.input),case_ids:env.input.test_cases.map(t=>t.id)},
     initialContents:[{role:'user',parts:[{text:'Controle técnico, não resultado de pesquisa.'}]}],
     tools:createAutomationAgentTools({...env,store:env.store}),model:'fixture',parameters:{temperature:0.2,maxOutputTokens:8192},...extra};

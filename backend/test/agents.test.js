@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validateOutput} from '../src/research/agents/validation.js';
-import { createModelGateway, GENERATION_PARAMETERS, providerSchema } from '../src/research/model.js';
+import { createModelGateway, GENERATION_PARAMETERS, providerSchema } from '../src/research/runtime/model-gateway.js';
 
 export const requirement = {
   code:'RF-001',title:'Autenticação',description:'O sistema deve autenticar o pesquisador.',kind:'functional',

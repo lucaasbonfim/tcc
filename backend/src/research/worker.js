@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import pool from '../config/database.js';
 import { createArtifactStore } from './artifacts.js';
-import { createModelGateway } from './model.js';
+import { createModelGateway } from './runtime/model-gateway.js';
 import { createProcessor } from './processor.js';
 import { assertMigrations } from './migrate.js';
 

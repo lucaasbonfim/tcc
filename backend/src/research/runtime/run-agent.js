@@ -1,7 +1,6 @@
 import {createHash} from 'node:crypto';
 import {setTimeout as wait} from 'node:timers/promises';
-import {assert} from './errors.js';
-import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './agents/tests/scripts/definition.js';
+import {assert} from '../errors.js';
 import {providerRetryAfterMs,MAX_PROVIDER_WAIT_MS} from './provider-retry.js';
 
 export const taskFingerprint=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -13,7 +12,8 @@ async function abortable(action,signal) {
   })]);}finally{if(listener)signal.removeEventListener('abort',listener);}
 }
 
-export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal,instruction=AUTOMATION_AGENT.instruction,instruction_version=AUTOMATION_AGENT.version,toolDefinitions=AUTOMATION_AGENT_TOOLS,terminalTool='submit_automation'}) {
+export async function runAgentTask({sessions,store,generateTurn,tools,task,policy,initialContents,model,parameters,signal,instruction,instruction_version,toolDefinitions,terminalTool}) {
+  assert(typeof instruction==='string' && typeof instruction_version==='string' && Array.isArray(toolDefinitions) && toolDefinitions.length>0 && typeof terminalTool==='string','Perfil de agente explícito obrigatório.',422);
   const started=Date.now(),controller=new AbortController();
   const abort=()=>controller.abort(signal?.reason);
   let session=await sessions.find(),checkpoint;
@@ -49,7 +49,7 @@ export async function runAgentTask({sessions,store,generateTurn,tools,task,polic
         await sessions.checkpoint(session.id,await save(),activeElapsed());
         for(const done of pending.done) {
           const observation=await store.json(done.observation_ref);
-          if(done.name==='prepare_automation_scope' && !done.rejected)await tools.restore(observation);
+          if(!done.rejected)await tools.restoreCompletedCall?.(done,observation);
           if(done.terminal_ref) {
             await sessions.finish(session.id,'completed','submitted',done.terminal_ref,activeElapsed());
             return store.json(done.terminal_ref);

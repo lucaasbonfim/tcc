@@ -1,4 +1,4 @@
-import {assert} from './errors.js';
+import {assert} from '../errors.js';
 
 export function nextUnreadOffset(spans,total,candidate=null) {
   let cursor=0;

@@ -1,5 +1,5 @@
-import { createGeminiClient } from '../config/gemini.js';
-import { assert } from './errors.js';
+import { createGeminiClient } from '../../config/gemini.js';
+import { assert } from '../errors.js';
 import { randomUUID } from 'node:crypto';
 
 export const GENERATION_PARAMETERS = Object.freeze({ temperature:0.2, maxOutputTokens:8192 });

@@ -3,9 +3,9 @@ import {assert,text,transaction} from '../../../errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {requirementsOutputSchema} from '../contracts.js';
 import {citationRequest} from '../citations.js';
-import {createAgentToolRegistry} from '../../../agent-tools.js';
-import {createAgentSessionStore} from '../../../agent-sessions.js';
-import {runAgentTask,taskFingerprint} from '../../../agent-runtime.js';
+import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
+import {createAgentSessionStore} from '../../../runtime/session-store.js';
+import {runAgentTask,taskFingerprint} from '../../../runtime/run-agent.js';
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 import {recordMessageEvent,recordHumanEvent} from '../../../run-events.js';
 

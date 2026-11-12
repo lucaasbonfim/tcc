@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRecordReader,nextUnreadOffset} from '../src/research/agent-records.js';
+import {createRecordReader,nextUnreadOffset} from '../src/research/runtime/record-reader.js';
 test('leitura parcial informa a lacuna real e só libera submissão após todos os trechos',async()=>{
   const records=[{id:'evidence-1',data:{text:'"linha\\\n'.repeat(500)}}],reader=createRecordReader({records,maxObservationChars:1500,idField:'result_id'});
   const first=reader.read('evidence-1',0,10000);assert.equal(first.observation.read_complete,false);assert.equal(first.observation.next_offset,first.observation.end);assert.ok(JSON.stringify(first.observation).length<=1500);

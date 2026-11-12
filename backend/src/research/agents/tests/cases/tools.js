@@ -3,7 +3,7 @@ import {validateShape} from '../../../shared/validation.js';
 import {validateOutput} from '../../validation.js';
 
 import {assertTestCoverage} from './parts.js';
-import {createAgentToolRegistry} from '../../../agent-tools.js';
+import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
 
 import {TESTS_AGENT} from './definition.js';
 

@@ -9,7 +9,7 @@ import {inspectRepository} from '../src/research/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 import {buildScope,generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 import {createAutomationAgentTools} from '../src/research/agents/tests/scripts/tools.js';
-import {boundedObservation} from '../src/research/agent-tools.js';
+import {boundedObservation} from '../src/research/runtime/tool-registry.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../src/research/agents/tests/scripts/definition.js';
 import {automationDeclarations} from '../src/research/agents/tests/scripts/bindings.js';
 test('agente consulta fontes fixadas, prepara dependências e submete com escopo efetivo sem executar código',async()=>{
