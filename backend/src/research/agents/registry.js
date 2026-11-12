@@ -1,5 +1,5 @@
 import {AGENTS as fixedDefinitions} from '../agents.js';
-import {REQUIREMENTS_AGENT} from '../requirements-agent.js';
+import {REQUIREMENTS_AGENT} from './requirements/definition.js';
 import {TESTS_AGENT} from '../tests-agent.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from '../agent-contract.js';
 import {AUTOMATION} from '../automation-contract.js';
@@ -7,7 +7,7 @@ import {EXECUTION_PLANNING_AGENT} from '../execution-agent.js';
 import {EXECUTION_DIAGNOSIS_AGENT} from '../execution-diagnostics.js';
 import {EVALUATION_AGENT} from '../evaluation-agent.js';
 import {EVALUATION} from '../evaluation-contract.js';
-import {CLARIFICATION_AGENT} from '../agent-collaboration.js';
+import {CLARIFICATION_AGENT} from './requirements/subagents/clarification.js';
 import {SCRIPT_REVIEW_AGENT} from '../script-review-agent.js';
 
 // Four research roles. Internal stages/phases do not create additional roles.

@@ -1,5 +1,5 @@
 import {assert} from './errors.js';
-import {validateShape} from './agents.js';
+import {validateShape} from './shared/validation.js';
 import {createAgentToolRegistry} from './agent-tools.js';
 import {createRecordReader} from './agent-records.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';

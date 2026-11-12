@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {assert,transaction} from './errors.js';
-import {validateShape} from './agents.js';
+import {validateShape} from './shared/validation.js';
 import {createAgentToolRegistry} from './agent-tools.js';
 import {createRecordReader} from './agent-records.js';
 import {validateAutomationArtifact} from './automation-contract.js';

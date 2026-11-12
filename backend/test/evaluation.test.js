@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {validateEvaluation,evaluationRequestSchema,EVALUATION_SCHEMA} from '../src/research/evaluation-contract.js';
-import {validateShape} from '../src/research/agents.js';
+import {validateShape} from '../src/research/shared/validation.js';
 function sample(status) {
   const test_case_id=randomUUID(),automated_test_id=randomUUID(),id=randomUUID();
   const input={results:[{id,test_case_id,automated_test_id,status,observed_excerpt:'Observação real do fixture executor.',omitted_characters:0}],test_cases:[{id:test_case_id,content:{requirement_codes:['RF-001'],expected_result:'Retorna 5.'}}],automated_tests:[{id:automated_test_id}],requirements:[{code:'RF-001'}]};

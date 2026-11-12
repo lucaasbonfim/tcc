@@ -1,6 +1,6 @@
 // Validação manual e paga do transporte/contratos. Não faz parte da suíte e não gera resultados da pesquisa.
 import 'dotenv/config';
-import { AGENTS, validateOutput } from '../src/research/agents.js';
+import {AGENTS,validateOutput} from '../src/research/agents.js';
 import { createModelGateway, GENERATION_PARAMETERS } from '../src/research/model.js';
 import { getGeminiModel, getGeminiApiKey } from '../src/config/gemini.js';
 

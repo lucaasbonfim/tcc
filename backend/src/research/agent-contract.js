@@ -1,5 +1,5 @@
 import {assert} from './errors.js';
-import {validateShape} from './agents.js';
+import {validateShape} from './shared/validation.js';
 import {AUTOMATION_SCHEMA} from './automation-contract.js';
 
 export const AGENT_CONTRACT_VERSION='1.0.0';

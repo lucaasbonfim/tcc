@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {citationRequest} from '../src/research/citations.js';
-import {requirementsOutputSchema} from '../src/research/agents.js';
-import {createRequirementsAgentTools} from '../src/research/requirements-agent.js';
+import {citationRequest} from '../src/research/agents/requirements/citations.js';
+import {requirementsOutputSchema} from '../src/research/agents/requirements/contracts.js';
+import {createRequirementsAgentTools} from '../src/research/agents/requirements/tools.js';
 function requirementFixture(source_id){return {code:'RF-001',title:'Somar',description:'O sistema deve somar dois números.',kind:'functional',actors:[],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{source_id}]};}
 test('A1 exige consulta de todas as fontes e mantém referências literais resolvíveis',async()=>{
   const prepared=citationRequest({documents:[{id:'doc',name:'Regras',pages:[{page:1,text:'O sistema deve somar dois números. '.repeat(50)}]}]},requirementsOutputSchema);

@@ -1,5 +1,5 @@
-import {assert} from './errors.js';
-import {validateShape} from './agents.js';
+import {assert} from '../../errors.js';
+import {validateShape} from '../../shared/validation.js';
 
 export function citationRequest(input,baseSchema) {
   const catalog=[];

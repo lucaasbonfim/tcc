@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {planParts,consolidateParts,validatePart} from '../src/research/requirement-parts.js';
+import {planParts,consolidateParts,validatePart} from '../src/research/agents/requirements/parts.js';
 
 test('partes preservam todas as posições e páginas com entradas limitadas e sobreposição',()=>{
   const text='Regra de negócio com contexto.\n'.repeat(5000);

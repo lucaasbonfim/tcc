@@ -1,5 +1,6 @@
 import {assert} from './errors.js';
-import {validateShape,validateOutput,testsOutputSchema} from './agents.js';
+import {validateShape} from './shared/validation.js';
+import {validateOutput,testsOutputSchema} from './agents.js';
 import {assertTestCoverage} from './test-parts.js';
 import {createAgentToolRegistry} from './agent-tools.js';
 import {AGENT_CONTRACT_VERSION} from './agent-contract.js';

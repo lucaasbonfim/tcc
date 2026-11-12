@@ -1,7 +1,9 @@
 import {randomUUID} from 'node:crypto';
-import {assert} from './errors.js';
-import {requirementsOutputSchema,validateOutput,validateShape,validateRequirement,validateSources} from './agents.js';
-import {canonical} from '../../../shared/execution-protocol.js';
+import {assert} from '../../errors.js';
+import {requirementsOutputSchema,validateSources} from './contracts.js';
+import {validateOutput} from '../../agents.js';
+import {validateShape} from '../../shared/validation.js';
+import {canonical} from '../../../../../shared/execution-protocol.js';
 import {preservedOutput} from './citations.js';
 
 export const PART_SCHEMA={...requirementsOutputSchema,properties:{...requirementsOutputSchema.properties,requirements:{...requirementsOutputSchema.properties.requirements,minItems:0}}};

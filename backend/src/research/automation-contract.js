@@ -2,7 +2,7 @@ import { posix } from 'node:path';
 import { parse } from 'acorn';
 import { assert } from './errors.js';
 import { safePath } from './inspection.js';
-import { validateShape } from './agents.js';
+import {validateShape} from './shared/validation.js';
 
 const string={type:'string'};
 const arr=(items,maxItems=50,minItems=0)=>({type:'array',items,maxItems,minItems});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createClarificationTools} from '../src/research/agent-collaboration.js';
+import {createClarificationTools} from '../src/research/agents/requirements/subagents/clarification.js';
 test('A1 consultado não delega, não altera requisitos e só cita fontes consultadas',async()=>{
   const catalog=[{source_id:'S0001',document_id:'doc',page:1,quote:'Somar dois números.'}],tools=createClarificationTools({catalog});
   const output={status:'ambiguous',answer:'A fonte não especifica entradas inválidas.',source_ids:['S0001']};

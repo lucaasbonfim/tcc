@@ -1,12 +1,13 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,transaction} from './errors.js';
-import {validateShape,requirementsOutputSchema} from './agents.js';
-import {citationRequest} from './citations.js';
-import {createAgentToolRegistry} from './agent-tools.js';
-import {createAgentSessionStore} from './agent-sessions.js';
-import {runAgentTask,taskFingerprint} from './agent-runtime.js';
-import {AGENT_CONTRACT_VERSION} from './agent-contract.js';
-import {recordMessageEvent,recordHumanEvent} from './run-events.js';
+import {assert,text,transaction} from '../../../errors.js';
+import {validateShape} from '../../../shared/validation.js';
+import {requirementsOutputSchema} from '../contracts.js';
+import {citationRequest} from '../citations.js';
+import {createAgentToolRegistry} from '../../../agent-tools.js';
+import {createAgentSessionStore} from '../../../agent-sessions.js';
+import {runAgentTask,taskFingerprint} from '../../../agent-runtime.js';
+import {AGENT_CONTRACT_VERSION} from '../../../agent-contract.js';
+import {recordMessageEvent,recordHumanEvent} from '../../../run-events.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string={type:'string'};
