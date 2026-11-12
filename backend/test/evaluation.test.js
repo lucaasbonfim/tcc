@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {validateEvaluation,evaluationRequestSchema,EVALUATION_SCHEMA} from '../src/research/evaluation-contract.js';
+import {validateEvaluation,evaluationRequestSchema,EVALUATION_SCHEMA} from '../src/research/agents/evaluation/contracts.js';
 import {validateShape} from '../src/research/shared/validation.js';
 function sample(status) {
   const test_case_id=randomUUID(),automated_test_id=randomUUID(),id=randomUUID();

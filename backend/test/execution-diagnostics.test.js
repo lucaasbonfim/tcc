@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateExecutionDiagnostics,createExecutionDiagnosisTools} from '../src/research/execution-diagnostics.js';
+import {validateExecutionDiagnostics} from '../src/research/agents/execution/diagnosis/contracts.js';
+import {createExecutionDiagnosisTools} from '../src/research/agents/execution/diagnosis/tools.js';
 function sample(status='passed') {
   const result={id:'r',test_case_id:'c',automated_test_id:'s',evidence_id:'e',status,observed_excerpt:'Observação preservada.',omitted_characters:0};
   return {input:{results:[result],test_cases:[{id:'c',content:{expected_result:'Retorna 5.',requirement_codes:['RF-001']}}],automated_tests:[{id:'s',version:1,files_data:[]}],requirements:[{code:'RF-001'}],original_source_excerpts:[],environments:[{evidence_id:'e'}]},output:{diagnostics:[{result_id:'r',script_id:'s',script_version:1,kind:'inconclusive',action:'inconclusive',expected_behavior:'Retorna 5.',observed_behavior:result.observed_excerpt,evidence_quote:result.observed_excerpt,rationale:'Evidência limitada.',limitations:[]}],summary:'Controle técnico.',limitations:[]}};

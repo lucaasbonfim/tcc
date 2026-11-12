@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID,createHash} from 'node:crypto';
 import {sha256} from '../../shared/execution-protocol.js';
-import {createExecutionPlanningTools} from '../src/research/execution-agent.js';
+import {createExecutionPlanningTools} from '../src/research/agents/execution/planning/tools.js';
 test('planejador exige capacidades/leitura, não executa e rejeita scripts externos ou omitidos',async()=>{
   const content='export const x=1;',source={path:'index.js',content,sha256:sha256(content),git_sha:createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0`).update(content).digest('hex')};
   const id=randomUUID(),test_case_id=randomUUID(),scope={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40),module:{adapter:'node-test/v2'},files:[source]};

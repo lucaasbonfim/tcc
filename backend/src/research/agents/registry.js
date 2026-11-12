@@ -1,12 +1,16 @@
-import {AGENTS as fixedDefinitions} from '../agents.js';
+import {REQUIREMENTS_FIXED_AGENT} from './requirements/definition.js';
+import {TESTS_FIXED_AGENT} from './tests/cases/definition.js';
+import {EXECUTION_FIXED_AGENT} from './execution/definition.js';
+import {EVALUATION_STAGE_AGENT} from './evaluation/definition.js';
+const fixedDefinitions=[REQUIREMENTS_FIXED_AGENT,TESTS_FIXED_AGENT,EXECUTION_FIXED_AGENT,EVALUATION_STAGE_AGENT];
 import {REQUIREMENTS_AGENT} from './requirements/definition.js';
 import {TESTS_AGENT} from './tests/cases/definition.js';
 import {AUTOMATION_AGENT,AUTOMATION_AGENT_TOOLS} from './tests/scripts/definition.js';
 import {AUTOMATION} from './tests/scripts/definition.js';
-import {EXECUTION_PLANNING_AGENT} from '../execution-agent.js';
-import {EXECUTION_DIAGNOSIS_AGENT} from '../execution-diagnostics.js';
-import {EVALUATION_AGENT} from '../evaluation-agent.js';
-import {EVALUATION} from '../evaluation-contract.js';
+import {EXECUTION_PLANNING_AGENT} from './execution/planning/definition.js';
+import {EXECUTION_DIAGNOSIS_AGENT} from './execution/diagnosis/definition.js';
+import {EVALUATION_AGENT} from './evaluation/definition.js';
+import {EVALUATION} from './evaluation/definition.js';
 import {CLARIFICATION_AGENT} from './requirements/subagents/clarification.js';
 import {SCRIPT_REVIEW_AGENT} from './tests/subagents/script-review.js';
 
