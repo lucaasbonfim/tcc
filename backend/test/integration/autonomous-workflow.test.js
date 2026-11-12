@@ -9,7 +9,7 @@ import {createArtifactStore} from '../../src/research/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 import {autonomousFixtureTurn} from '../../test-support/autonomous-fixture.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
-import {createAutonomyController,AUTONOMY_LOCK_PREFIX} from '../../src/research/autonomy.js';
+import {createAutonomyController,AUTONOMY_LOCK_PREFIX} from '../../src/research/orchestrator/autonomous-flow.js';
 const url=process.env.TEST_DATABASE_URL;if(url&&!new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 async function env(action){const pool=new pg.Pool({connectionString:url}),dir=await mkdtemp(join(tmpdir(),'autonomous-run-')),store=createArtifactStore(dir);try{await migrate(pool);await action({pool,store});}finally{await pool.end();await rm(dir,{recursive:true,force:true});}}
 async function prepare(pool,store,{native=false,generateTurn=autonomousFixtureTurn,status='passed'}={}) {

@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {migrate} from '../../src/research/migrate.js';
 import {createArtifactStore} from '../../src/research/artifacts.js';
-import {createProcessor} from '../../src/research/processor.js';
+import {createResearchOrchestrator} from '../../src/research/orchestrator/index.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
@@ -24,7 +24,7 @@ test('documento acima de 100 mil caracteres retoma partes sem repetir checkpoint
       if(seq===2 && fail){fail=false;return {raw:'invalid-json',metadata:{fixture:true}};}
       return {raw:JSON.stringify({requirements:[{code:'RF-001',title:'Somar',description:'O sistema deve somar dois números.',kind:'functional',actors:[],use_cases:[],preconditions:[],postconditions:[],main_flow:[],alternative_flows:[],exception_flows:[],acceptance_criteria:[],uncertainties:[],sources:[{source_id:request.input.source_catalog[0].source_id}]}],alerts:[]}),metadata:{fixture:true}};
     };
-    const processor=createProcessor({pool,store,generate});
+    const processor=createResearchOrchestrator({pool,store,generate});
     await processor.processOne();await processor.processOne();
     let detail=await services.runs.detail(run.id);
     assert.equal(detail.status,'failed');assert.equal(detail.requirement_parts[0].status,'completed');
@@ -48,7 +48,7 @@ test('continuação preserva snapshot e checkpoints após esgotar tentativas, se
     const project=await services.projects.create({name:'Retomar PDF',repository_url:'https://github.com/example/repo',requested_ref:'main'});
     await services.projects.addDocument(project.id,Buffer.from('O sistema deve somar dois números. Texto de contexto.\n'.repeat(900)),'requisitos.txt','text/plain');
     const original=await services.runs.create(project.id);let failing=true,firstCalls=0;
-    const processor=createProcessor({pool,store,generate:async request=>{
+    const processor=createResearchOrchestrator({pool,store,generate:async request=>{
       if(request.input.part.sequence===1)firstCalls++;
       if(failing && request.input.part.sequence===2)return {raw:'{"requirements":',metadata:{finish_reasons:['MAX_TOKENS']}};
       return services.generate(request);

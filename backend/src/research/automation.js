@@ -7,7 +7,7 @@ import {planAutomationParts} from './agents/tests/scripts/parts.js';
 import {planModuleScopes} from './module-scopes.js';
 import {agentMode} from './runtime/policy.js';
 import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
-import {admitProduced,assertInitialGrant} from './workflow-policy.js';
+import {admitProduced,assertInitialGrant} from './orchestrator/workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 

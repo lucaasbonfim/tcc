@@ -15,7 +15,7 @@ import {createAgentPolicy,agentMode} from './runtime/policy.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 import {createAgentHistoryService} from './agent-history.js';
 import {createCollaborationService} from './agents/requirements/subagents/clarification.js';
-import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './workflow-policy.js';
+import {prepareWorkflowPolicy,admitProduced,assertInitialGrant} from './orchestrator/workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
 import {createTimelineService} from './timeline.js';
 import {createAssessmentService} from './assessments.js';

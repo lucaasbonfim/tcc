@@ -9,7 +9,7 @@ import {createArtifactStore} from '../../src/research/artifacts.js';
 import {createAutomationService} from '../../src/research/automation.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
 import {createExecutionService} from '../../src/research/execution.js';
-import {createProcessor} from '../../src/research/processor.js';
+import {createResearchOrchestrator} from '../../src/research/orchestrator/index.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
 import {createEvaluationService} from '../../src/research/evaluation.js';
 const url=process.env.TEST_DATABASE_URL;
@@ -47,7 +47,7 @@ test('automação exige revisão textual, preserva scripts e audita edição/apr
     const execution=createExecutionService({pool,store,client:executorClient});
     await execution.authorize(run.id,{justification:'Autorização sintética para testar integração, sem execução real.'});
     await assert.rejects(execution.authorize(run.id,{justification:'Duplicar trabalho.'}),/Conclua/);
-    await createProcessor({pool,store,generate:services.generate,executorClient}).processOne();
+    await createResearchOrchestrator({pool,store,generate:services.generate,executorClient}).processOne();
     const finished=await services.runs.detail(run.id);
     assert.equal(finished.execution_jobs[0].status,'completed');
     assert.equal(finished.test_results[0].status,'failed');
@@ -56,7 +56,7 @@ test('automação exige revisão textual, preserva scripts e audita edição/apr
     assert.equal(finished.requirements[0].review_status,'approved');
     assert.equal(finished.status,'pending');
     const evaluation=createEvaluationService({pool,store});
-    await createProcessor({pool,store,generate:services.generate,executorClient}).processOne();
+    await createResearchOrchestrator({pool,store,generate:services.generate,executorClient}).processOne();
     const analyzed=await services.runs.detail(run.id);
     assert.equal(analyzed.findings.length,1);
     assert.equal(analyzed.findings[0].content.classification,'possible_functional_divergence');

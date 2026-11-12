@@ -1,9 +1,9 @@
-import {createRunService} from './runs.js';
-import {createAutomationService} from './automation.js';
-import {createExecutionService} from './execution.js';
+import {createRunService} from '../runs.js';
+import {createAutomationService} from '../automation.js';
+import {createExecutionService} from '../execution.js';
 import {assertInitialGrant} from './workflow-policy.js';
-import {appendRunEvent} from './run-events.js';
-import {transaction} from './errors.js';
+import {appendRunEvent} from '../run-events.js';
+import {transaction} from '../errors.js';
 export const AUTONOMY_LOCK_PREFIX='autonomy:xact/v1:';
 export function createAutonomyController({pool,store,executorClient}) {
   const runs=createRunService({pool,store,executorClient}),automation=createAutomationService({pool,store}),execution=createExecutionService({pool,store,client:executorClient});

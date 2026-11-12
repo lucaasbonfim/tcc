@@ -9,7 +9,7 @@ import { migrate } from '../../src/research/migrate.js';
 import { createArtifactStore } from '../../src/research/artifacts.js';
 import { createProjectService } from '../../src/research/projects.js';
 import { createRunService } from '../../src/research/runs.js';
-import { createProcessor } from '../../src/research/processor.js';
+import { createResearchOrchestrator } from '../../src/research/orchestrator/index.js';
 
 const url = process.env.TEST_DATABASE_URL;
 if (url && !new URL(url).pathname.startsWith('/tcc_test_')) throw new Error('Utilize banco separado tcc_test_.');
@@ -28,7 +28,7 @@ test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamen
   try {
     await migrate(pool);
     const project = await projects.create(input);
-    const processor = createProcessor({pool,store,generate:async request => output(request)});
+    const processor = createResearchOrchestrator({pool,store,generate:async request => output(request)});
     await t.test('enfileira uma execução e preserva snapshot antes das revisões',async () => {
       const run = await runs.create(project.id);
       runId = run.id;
@@ -73,7 +73,7 @@ test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamen
     await projects.update(project.id,input);
     await t.test('JSON inválido preserva saída, repetição limitada a três e histórico anterior intacto',async () => {
       const run = await runs.create(project.id);
-      const bad = createProcessor({pool,store,generate:async () => ({raw:'invalid JSON',metadata:{cost:null}})});
+      const bad = createResearchOrchestrator({pool,store,generate:async () => ({raw:'invalid JSON',metadata:{cost:null}})});
       for (let attempt=1;attempt<=3;attempt++) {
         await bad.processOne();
         const detail = await runs.detail(run.id);
@@ -89,7 +89,7 @@ test('pipeline persistente: locks, revisão, rastreabilidade, falhas, cancelamen
       const run = await runs.create(project.id);
       let release,started;
       const signal = new Promise(resolve => {started=resolve;});
-      const delayed = createProcessor({pool,store,generate:async request => { started(); await new Promise(resolve => {release=resolve;}); return output(request); }});
+      const delayed = createResearchOrchestrator({pool,store,generate:async request => { started(); await new Promise(resolve => {release=resolve;}); return output(request); }});
       const processing = delayed.processOne();
       await signal;
       await runs.cancel(run.id,{justification:'Cancelar processamento em andamento.'});

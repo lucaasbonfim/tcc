@@ -6,7 +6,7 @@ import {buildExecutionBundles} from './execution-plan.js';
 import {agentMode} from './runtime/policy.js';
 import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
 import {createEvaluationService} from './evaluation.js';
-import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './workflow-policy.js';
+import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './orchestrator/workflow-policy.js';
 import {appendRunEvent,recordHumanEvent} from './run-events.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 

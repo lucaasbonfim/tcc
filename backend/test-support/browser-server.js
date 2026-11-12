@@ -7,7 +7,7 @@ import { createArtifactStore } from '../src/research/artifacts.js';
 import { createProjectService } from '../src/research/projects.js';
 import { createRunService } from '../src/research/runs.js';
 import { createResearchRouter } from '../src/research/routes.js';
-import { createProcessor } from '../src/research/processor.js';
+import { createResearchOrchestrator } from '../src/research/orchestrator/index.js';
 import { errorHandler } from '../src/middlewares/errorHandler.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -59,7 +59,7 @@ const generate=async ({input}) => {
   return {raw:JSON.stringify(input.documents ? {requirements:[requirement],alerts:[]} : {test_cases:cases,warnings:[]}),metadata:{model_version:'e2e-fixture',usage:null,cost:null}};
 };
 const retryFixtureCalls=new Map();
-const processor=createProcessor({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
+const processor=createResearchOrchestrator({pool,store,executorClient,generate,generateTurn:async({contents,tools})=>{
   const firstText=contents[0].parts[0].text;
   if(firstText.includes('Retry-E2E')){const sends=(retryFixtureCalls.get(firstText)||0)+1;retryFixtureCalls.set(firstText,sends);if(sends<=2)throw Object.assign(new Error('fixture-transient-private'),{name:'ApiError',status:503});}
   if(contents[0].parts[0].text.includes('503-E2E'))throw Object.assign(new Error('fixture-provider-detail-private'),{name:'ApiError',status:503});

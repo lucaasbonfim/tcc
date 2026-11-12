@@ -7,7 +7,7 @@ import {join} from 'node:path';
 import {migrate} from '../../src/research/migrate.js';
 import {createArtifactStore} from '../../src/research/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
-import {admitProduced,assertEnvironmentGrant} from '../../src/research/workflow-policy.js';
+import {admitProduced,assertEnvironmentGrant} from '../../src/research/orchestrator/workflow-policy.js';
 import {transaction} from '../../src/research/errors.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url&&!new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');

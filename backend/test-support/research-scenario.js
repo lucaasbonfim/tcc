@@ -1,6 +1,6 @@
 import {createProjectService} from '../src/research/projects.js';
 import {createRunService} from '../src/research/runs.js';
-import {createProcessor} from '../src/research/processor.js';
+import {createResearchOrchestrator} from '../src/research/orchestrator/index.js';
 import {inspectRepository} from '../src/research/inspection.js';
 import {repositoryFixture} from './repository-fixture.js';
 import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
@@ -27,7 +27,7 @@ export function scenarioServices(pool,store,options={}) {
     if(request.input.source_catalog)for(const item of [...output.requirements,...output.alerts])item.sources=item.sources.map(()=>({source_id:request.input.source_catalog[0].source_id}));
     return {raw:JSON.stringify(output),metadata:{model_version:'test-fixture',usage:null,cost:null}};
   };
-  const processor=createProcessor({pool,store,generate,...options});
+  const processor=createResearchOrchestrator({pool,store,generate,...options});
   return {projects,runs,processor,generate};
 }
 export async function textualScenario(services,runOptions={}) {

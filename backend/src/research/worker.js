@@ -2,13 +2,13 @@ import 'dotenv/config';
 import pool from '../config/database.js';
 import { createArtifactStore } from './artifacts.js';
 import { createModelGateway } from './runtime/model-gateway.js';
-import { createProcessor } from './processor.js';
+import { createResearchOrchestrator } from './orchestrator/index.js';
 import { assertMigrations } from './migrate.js';
 
 let stopping = false;
 let wake;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal,() => { stopping = true; wake?.(); });
-const processor = createProcessor({pool,store:createArtifactStore(),generate:createModelGateway()});
+const processor = createResearchOrchestrator({pool,store:createArtifactStore(),generate:createModelGateway()});
 try {
   await assertMigrations(pool);
   console.log('Worker de pesquisa iniciado. Execução externa somente via serviço executor validado.');
