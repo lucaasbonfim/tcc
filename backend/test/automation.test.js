@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {buildScope,validateAutomation,generatedPath,partitionAutomation} from '../src/research/agents/tests/scripts/contracts.js';
-import {inspectRepository} from '../src/research/inspection.js';
+import {buildScope} from '../src/research/sources/scope.js';
+import {validateAutomation,generatedPath,partitionAutomation} from '../src/research/agents/tests/scripts/contracts.js';
+import {inspectRepository} from '../src/research/sources/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 const version={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)};
 

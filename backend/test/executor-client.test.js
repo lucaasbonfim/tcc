@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createExecutorClient} from '../src/research/executor-client.js';
+import {createExecutorClient} from '../src/research/services/executor-client.js';
 import {executionFixture,fixtureResult} from '../../shared/execution-fixture.js';
 
 test('cliente mantém execução fechada sem configuração ou com política divergente',async()=>{

@@ -1,9 +1,7 @@
 
 
 import {EVALUATION_SCHEMA} from './contracts.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../runtime/session-contract.js';
-
 import {EVALUATION_SECTIONS as sections} from './contracts.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});

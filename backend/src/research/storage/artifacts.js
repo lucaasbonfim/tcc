@@ -2,9 +2,11 @@ import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
-import { assert } from './errors.js';
+import { assert } from '../shared/errors.js';
 
-export function createArtifactStore(directory = process.env.ARTIFACTS_DIR || fileURLToPath(new URL('../../artifacts/', import.meta.url))) {
+export const DEFAULT_ARTIFACTS_DIRECTORY = fileURLToPath(new URL('../../../artifacts/', import.meta.url));
+
+export function createArtifactStore(directory = process.env.ARTIFACTS_DIR || DEFAULT_ARTIFACTS_DIRECTORY) {
   const root = resolve(directory);
   const hash = data => createHash('sha256').update(data).digest('hex');
   function path(key) {

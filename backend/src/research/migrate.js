@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import pool from '../config/database.js';
-import { transaction } from './errors.js';
+import { transaction } from './shared/errors.js';
 
 export async function assertMigrations(database = pool) {
   const directory = new URL('../../../database/migrations/', import.meta.url);

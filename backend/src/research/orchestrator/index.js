@@ -1,2 +1,2 @@
-// Public entry point for the deterministic coordinator of the four research roles.
+// Entrada pública do orquestrador determinístico dos quatro agentes da pesquisa.
 export {createResearchOrchestrator} from './research-orchestrator.js';

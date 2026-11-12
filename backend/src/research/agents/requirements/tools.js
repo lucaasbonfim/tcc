@@ -1,10 +1,9 @@
-import {assert} from '../../errors.js';
+import {assert} from '../../shared/errors.js';
 import {validateShape} from '../../shared/validation.js';
 import {validateOutput} from '../validation.js';
 import {validatePart} from './parts.js';
 import {resolveCitations} from './citations.js';
 import {createAgentToolRegistry} from '../../runtime/tool-registry.js';
-
 import {REQUIREMENTS_AGENT} from './definition.js';
 
 export function createRequirementsAgentTools({input,schema,definition=REQUIREMENTS_AGENT,maxObservationChars=12000}) {

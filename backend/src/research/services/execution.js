@@ -1,13 +1,13 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,transaction} from './errors.js';
+import {assert,text,transaction} from '../shared/errors.js';
 import {createExecutorClient} from './executor-client.js';
-import {sha256,validateBundle,validateExecutionResult} from '../../../shared/execution-protocol.js';
+import {sha256,validateBundle,validateExecutionResult} from '../../../../shared/execution-protocol.js';
 import {buildExecutionBundles} from './execution-plan.js';
-import {agentMode} from './runtime/policy.js';
-import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
+import {agentMode} from '../runtime/policy.js';
+import {AGENT_CONTRACT_VERSION} from '../runtime/session-contract.js';
 import {createEvaluationService} from './evaluation.js';
-import {isEligible,assertInitialGrant,assertEnvironmentGrant} from './orchestrator/workflow-policy.js';
-import {appendRunEvent,recordHumanEvent} from './run-events.js';
+import {isEligible,assertInitialGrant,assertEnvironmentGrant} from '../orchestrator/workflow-policy.js';
+import {appendRunEvent,recordHumanEvent} from '../storage/run-events.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 
 export const EXECUTION_INSTRUCTION='Serviço A3 determinístico v2.2: executar os bundles do plano autorizado com scripts/revisões/hashes aprovados e fontes do SHA, em serviço autenticado com política do perfil validada. Cada bundle tem checkpoint e identidade de transporte estáveis; comandos fixos por adaptador. Preservar perfil local/dedicado, ambiente, resultados e evidências sem inferir defeito funcional. Nenhuma chamada LLM autoriza comandos.';

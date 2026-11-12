@@ -1,9 +1,8 @@
 import {validateExecutionProposal} from './contracts.js';
-import {assert} from '../../../errors.js';
+import {assert} from '../../../shared/errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
 import {createRecordReader} from '../../../runtime/record-reader.js';
-
 import {EXECUTION_PLANNING_AGENT} from './definition.js';
 
 export function createExecutionPlanningTools({input,definition=EXECUTION_PLANNING_AGENT,maxObservationChars=12000}) {

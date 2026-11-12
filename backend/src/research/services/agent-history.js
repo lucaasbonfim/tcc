@@ -1,4 +1,4 @@
-import {assert} from './errors.js';
+import {assert} from '../shared/errors.js';
 
 function page(input={}) {
   const offset=Number(input.offset ?? 0),limit=Number(input.limit ?? 25);

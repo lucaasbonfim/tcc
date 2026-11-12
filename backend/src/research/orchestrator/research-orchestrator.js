@@ -1,30 +1,24 @@
 import {createTaskQueue} from './task-queue.js';
 import {createStageLifecycle} from './stage-lifecycle.js';
 import {prepareStageInput,runAgentStage} from './stage-handlers.js';
-
 import {AGENTS} from '../agents/registry.js';
 import {validateOutput} from '../agents/validation.js';
-
-import { transaction } from '../errors.js';
-import { createAutomationService } from '../automation.js';
+import { transaction } from '../shared/errors.js';
+import { createAutomationService } from '../services/automation.js';
 import {partitionAutomation,AUTOMATION_COVERAGE_GUARD} from '../agents/tests/scripts/contracts.js';
-import {createExecutionService} from '../execution.js';
-import {createEvaluationService} from '../evaluation.js';
+import {createExecutionService} from '../services/execution.js';
+import {createEvaluationService} from '../services/evaluation.js';
 import {validateEvaluation,evaluationRequestSchema} from '../agents/evaluation/contracts.js';
 import {PART_SCHEMA,validatePart} from '../agents/requirements/parts.js';
 import {citationRequest,resolveCitations} from '../agents/requirements/citations.js';
 import {assertTestCoverage} from '../agents/tests/cases/parts.js';
-import {assert} from '../errors.js';
+import {assert} from '../shared/errors.js';
 import {agentMode,resolveAgentPolicy} from '../runtime/policy.js';
 import {createAgentTurnGateway} from '../runtime/model-gateway.js';
-
 import {validateExecutionProposal} from '../agents/execution/planning/contracts.js';
-
 import {validateExecutionDiagnostics} from '../agents/execution/diagnosis/contracts.js';
-
 import {createAutonomyController} from './autonomous-flow.js';
-
-import {recordAttemptInput} from '../attempt-snapshots.js';
+import {recordAttemptInput} from '../storage/attempt-snapshots.js';
 
 export function createResearchOrchestrator({ pool, store, generate, executorClient, generateTurn=createAgentTurnGateway() }) {
   const automation=createAutomationService({pool,store});

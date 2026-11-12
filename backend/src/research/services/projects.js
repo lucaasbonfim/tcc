@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { assert, text, transaction } from './errors.js';
-import { resolveRepository } from './github.js';
-import { extractDocument } from './documents.js';
-import { inspectCodeVersion } from './adapters.js';
-import {planModuleScopes} from './module-scopes.js';
+import { assert, text, transaction } from '../shared/errors.js';
+import { resolveRepository } from '../sources/github.js';
+import { extractDocument } from '../sources/documents.js';
+import { inspectCodeVersion } from '../sources/adapters.js';
+import {planModuleScopes} from '../sources/module-scopes.js';
 
 export function createProjectService({ pool, store, resolveCode = resolveRepository, extract = extractDocument, inspectCode=inspectCodeVersion }) {
   async function get(id, db = pool, lock = false) {

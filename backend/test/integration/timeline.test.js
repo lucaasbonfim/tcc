@@ -8,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {migrate} from '../../src/research/migrate.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 const url=process.env.TEST_DATABASE_URL;if(url&&!new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 async function env(action){const pool=new pg.Pool({connectionString:url}),dir=await mkdtemp(join(tmpdir(),'timeline-')),store=createArtifactStore(dir);try{await migrate(pool);await action({pool,store});}finally{await pool.end();await rm(dir,{recursive:true,force:true});}}

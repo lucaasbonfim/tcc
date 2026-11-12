@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { transaction, text, uuid } from '../src/research/errors.js';
+import { transaction, text, uuid } from '../src/research/shared/errors.js';
 
 test('validação limita textos e identificadores antes de acessar o banco', () => {
   assert.equal(uuid(randomUUID()).length, 36);

@@ -1,7 +1,6 @@
 
 
-import {assert} from '../errors.js';
-
+import {assert} from '../shared/errors.js';
 import {createAgentSessionStore} from '../runtime/session-store.js';
 import {createAutomationAgentTools} from '../agents/tests/scripts/tools.js';
 import {runAgentTask,taskFingerprint} from '../runtime/run-agent.js';
@@ -11,9 +10,7 @@ import {createTestsAgentTools} from '../agents/tests/cases/tools.js';
 import {createEvaluationAgentTools} from '../agents/evaluation/tools.js';
 import {createCollaborationService} from '../agents/requirements/subagents/clarification.js';
 import {createExecutionPlanningTools} from '../agents/execution/planning/tools.js';
-
 import {createExecutionDiagnosisTools} from '../agents/execution/diagnosis/tools.js';
-
 import {createScriptReviewService} from '../agents/tests/subagents/script-review.js';
 
 export async function prepareStageInput({pool,store,automation,execution,evaluation,job,snapshot,isAgent}) {

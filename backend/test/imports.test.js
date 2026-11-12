@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseRepository, resolveRepository } from '../src/research/github.js';
-import { createArtifactStore } from '../src/research/artifacts.js';
-import { extractDocument } from '../src/research/documents.js';
+import { parseRepository, resolveRepository } from '../src/research/sources/github.js';
+import { createArtifactStore } from '../src/research/storage/artifacts.js';
+import { extractDocument } from '../src/research/sources/documents.js';
 
 test('GitHub rejeita SSRF, credenciais, caminhos extras e normaliza .git', () => {
   for (const value of ['http://github.com/a/b','https://127.0.0.1/a/b','https://github.com.evil.test/a/b','https://user@github.com/a/b','https://github.com/a/b/tree/main','https://github.com/a/b?q=x','https://github.com:8080/a/b']) {

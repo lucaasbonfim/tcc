@@ -1,7 +1,6 @@
 
 
 import {AUTOMATION_SCHEMA} from './contracts.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 const str={type:'string'};
 const integer=(min,max)=>({type:'integer',minimum:min,maximum:max});

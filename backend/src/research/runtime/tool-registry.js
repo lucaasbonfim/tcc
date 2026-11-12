@@ -1,4 +1,4 @@
-import {assert} from '../errors.js';
+import {assert} from '../shared/errors.js';
 
 export function boundedObservation(value,maxChars) {
   const serialized=JSON.stringify(value);

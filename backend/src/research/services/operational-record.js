@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text} from './errors.js';
-import {appendRunEvent} from './run-events.js';
+import {assert,text} from '../shared/errors.js';
+import {appendRunEvent} from '../storage/run-events.js';
 
 // Applies only to operational requests. Human review and code authorization never use this helper.
 export function operationalReason(input,description) {

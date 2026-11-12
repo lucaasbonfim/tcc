@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { csvCell, exportCsv } from '../src/research/export.js';
-import { inspectCodeVersion } from '../src/research/adapters.js';
+import { csvCell, exportCsv } from '../src/research/services/export.js';
+import { inspectCodeVersion } from '../src/research/sources/adapters.js';
 import { repositoryFixture } from '../test-support/repository-fixture.js';
 
 test('CSV escapa delimitadores e fórmulas e inclui todas as entidades', () => {

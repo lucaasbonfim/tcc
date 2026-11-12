@@ -1,8 +1,8 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,uuid} from '../errors.js';
-import {createExecutorClient} from '../executor-client.js';
+import {assert,text,uuid} from '../shared/errors.js';
+import {createExecutorClient} from '../services/executor-client.js';
 import {sha256} from '../../../../shared/execution-protocol.js';
-import {appendRunEvent} from '../run-events.js';
+import {appendRunEvent} from '../storage/run-events.js';
 export const isEligible=row=>row.review_status==='approved' || (row.review_status==='pending' && row.processing_status==='eligible');
 export function environmentIdentity(receipt,adapter) {return {deployment_id:receipt.deployment_id,policy_sha256:receipt.policy_sha256,image_id:receipt.images?.[adapter]?.image_id,isolation_profile:receipt.isolation_profile || 'dedicated-vm',development_only:Boolean(receipt.development_only)};}
 export async function prepareWorkflowPolicy({db,store,version,input,executorClient=createExecutorClient()}) {

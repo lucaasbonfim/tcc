@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {setTimeout as wait} from 'node:timers/promises';
-import {assert} from '../errors.js';
+import {assert} from '../shared/errors.js';
 import {providerRetryAfterMs,MAX_PROVIDER_WAIT_MS} from './provider-retry.js';
 
 export const taskFingerprint=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');

@@ -1,5 +1,5 @@
-import {assert} from './errors.js';
-import {sha256} from '../../../shared/execution-protocol.js';
+import {assert} from '../shared/errors.js';
+import {sha256} from '../../../../shared/execution-protocol.js';
 
 // Check the immutable authorization and bundle again at the evaluation boundary.
 // A valid current script is not sufficient evidence that this version was executed.

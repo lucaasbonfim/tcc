@@ -1,4 +1,4 @@
-import {assert} from '../../../errors.js';
+import {assert} from '../../../shared/errors.js';
 
 export function planAutomationParts(input,{maxCases=2,budget=16000}={}) {
   const make=cases=>{

@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import {assert} from './errors.js';
-import {sha256,validateBundle} from '../../../shared/execution-protocol.js';
+import {assert} from '../shared/errors.js';
+import {sha256,validateBundle} from '../../../../shared/execution-protocol.js';
 
 export function buildExecutionBundles({runId,scope,entries,groups}) {
   assert(entries.length>0 && entries.length<=200,'Plano requer entre 1 e 200 scripts aprovados compatíveis.',422);

@@ -1,4 +1,4 @@
-import { assert, fail, text } from './errors.js';
+import { assert, fail, text } from '../shared/errors.js';
 
 export function parseRepository(value) {
   const input = text(value, 'Repositório', 300, true);

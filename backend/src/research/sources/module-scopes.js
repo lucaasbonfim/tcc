@@ -1,5 +1,5 @@
-import {buildScope} from './agents/tests/scripts/contracts.js';
-import {assert} from './errors.js';
+import {buildScope} from './scope.js';
+import {assert} from '../shared/errors.js';
 
 export function planModuleScopes(inspection,root,targetPaths) {
   const module=inspection.modules.find(item=>item.root===root);

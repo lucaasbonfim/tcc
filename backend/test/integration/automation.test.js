@@ -5,13 +5,13 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {migrate} from '../../src/research/migrate.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
-import {createAutomationService} from '../../src/research/automation.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
+import {createAutomationService} from '../../src/research/services/automation.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
-import {createExecutionService} from '../../src/research/execution.js';
+import {createExecutionService} from '../../src/research/services/execution.js';
 import {createResearchOrchestrator} from '../../src/research/orchestrator/index.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';
-import {createEvaluationService} from '../../src/research/evaluation.js';
+import {createEvaluationService} from '../../src/research/services/evaluation.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
 test('automação exige revisão textual, preserva scripts e audita edição/aprovação', {skip:!url},async()=>{

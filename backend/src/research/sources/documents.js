@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assert, fail, text } from './errors.js';
+import { assert, fail, text } from '../shared/errors.js';
 let activePdfParsers = 0;
 
 export async function extractDocument(buffer, filename, mediaType) {

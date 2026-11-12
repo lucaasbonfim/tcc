@@ -1,4 +1,4 @@
-import {assert} from '../errors.js';
+import {assert} from '../shared/errors.js';
 import {validateShape} from '../shared/validation.js';
 import {requirementsOutputSchema,validateRequirement,validateSources} from './requirements/contracts.js';
 import {testsOutputSchema,validateTestCase} from './tests/cases/contracts.js';

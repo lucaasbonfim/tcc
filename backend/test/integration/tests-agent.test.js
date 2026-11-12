@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import pg from 'pg';
 import {migrate} from '../../src/research/migrate.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 import {testCasesFixtureTurn} from '../../test-support/tests-agent-fixture.js';
 const url=process.env.TEST_DATABASE_URL;

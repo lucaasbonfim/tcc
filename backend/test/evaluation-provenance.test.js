@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {executionFixture,fixtureResult} from '../../shared/execution-fixture.js';
 import {sha256} from '../../shared/execution-protocol.js';
-import {verifyEvaluationProvenance} from '../src/research/evaluation-provenance.js';
+import {verifyEvaluationProvenance} from '../src/research/services/evaluation-provenance.js';
 
 function sample() {
   const bundle=executionFixture(),executed=bundle.generated_tests[0],files_data=executed.files.map(({path,code})=>({path,code}));

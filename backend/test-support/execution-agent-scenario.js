@@ -1,8 +1,8 @@
 import {randomUUID} from 'node:crypto';
 import {scenarioServices,textualScenario} from './research-scenario.js';
 import {executionAgentFixtureTurn} from './execution-agent-fixture.js';
-import {createAutomationService} from '../src/research/automation.js';
-import {createExecutionService} from '../src/research/execution.js';
+import {createAutomationService} from '../src/research/services/automation.js';
+import {createExecutionService} from '../src/research/services/execution.js';
 import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 import {fixtureResult} from '../../shared/execution-fixture.js';
 export async function executionAgentScenario(pool,store,{count=1,generateTurn=executionAgentFixtureTurn,status='passed',limits={}}={}) {

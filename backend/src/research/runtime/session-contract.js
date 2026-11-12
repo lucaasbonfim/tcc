@@ -1,4 +1,4 @@
-import {assert} from '../errors.js';
+import {assert} from '../shared/errors.js';
 
 export const AGENT_CONTRACT_VERSION='1.0.0';
 export const SESSION_STATES=Object.freeze(['pending','running','interrupted','completed','failed','cancelled','exhausted']);

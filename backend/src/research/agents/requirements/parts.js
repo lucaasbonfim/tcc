@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {assert} from '../../errors.js';
+import {assert} from '../../shared/errors.js';
 import {requirementsOutputSchema,validateSources} from './contracts.js';
 import {validateOutput} from '../validation.js';
 import {validateShape} from '../../shared/validation.js';

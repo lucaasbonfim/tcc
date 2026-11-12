@@ -6,9 +6,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { migrate } from '../../src/research/migrate.js';
-import { createArtifactStore } from '../../src/research/artifacts.js';
-import { createProjectService } from '../../src/research/projects.js';
-import { createRunService } from '../../src/research/runs.js';
+import { createArtifactStore } from '../../src/research/storage/artifacts.js';
+import { createProjectService } from '../../src/research/services/projects.js';
+import { createRunService } from '../../src/research/services/runs.js';
 import { createResearchOrchestrator } from '../../src/research/orchestrator/index.js';
 
 const url = process.env.TEST_DATABASE_URL;

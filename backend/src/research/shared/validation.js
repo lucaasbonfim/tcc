@@ -1,4 +1,4 @@
-import {assert} from '../errors.js';
+import {assert} from './errors.js';
 
 export function validateShape(value, schema, path = 'resultado') {
   if (schema.type === 'object') {

@@ -1,5 +1,4 @@
 import {EXECUTION_DIAGNOSIS_SCHEMA} from './contracts.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'},list=(items,maxItems,minItems=0)=>({type:'array',items,maxItems,minItems});
 export const EXECUTION_DIAGNOSIS_AGENT={agent:'execution',version:'diagnosis/1.1.1',contract_version:AGENT_CONTRACT_VERSION,schema:EXECUTION_DIAGNOSIS_SCHEMA,

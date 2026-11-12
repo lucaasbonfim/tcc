@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectRepository,javascriptSymbols,javaSymbols,safePath,INSPECTION_LIMITS} from '../src/research/inspection.js';
+import {inspectRepository,javascriptSymbols,javaSymbols,safePath,INSPECTION_LIMITS} from '../src/research/sources/inspection.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 const version={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)};
 test('arquivos legados test.js/spec.cjs não são alvos de implementação',async()=>{

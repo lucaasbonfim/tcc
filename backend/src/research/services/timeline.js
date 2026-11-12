@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {assert} from './errors.js';
+import {assert} from '../shared/errors.js';
 const legacyId=key=>{const s=createHash('sha256').update(key).digest('hex');return `${s.slice(0,8)}-${s.slice(8,12)}-4${s.slice(13,16)}-a${s.slice(17,20)}-${s.slice(20,32)}`;};
 function cursor(value='0'){const s=String(value);assert(/^\d{1,19}$/.test(s)&&BigInt(s)<=9223372036854775807n,'Cursor de histórico inválido.',422);return s;}
 export function createTimelineService({pool,store}) {

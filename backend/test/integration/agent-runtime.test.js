@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import pg from 'pg';
 import {migrate} from '../../src/research/migrate.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
 import {createAgentSessionStore} from '../../src/research/runtime/session-store.js';
 import {createAgentPolicy} from '../../src/research/runtime/policy.js';
 import {createAutomationAgentTools} from '../../src/research/agents/tests/scripts/tools.js';

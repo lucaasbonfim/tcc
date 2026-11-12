@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,transaction} from '../../../errors.js';
+import {assert,text,transaction} from '../../../shared/errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {requirementsOutputSchema} from '../contracts.js';
 import {citationRequest} from '../citations.js';
@@ -7,7 +7,7 @@ import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
 import {createAgentSessionStore} from '../../../runtime/session-store.js';
 import {runAgentTask,taskFingerprint} from '../../../runtime/run-agent.js';
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
-import {recordMessageEvent,recordHumanEvent} from '../../../run-events.js';
+import {recordMessageEvent,recordHumanEvent} from '../../../storage/run-events.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string={type:'string'};

@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
-
-import { transaction } from '../errors.js';
-
-import {assert} from '../errors.js';
-
-import {appendRunEvent} from '../run-events.js';
+import { transaction } from '../shared/errors.js';
+import {assert} from '../shared/errors.js';
+import {appendRunEvent} from '../storage/run-events.js';
 
 export function createTaskQueue({pool}) {
   async function claim() {

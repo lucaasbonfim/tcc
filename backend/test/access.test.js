@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
-import { createResearchRouter } from '../src/research/routes.js';
+import { createResearchRouter } from '../src/research/http/routes.js';
 import { errorHandler } from '../src/middlewares/errorHandler.js';
 import authRoutes from '../src/routes/auth.routes.js';
 

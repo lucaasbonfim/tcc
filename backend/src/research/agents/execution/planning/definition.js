@@ -1,5 +1,4 @@
 import {EXECUTION_PLAN_SCHEMA} from './contracts.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});

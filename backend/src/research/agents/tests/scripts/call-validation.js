@@ -1,4 +1,4 @@
-import {assert} from '../../../errors.js';
+import {assert} from '../../../shared/errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {AUTOMATION_AGENT_TOOLS} from './definition.js';
 

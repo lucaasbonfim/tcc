@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID,createHash} from 'node:crypto';
-import {buildExecutionBundles} from '../src/research/execution-plan.js';
+import {buildExecutionBundles} from '../src/research/services/execution-plan.js';
 import {sha256,validateBundle} from '../../shared/execution-protocol.js';
 const source=(path='calc.js',content='export const sum=(a,b)=>a+b;')=>({path,content,sha256:sha256(content),git_sha:createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0`).update(content).digest('hex')});
 function sample(count,distinct=false){const scope={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40),module:{adapter:'node-test/v2'},files:[source()]};return {runId:randomUUID(),scope,entries:Array.from({length:count},(_,i)=>{const test_case_id=randomUUID();return {script:{id:randomUUID(),test_case_id,version:1},scope:{...scope,files:[source(distinct?`calc${i}.js`:'calc.js')]},files:[{path:`__research_generated__/ct_${test_case_id.replaceAll('-','')}.test.mjs`,code:'// control'}]};})};}

@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,transaction,uuid} from './errors.js';
-import {preserveSnapshot,appendRunEvent} from './run-events.js';
+import {assert,text,transaction,uuid} from '../shared/errors.js';
+import {preserveSnapshot,appendRunEvent} from '../storage/run-events.js';
 export function createAssessmentService({pool,store}) {
   return {
     async list(runId){assert((await pool.query('SELECT id FROM research.runs WHERE id=$1',[runId])).rowCount,'Análise não encontrada.',404);return (await pool.query('SELECT * FROM research.experiment_assessments WHERE run_id=$1 ORDER BY created_at,id',[runId])).rows;},

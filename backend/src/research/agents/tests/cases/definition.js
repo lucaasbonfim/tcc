@@ -2,7 +2,6 @@ import {FIXED_BOUNDARY as boundary} from '../../fixed-boundary.js';
 
 
 import {testsOutputSchema} from './contracts.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 export const TESTS_AGENT={agent:'tests',version:'agent/1.1.0',contract_version:AGENT_CONTRACT_VERSION,

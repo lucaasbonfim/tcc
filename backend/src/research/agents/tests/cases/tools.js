@@ -1,10 +1,8 @@
-import {assert} from '../../../errors.js';
+import {assert} from '../../../shared/errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {validateOutput} from '../../validation.js';
-
 import {assertTestCoverage} from './parts.js';
 import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
-
 import {TESTS_AGENT} from './definition.js';
 
 export function createTestsAgentTools({input,definition=TESTS_AGENT,maxObservationChars=12000,requestClarification}) {

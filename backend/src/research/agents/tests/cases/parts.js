@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {assert} from '../../../errors.js';
+import {assert} from '../../../shared/errors.js';
 import {AGENTS} from '../../registry.js';
 import {agentMode} from '../../../runtime/policy.js';
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';

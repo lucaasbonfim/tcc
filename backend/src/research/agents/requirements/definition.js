@@ -4,7 +4,6 @@ import {FIXED_BOUNDARY as boundary} from '../fixed-boundary.js';
 
 import {PART_SCHEMA} from './parts.js';
 import {citationRequest} from './citations.js';
-
 import {AGENT_CONTRACT_VERSION} from '../../runtime/session-contract.js';
 
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});

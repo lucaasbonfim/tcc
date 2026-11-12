@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { assert, text, transaction, uuid } from './errors.js';
-import {AUTOMATION} from './agents/tests/scripts/definition.js';
-import {generatedPath,validateAutomation} from './agents/tests/scripts/contracts.js';
-import {testCoverage} from './agents/tests/cases/parts.js';
-import {planAutomationParts} from './agents/tests/scripts/parts.js';
-import {planModuleScopes} from './module-scopes.js';
-import {agentMode} from './runtime/policy.js';
-import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
-import {admitProduced,assertInitialGrant} from './orchestrator/workflow-policy.js';
-import {appendRunEvent,recordHumanEvent} from './run-events.js';
+import { assert, text, transaction, uuid } from '../shared/errors.js';
+import {AUTOMATION} from '../agents/tests/scripts/definition.js';
+import {generatedPath,validateAutomation} from '../agents/tests/scripts/contracts.js';
+import {testCoverage} from '../agents/tests/cases/parts.js';
+import {planAutomationParts} from '../agents/tests/scripts/parts.js';
+import {planModuleScopes} from '../sources/module-scopes.js';
+import {agentMode} from '../runtime/policy.js';
+import {AGENT_CONTRACT_VERSION} from '../runtime/session-contract.js';
+import {admitProduced,assertInitialGrant} from '../orchestrator/workflow-policy.js';
+import {appendRunEvent,recordHumanEvent} from '../storage/run-events.js';
 import {operationalReason,recordOperation} from './operational-record.js';
 
 export function createAutomationService({pool,store}) {

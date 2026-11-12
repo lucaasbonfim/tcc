@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pool from '../config/database.js';
-import { createArtifactStore } from './artifacts.js';
+import { createArtifactStore } from './storage/artifacts.js';
 import { createModelGateway } from './runtime/model-gateway.js';
 import { createResearchOrchestrator } from './orchestrator/index.js';
 import { assertMigrations } from './migrate.js';
@@ -8,14 +8,14 @@ import { assertMigrations } from './migrate.js';
 let stopping = false;
 let wake;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal,() => { stopping = true; wake?.(); });
-const processor = createResearchOrchestrator({pool,store:createArtifactStore(),generate:createModelGateway()});
+const orchestrator = createResearchOrchestrator({pool,store:createArtifactStore(),generate:createModelGateway()});
 try {
   await assertMigrations(pool);
   console.log('Worker de pesquisa iniciado. Execução externa somente via serviço executor validado.');
   while (!stopping) {
     try {
-      await processor.recoverExpired();
-      if (await processor.processOne()) continue;
+      await orchestrator.recoverExpired();
+      if (await orchestrator.processOne()) continue;
     } catch { console.error('Falha do worker; nova consulta em dois segundos. Verifique banco e armazenamento.'); }
     if (!stopping) await new Promise(resolve => { const timer = setTimeout(resolve,2000); wake = () => {clearTimeout(timer);resolve();}; });
   }

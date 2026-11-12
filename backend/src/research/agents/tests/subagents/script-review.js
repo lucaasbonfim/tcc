@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {assert,transaction} from '../../../errors.js';
+import {assert,transaction} from '../../../shared/errors.js';
 import {validateShape} from '../../../shared/validation.js';
 import {createAgentToolRegistry} from '../../../runtime/tool-registry.js';
 import {createRecordReader} from '../../../runtime/record-reader.js';
@@ -7,7 +7,7 @@ import {validateAutomationArtifact} from '../scripts/contracts.js';
 import {AGENT_CONTRACT_VERSION} from '../../../runtime/session-contract.js';
 import {createAgentSessionStore} from '../../../runtime/session-store.js';
 import {runAgentTask,taskFingerprint} from '../../../runtime/run-agent.js';
-import {recordMessageEvent} from '../../../run-events.js';
+import {recordMessageEvent} from '../../../storage/run-events.js';
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'};
 const responseSchema=obj({status:{type:'string',enum:['proposed_revision','no_change','inconclusive']},answer:string,expected_result:string,files:{type:'array',items:obj({path:string,code:string}),minItems:0,maxItems:1}});
 export const SCRIPT_REVIEW_AGENT={agent:'automation',version:'review/1.0.0',contract_version:AGENT_CONTRACT_VERSION,

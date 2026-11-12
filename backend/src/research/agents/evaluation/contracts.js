@@ -1,4 +1,4 @@
-import {assert} from '../../errors.js';
+import {assert} from '../../shared/errors.js';
 import {validateShape} from '../../shared/validation.js';
 export const CLASSIFICATIONS=['compatible','possible_functional_divergence','test_problem','environment_failure','inconclusive'];
 const string={type:'string'},arr=(items,maxItems=200,minItems=0)=>({type:'array',items,maxItems,minItems});

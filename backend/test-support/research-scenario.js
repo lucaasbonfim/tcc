@@ -1,7 +1,7 @@
-import {createProjectService} from '../src/research/projects.js';
-import {createRunService} from '../src/research/runs.js';
+import {createProjectService} from '../src/research/services/projects.js';
+import {createRunService} from '../src/research/services/runs.js';
 import {createResearchOrchestrator} from '../src/research/orchestrator/index.js';
-import {inspectRepository} from '../src/research/inspection.js';
+import {inspectRepository} from '../src/research/sources/inspection.js';
 import {repositoryFixture} from './repository-fixture.js';
 import {generatedPath} from '../src/research/agents/tests/scripts/contracts.js';
 

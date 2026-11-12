@@ -5,7 +5,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {migrate} from '../../src/research/migrate.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
 import {scenarioServices} from '../../test-support/research-scenario.js';
 import {autonomousFixtureTurn} from '../../test-support/autonomous-fixture.js';
 import {fixtureResult} from '../../../shared/execution-fixture.js';

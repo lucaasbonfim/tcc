@@ -1,5 +1,5 @@
-import {assert} from './errors.js';
-import {sha256,validateBundle,validateExecutionResult} from '../../../shared/execution-protocol.js';
+import {assert} from '../shared/errors.js';
+import {sha256,validateBundle,validateExecutionResult} from '../../../../shared/execution-protocol.js';
 
 export function createExecutorClient(config={url:process.env.EXECUTOR_URL,token:process.env.EXECUTOR_TOKEN,deployment:process.env.EXECUTOR_DEPLOYMENT_ID,policy:process.env.EXECUTOR_POLICY_SHA256,mode:process.env.EXECUTOR_MODE},fetchImpl=fetch) {
   const mode=config.mode || 'dedicated-vm',development=mode==='docker-desktop-dev';

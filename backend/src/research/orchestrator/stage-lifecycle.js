@@ -1,15 +1,12 @@
 import { randomUUID } from 'node:crypto';
-
 import {validateRequirement} from '../agents/requirements/contracts.js';
-import { transaction } from '../errors.js';
-
+import { transaction } from '../shared/errors.js';
 import {consolidateParts} from '../agents/requirements/parts.js';
 import {preservedOutput} from '../agents/requirements/citations.js';
 import {persistTestPart,testCoverage} from '../agents/tests/cases/parts.js';
-import {assert} from '../errors.js';
-
-import {appendRunEvent} from '../run-events.js';
-import {recordAttemptOutput} from '../attempt-snapshots.js';
+import {assert} from '../shared/errors.js';
+import {appendRunEvent} from '../storage/run-events.js';
+import {recordAttemptOutput} from '../storage/attempt-snapshots.js';
 
 export function createStageLifecycle({pool,store,automation,execution,evaluation}) {
   async function finish(job, { inputRef, outputRef, metadata, output, error, elapsed, automationValidated=false }) {

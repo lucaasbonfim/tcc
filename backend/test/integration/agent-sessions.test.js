@@ -8,7 +8,7 @@ import pg from 'pg';
 import {migrate} from '../../src/research/migrate.js';
 import {createAgentSessionStore} from '../../src/research/runtime/session-store.js';
 import {createAgentPolicy} from '../../src/research/runtime/policy.js';
-import {createArtifactStore} from '../../src/research/artifacts.js';
+import {createArtifactStore} from '../../src/research/storage/artifacts.js';
 import {scenarioServices,textualScenario} from '../../test-support/research-scenario.js';
 const url=process.env.TEST_DATABASE_URL;
 if(url && !new URL(url).pathname.startsWith('/tcc_test_'))throw new Error('Use banco tcc_test_.');
@@ -18,7 +18,7 @@ test('sessões preservam referências, orçamento, idempotência e posse concorr
   try {
     await migrate(pool);assert.deepEqual(await migrate(pool),[]);
     const services=scenarioServices(pool,store),{run,inspection}=await textualScenario(services);
-    const {createAutomationService}=await import('../../src/research/automation.js');
+    const {createAutomationService}=await import('../../src/research/services/automation.js');
     await createAutomationService({pool,store}).start(run.id,{inspection_id:inspection.inspection_id,module_root:'',justification:'Fixture AG-02.'});
     const stage=(await pool.query("SELECT * FROM research.stages WHERE run_id=$1 AND agent='automation'",[run.id])).rows[0];
     const part=(await pool.query('SELECT * FROM research.automation_parts WHERE run_id=$1 LIMIT 1',[run.id])).rows[0];

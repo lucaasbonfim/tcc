@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { parse } from 'acorn';
 import { posix } from 'node:path';
 import { githubJson, parseRepository } from './github.js';
-import { assert } from './errors.js';
+import { assert } from '../shared/errors.js';
 
 export const INSPECTION_LIMITS = Object.freeze({ maxFiles:512, maxFileBytes:30000, maxTotalBytes:2097152, maxDepth:8, maxTreeEntries:5000,maxDurationMs:60000,batchSize:24,concurrency:4 });
 export function safePath(path) {

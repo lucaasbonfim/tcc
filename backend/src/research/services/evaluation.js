@@ -1,10 +1,10 @@
 import {randomUUID} from 'node:crypto';
-import {assert,text,transaction} from './errors.js';
-import {EVALUATION} from './agents/evaluation/definition.js';
-import {CLASSIFICATIONS} from './agents/evaluation/contracts.js';
-import {agentMode} from './runtime/policy.js';
-import {AGENT_CONTRACT_VERSION} from './runtime/session-contract.js';
-import {recordHumanEvent} from './run-events.js';
+import {assert,text,transaction} from '../shared/errors.js';
+import {EVALUATION} from '../agents/evaluation/definition.js';
+import {CLASSIFICATIONS} from '../agents/evaluation/contracts.js';
+import {agentMode} from '../runtime/policy.js';
+import {AGENT_CONTRACT_VERSION} from '../runtime/session-contract.js';
+import {recordHumanEvent} from '../storage/run-events.js';
 import {verifyEvaluationProvenance} from './evaluation-provenance.js';
 
 export function createEvaluationService({pool,store}) {

@@ -1,8 +1,7 @@
-import {assert} from '../../errors.js';
+import {assert} from '../../shared/errors.js';
 import {validateShape} from '../../shared/validation.js';
 import {evaluationRequestSchema,validateEvaluation} from './contracts.js';
 import {createAgentToolRegistry} from '../../runtime/tool-registry.js';
-
 import {nextUnreadOffset} from '../../runtime/record-reader.js';
 import {EVALUATION_SECTIONS as sections} from './contracts.js';
 import {EVALUATION_AGENT} from './definition.js';

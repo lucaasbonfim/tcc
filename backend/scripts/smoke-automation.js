@@ -1,10 +1,11 @@
 // Manual, paid Gemini contract check. Real public source; synthetic oracle. Never executes generated code.
 import 'dotenv/config';
 import {randomUUID} from 'node:crypto';
-import {resolveRepository} from '../src/research/github.js';
-import {inspectRepository} from '../src/research/inspection.js';
+import {resolveRepository} from '../src/research/sources/github.js';
+import {inspectRepository} from '../src/research/sources/inspection.js';
 import {AUTOMATION} from '../src/research/agents/tests/scripts/definition.js';
-import {buildScope,generatedPath,validateAutomation} from '../src/research/agents/tests/scripts/contracts.js';
+import {buildScope} from '../src/research/sources/scope.js';
+import {generatedPath,validateAutomation} from '../src/research/agents/tests/scripts/contracts.js';
 import {createModelGateway,GENERATION_PARAMETERS} from '../src/research/runtime/model-gateway.js';
 import {getGeminiModel,getGeminiApiKey} from '../src/config/gemini.js';
 

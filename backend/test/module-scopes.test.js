@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectRepository,INSPECTION_LIMITS} from '../src/research/inspection.js';
-import {planModuleScopes} from '../src/research/module-scopes.js';
+import {inspectRepository,INSPECTION_LIMITS} from '../src/research/sources/inspection.js';
+import {planModuleScopes} from '../src/research/sources/module-scopes.js';
 import {repositoryFixture} from '../test-support/repository-fixture.js';
 const version={repository_url:'https://github.com/example/repo',commit_sha:'a'.repeat(40)};
 
